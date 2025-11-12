@@ -1,15 +1,15 @@
-import { Outlet, Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
-import './Layout.css'
+import { Outlet, Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import "./Layout.css";
 
 const Layout = () => {
-  const { user, logout } = useAuth()
-  const navigate = useNavigate()
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   const handleLogout = () => {
-    logout()
-    navigate('/login')
-  }
+    logout();
+    navigate("/login");
+  };
 
   return (
     <div className="layout">
@@ -20,8 +20,9 @@ const Layout = () => {
           </Link>
           <nav className="nav">
             <Link to="/blogs">블로그</Link>
-            <Link to="/query">질의하기</Link>
+            <Link to="/query">AI</Link>
             <Link to="/resume">이력서/자기소개서</Link>
+            <Link to="/applications">지원 관리</Link>
           </nav>
           <div className="user-menu">
             <span className="user-name">{user?.name}</span>
@@ -35,8 +36,7 @@ const Layout = () => {
         <Outlet />
       </main>
     </div>
-  )
-}
+  );
+};
 
-export default Layout
-
+export default Layout;

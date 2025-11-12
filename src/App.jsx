@@ -8,6 +8,7 @@ import BlogDetailPage from './pages/BlogDetailPage'
 import BlogWritePage from './pages/BlogWritePage'
 import RAGQueryPage from './pages/RAGQueryPage'
 import ResumePage from './pages/ResumePage'
+import ApplicationsPage from './pages/ApplicationsPage'
 import './App.css'
 
 function App() {
@@ -31,6 +32,7 @@ function App() {
             <Route path="blogs/edit/:id" element={<BlogWritePage />} />
             <Route path="query" element={<RAGQueryPage />} />
             <Route path="resume" element={<ResumePage />} />
+            <Route path="applications" element={<ApplicationsPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

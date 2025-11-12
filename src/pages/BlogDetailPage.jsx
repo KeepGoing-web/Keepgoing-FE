@@ -1,27 +1,33 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import './BlogDetailPage.css'
+import { fetchBlog } from '../api/client'
 
 const BlogDetailPage = () => {
   const { id } = useParams()
   const [post, setPost] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
-    // TODO: API 호출로 블로그 상세 정보 가져오기
-    if (id) {
-      const mockPost = {
-        id,
-        title: '첫 번째 포스트',
-        content: '이것은 첫 번째 포스트의 전체 내용입니다...',
-        createdAt: '2024-01-01',
-        updatedAt: '2024-01-01',
-        visibility: 'PUBLIC',
-        aiCollectable: true,
+    const load = async () => {
+      if (!id) return
+      setLoading(true)
+      setError(null)
+      try {
+        const res = await fetchBlog(id)
+        setPost(res)
+      } catch (e) {
+        if (e.message === 'NOT_FOUND') {
+          setPost(null)
+        } else {
+          setError('불러오기에 실패했습니다.')
+        }
+      } finally {
+        setLoading(false)
       }
-      setPost(mockPost)
-      setLoading(false)
     }
+    load()
   }, [id])
 
   const getVisibilityLabel = (visibility) => {
@@ -47,6 +53,7 @@ const BlogDetailPage = () => {
 
   return (
     <div className="blog-detail-page">
+      {error && <div className="error" style={{ marginBottom: 12 }}>{error}</div>}
       <div className="blog-actions">
         <Link to="/blogs" className="back-button">
           ← 목록으로
@@ -65,11 +72,23 @@ const BlogDetailPage = () => {
             {post.aiCollectable && (
               <span className="ai-badge">AI 수집 가능</span>
             )}
+            {post.category && (
+              <span className="category-badge" style={{ marginLeft: 8 }}>
+                #{post.category.name}
+              </span>
+            )}
             <span className="blog-date">
               작성일: {new Date(post.createdAt).toLocaleDateString('ko-KR')}
             </span>
           </div>
         </header>
+        {Array.isArray(post.tags) && post.tags.length > 0 && (
+          <div className="tag-list" style={{ marginBottom: 12, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {post.tags.map((t) => (
+              <span key={t.id} className="tag-badge">#{t.name}</span>
+            ))}
+          </div>
+        )}
         <div className="blog-content">{post.content}</div>
       </article>
     </div>

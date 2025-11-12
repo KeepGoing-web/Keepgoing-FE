@@ -97,3 +97,5 @@ storybook-static
 tmp/
 temp/
 
+
+API_SPEC.md

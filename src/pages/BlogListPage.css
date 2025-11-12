@@ -119,3 +119,157 @@
   color: #666;
 }
 
+/* Filters */
+.filters {
+  background: #fff;
+  border: 1px solid #eef0f3;
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+
+.filters input,
+.filters select {
+  padding: 10px 12px;
+  border: 1px solid #dfe3ea;
+  border-radius: 8px;
+  background: #f9fbfc;
+  color: #333;
+  outline: none;
+  transition: border-color 0.2s, background-color 0.2s, box-shadow 0.2s;
+}
+
+.filters input:focus,
+.filters select:focus {
+  border-color: #667eea;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+}
+
+.filters select[multiple] {
+  min-height: 44px;
+}
+
+/* Tokenizer & suggestions */
+.tag-tokenizer {
+  position: relative;
+  min-width: 220px;
+  flex: 1;
+}
+
+.suggestion-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #e6e9ef;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  padding: 6px;
+  z-index: 5;
+  display: grid;
+  gap: 6px;
+}
+
+.suggestion-item {
+  border: 0;
+  background: #f6f9ff;
+  color: #2f3e9e;
+  padding: 8px 10px;
+  border-radius: 8px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.06s;
+}
+
+.suggestion-item:hover {
+  background: #eef3ff;
+}
+
+/* Badges */
+.category-badge,
+.tag-badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3742fa;
+  font-size: 0.78rem;
+  border: 1px solid #dde3ff;
+}
+
+.tag-badge {
+  background: #eaf7ff;
+  color: #0077b6;
+  border-color: #d6eefc;
+}
+
+/* Chips */
+.tag-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  background: #f1f5ff;
+  border: 1px solid #e0e7ff;
+  color: #334155;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chip-remove {
+  background: transparent;
+  border: 0;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+.chip-remove:hover {
+  color: #ef4444;
+}
+
+/* Pagination */
+.pagination button {
+  padding: 8px 12px;
+  border: 1px solid #dfe3ea;
+  background: #fff;
+  color: #333;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.pagination button:hover:not(:disabled) {
+  background: #f6f8fb;
+  border-color: #cfd6e0;
+}
+
+.pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Reset button */
+.reset-button {
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #334155;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.reset-button:hover {
+  background: #eef2f7;
+}
+
