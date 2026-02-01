@@ -151,8 +151,13 @@ export async function fetchBlogs(params = {}) {
   });
   const data = await handleResponse(res);
   // 백엔드 PagedResponse를 프론트엔드 형식으로 변환
+  // postId -> id 변환
+  const posts = (data.contents || []).map((post) => ({
+    ...post,
+    id: post.postId,
+  }));
   return {
-    posts: data.contents || [],
+    posts,
     total: data.totalElements || 0,
     page: (data.page || 0) + 1, // 1-indexed로 변환
     size: data.size || size,
@@ -185,7 +190,9 @@ export async function fetchBlog(id) {
     error.status = 404;
     throw error;
   }
-  return handleResponse(res);
+  const data = await handleResponse(res);
+  // postId -> id 변환
+  return { ...data, id: data.postId };
 }
 
 export async function createBlog(payload) {
@@ -225,7 +232,9 @@ export async function createBlog(payload) {
     headers: getAuthHeaders(),
     body: JSON.stringify(backendPayload),
   });
-  return handleResponse(res);
+  const data = await handleResponse(res);
+  // postId -> id 변환
+  return { ...data, id: data.postId };
 }
 
 export async function updateBlog(id, payload) {
@@ -277,7 +286,9 @@ export async function updateBlog(id, payload) {
     error.status = 404;
     throw error;
   }
-  return handleResponse(res);
+  const data = await handleResponse(res);
+  // postId -> id 변환
+  return { ...data, id: data.postId };
 }
 
 export async function deleteBlog(id) {
