@@ -1,38 +1,47 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
+import { login as apiLogin, signup as apiSignup } from '../api/client'
 
 const AuthContext = createContext(undefined)
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // TODO: 토큰에서 사용자 정보 복원
+    // 저장된 토큰과 사용자 정보 복원
     const token = localStorage.getItem('token')
     if (token) {
-      // TODO: API 호출로 사용자 정보 가져오기
-      // 임시로 로컬 스토리지에서 사용자 정보 가져오기
       const savedUser = localStorage.getItem('user')
       if (savedUser) {
         setUser(JSON.parse(savedUser))
       }
     }
+    setLoading(false)
   }, [])
 
   const login = async (email, password) => {
-    // TODO: 실제 API 호출
-    // 임시로 로컬 스토리지에 저장
-    const mockUser = {
-      id: '1',
+    const response = await apiLogin(email, password)
+    // 백엔드 응답: { accessToken, refreshToken, userId }
+    const userData = {
+      id: response.userId,
       email,
-      name: '사용자',
     }
-    localStorage.setItem('token', 'mock-token')
-    localStorage.setItem('user', JSON.stringify(mockUser))
-    setUser(mockUser)
+    localStorage.setItem('token', response.accessToken)
+    localStorage.setItem('refreshToken', response.refreshToken)
+    localStorage.setItem('user', JSON.stringify(userData))
+    setUser(userData)
+    return response
+  }
+
+  const signup = async (email, password, name) => {
+    const response = await apiSignup(email, password, name)
+    // 회원가입 성공 후 자동 로그인하지 않음 (로그인 페이지로 이동)
+    return response
   }
 
   const logout = () => {
     localStorage.removeItem('token')
+    localStorage.removeItem('refreshToken')
     localStorage.removeItem('user')
     setUser(null)
   }
@@ -42,8 +51,10 @@ export const AuthProvider = ({ children }) => {
       value={{
         user,
         login,
+        signup,
         logout,
         isAuthenticated: !!user,
+        loading,
       }}
     >
       {children}

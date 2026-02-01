@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import './LoginPage.css'
 
@@ -10,6 +10,8 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false)
   const { login } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const successMessage = location.state?.message
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -20,7 +22,11 @@ const LoginPage = () => {
       await login(email, password)
       navigate('/blogs')
     } catch (err) {
-      setError('로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.')
+      if (err.code === 'AUTH_INVALID_CREDENTIALS') {
+        setError('이메일 또는 비밀번호가 올바르지 않습니다.')
+      } else {
+        setError(err.message || '로그인에 실패했습니다.')
+      }
     } finally {
       setLoading(false)
     }
@@ -54,11 +60,15 @@ const LoginPage = () => {
               placeholder="비밀번호를 입력하세요"
             />
           </div>
+          {successMessage && <div className="success-message">{successMessage}</div>}
           {error && <div className="error-message">{error}</div>}
           <button type="submit" className="login-button" disabled={loading}>
             {loading ? '로그인 중...' : '로그인'}
           </button>
         </form>
+        <p className="auth-link">
+          계정이 없으신가요? <Link to="/signup">회원가입</Link>
+        </p>
       </div>
     </div>
   )

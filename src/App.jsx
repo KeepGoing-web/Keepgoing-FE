@@ -3,6 +3,7 @@ import { AuthProvider } from './contexts/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
 import LoginPage from './pages/LoginPage'
+import SignupPage from './pages/SignupPage'
 import BlogListPage from './pages/BlogListPage'
 import BlogDetailPage from './pages/BlogDetailPage'
 import BlogWritePage from './pages/BlogWritePage'
@@ -17,6 +18,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
           <Route
             path="/"
             element={
