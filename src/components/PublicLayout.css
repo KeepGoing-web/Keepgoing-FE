@@ -1,0 +1,145 @@
+/* ============================================================
+   PublicLayout — Minimal dark header for public-facing pages
+   ============================================================ */
+
+.public-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-secondary);
+}
+
+/* ── Header ─────────────────────────────────────────────── */
+
+.public-header {
+  background-color: var(--bg-overlay);
+  border-bottom: 1px solid var(--border);
+  padding: 0 1.25rem;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.public-header-content {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Logo — same monospace style as authenticated layout */
+.public-logo {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--accent);
+  text-decoration: none;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: color var(--transition-fast);
+}
+
+.public-logo::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: var(--accent);
+  border-radius: 50%;
+  opacity: 0.8;
+  box-shadow: 0 0 6px var(--accent);
+}
+
+.public-logo:hover {
+  color: var(--accent-hover);
+}
+
+/* Login button */
+.public-login-btn {
+  padding: 4px 12px;
+  background: transparent;
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-family: var(--font-sans);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color var(--transition-fast),
+    border-color var(--transition-fast),
+    background-color var(--transition-fast);
+  white-space: nowrap;
+}
+
+.public-login-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent-dim);
+  background-color: var(--accent-glow);
+}
+
+/* ── Auth-aware header actions ──────────────────────────── */
+
+.public-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.public-user-menu {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.public-user-initial {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background-color: var(--accent-glow-md);
+  border: 1px solid var(--accent-dim);
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+}
+
+.public-dashboard-link {
+  padding: 4px 12px;
+  background: transparent;
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-family: var(--font-sans);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color var(--transition-fast),
+    border-color var(--transition-fast),
+    background-color var(--transition-fast);
+  white-space: nowrap;
+}
+
+.public-dashboard-link:hover {
+  color: var(--accent);
+  border-color: var(--accent-dim);
+  background-color: var(--accent-glow);
+}
+
+/* ── Main content ───────────────────────────────────────── */
+
+.public-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}

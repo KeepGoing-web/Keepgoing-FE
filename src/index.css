@@ -1,24 +1,225 @@
+/* ============================================================
+   Global Theme — Teal (청록) 학습 최적화 팔레트
+   인지과학 기반: 안정 + 성장 + 디지털 지식 체계 이미지
+   Dark/Light 모드 지원
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* ── Shared tokens ──────────────────────────────────── */
+
+  /* Spacing rhythm */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Typography */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Transitions */
+  --transition-fast: 120ms ease;
+  --transition-base: 200ms ease;
+  --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Dark Theme (default) ────────────────────────────── */
+
+:root,
+[data-theme="dark"] {
+  /* Core backgrounds (Dark Navy — 인지부하 감소, 장시간 학습 최적) */
+  --bg-primary:   #1a1f2e;
+  --bg-secondary: #151a24;
+  --bg-surface:   #262d3d;
+  --bg-hover:     #333b4f;
+  --bg-overlay:   #0f1319;
+
+  /* Text (Cool neutral — 가독성 + 눈 피로 최소화) */
+  --text-primary:   #d1d9e6;
+  --text-secondary: #9bacc0;
+  --text-muted:     #8a9bb2;
+  --text-faint:     #6a798e;
+
+  /* Accent (Teal — 안정 + 성장 + 몰입) */
+  --accent:          #2dd4bf;
+  --accent-dim:      #14b8a6;
+  --accent-hover:    #5eead4;
+  --accent-glow:     rgba(45, 212, 191, 0.12);
+  --accent-glow-md:  rgba(45, 212, 191, 0.20);
+
+  /* Accent alpha scale (테마 인식 투명도 단계) */
+  --accent-border:        rgba(45, 212, 191, 0.25);
+  --accent-border-hover:  rgba(45, 212, 191, 0.35);
+  --accent-border-active: rgba(45, 212, 191, 0.50);
+
+  /* Borders */
+  --border:       #262d3d;
+  --border-light: #333b4f;
+
+  /* Tags */
+  --tag-bg:   rgba(45, 212, 191, 0.10);
+  --tag-text: #2dd4bf;
+
+  /* Status badges */
+  --badge-public-bg:   rgba(166, 227, 161, 0.12);
+  --badge-public-text: #a6e3a1;
+  --badge-private-bg:  rgba(243, 139, 168, 0.12);
+  --badge-private-text:#f38ba8;
+  --badge-ai-bg:       rgba(45, 212, 191, 0.12);
+  --badge-ai-text:     #2dd4bf;
+
+  /* Shadows */
+  --shadow-overlay: rgba(0, 0, 0, 0.4);
+  --shadow-heavy:   rgba(0, 0, 0, 0.5);
+
+  /* Functional */
+  --success: #a6e3a1;
+  --danger:  #f38ba8;
+  --warning: #fab387;
+  --info:    #7dd3fc;
+
+  color-scheme: dark;
+}
+
+/* ── Light Theme ─────────────────────────────────────── */
+
+[data-theme="light"] {
+  /* Core backgrounds (미색 — 인지부하 최소화, 밝은 환경 최적) */
+  --bg-primary:   #ffffff;
+  --bg-secondary: #f5f7fa;
+  --bg-surface:   #edf0f5;
+  --bg-hover:     #e2e7ee;
+  --bg-overlay:   #eef1f6;
+
+  /* Text (Dark navy — 강한 가독성) */
+  --text-primary:   #1a2332;
+  --text-secondary: #4a5a6f;
+  --text-muted:     #556a7f;
+  --text-faint:     #7d8896;
+
+  /* Accent (Deeper teal — 밝은 배경 위 충분한 대비 4.5:1+) */
+  --accent:          #0a7169;
+  --accent-dim:      #0d9488;
+  --accent-hover:    #0a635c;
+  --accent-glow:     rgba(10, 113, 105, 0.12);
+  --accent-glow-md:  rgba(10, 113, 105, 0.22);
+
+  /* Accent alpha scale (테마 인식 투명도 단계) */
+  --accent-border:        rgba(10, 113, 105, 0.25);
+  --accent-border-hover:  rgba(10, 113, 105, 0.35);
+  --accent-border-active: rgba(10, 113, 105, 0.50);
+
+  /* Borders */
+  --border:       #e2e8f0;
+  --border-light: #cbd5e1;
+
+  /* Tags */
+  --tag-bg:   rgba(10, 113, 105, 0.08);
+  --tag-text: #0a7169;
+
+  /* Status badges */
+  --badge-public-bg:   rgba(22, 101, 52, 0.10);
+  --badge-public-text: #166534;
+  --badge-private-bg:  rgba(185, 28, 28, 0.08);
+  --badge-private-text:#b91c1c;
+  --badge-ai-bg:       rgba(10, 113, 105, 0.08);
+  --badge-ai-text:     #0a7169;
+
+  /* Shadows */
+  --shadow-overlay: rgba(0, 0, 0, 0.12);
+  --shadow-heavy:   rgba(0, 0, 0, 0.18);
+
+  /* Functional */
+  --success: #147339;
+  --danger:  #b91c1c;
+  --warning: #9a4a08;
+  --info:    #0369a1;
+
+  color-scheme: light;
+}
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background-color: #f5f5f5;
+html {
+  scroll-behavior: smooth;
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+body {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.6;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code, pre, kbd, .mono {
+  font-family: var(--font-mono);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: var(--font-sans);
+  cursor: pointer;
+  background: none;
+  border: none;
+  color: inherit;
+}
+
+input, select, textarea {
+  font-family: var(--font-sans);
+}
+
+select {
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+select option {
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--bg-surface);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--bg-hover);
 }
 
 #root {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
+/* Selection */
+::selection {
+  background: var(--accent-glow-md);
+  color: var(--accent);
+}

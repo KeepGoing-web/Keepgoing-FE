@@ -1,0 +1,371 @@
+/* ============================================================
+   PublicProfilePage — Clean reading layout, Catppuccin Mocha
+   ============================================================ */
+
+.pub-profile-page {
+  width: 100%;
+  padding: 3rem 1.25rem 5rem;
+}
+
+.pub-container {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+/* ── Loading / Error ────────────────────────────────────── */
+
+.pub-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 5rem 0;
+}
+
+.pub-loading-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.5;
+  animation: pub-dot-pulse 1.2s ease-in-out infinite;
+}
+
+.pub-loading-dot:nth-child(2) { animation-delay: 0.2s; }
+.pub-loading-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes pub-dot-pulse {
+  0%, 80%, 100% { opacity: 0.2; transform: scale(0.85); }
+  40%            { opacity: 1;   transform: scale(1.1); }
+}
+
+.pub-error {
+  text-align: center;
+  padding: 5rem 0;
+  color: var(--badge-private-text);
+  font-size: 0.9rem;
+}
+
+/* ── Profile card ───────────────────────────────────────── */
+
+.pub-profile-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1.25rem;
+  padding: 2.5rem 0 2rem;
+  animation: pub-fade-in 0.4s ease both;
+}
+
+@keyframes pub-fade-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.pub-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--accent-glow-md);
+  border: 2px solid var(--accent-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: -0.02em;
+  flex-shrink: 0;
+  box-shadow: 0 0 24px var(--accent-glow);
+}
+
+.pub-profile-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.pub-profile-name {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.pub-profile-handle {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  font-family: var(--font-mono);
+}
+
+.pub-profile-sep {
+  color: var(--text-faint);
+}
+
+.pub-profile-bio {
+  font-family: var(--font-sans);
+  color: var(--text-secondary);
+}
+
+/* Tech stack tags */
+.pub-tech-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-top: 0.25rem;
+}
+
+.pub-tech-tag {
+  padding: 3px 10px;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+  border: 1px solid var(--accent-glow);
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-family: var(--font-mono);
+  letter-spacing: 0.01em;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.pub-tech-tag:hover {
+  background: var(--accent-glow-md);
+  border-color: var(--accent-border-hover);
+}
+
+/* ── Divider ────────────────────────────────────────────── */
+
+.pub-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 0.5rem 0 2rem;
+  opacity: 0.7;
+}
+
+/* ── Posts section ──────────────────────────────────────── */
+
+.pub-posts-section {
+  animation: pub-fade-in 0.4s 0.1s ease both;
+}
+
+.pub-posts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.pub-posts-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  letter-spacing: 0.01em;
+}
+
+.pub-posts-icon {
+  font-size: 1.1rem;
+}
+
+.pub-posts-count {
+  color: var(--text-muted);
+  font-weight: 400;
+  font-size: 0.9rem;
+  font-family: var(--font-mono);
+}
+
+.pub-sort-btn {
+  background: transparent;
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-family: var(--font-mono);
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: color var(--transition-fast),
+    border-color var(--transition-fast),
+    background-color var(--transition-fast);
+  white-space: nowrap;
+}
+
+.pub-sort-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent-dim);
+  background-color: var(--accent-glow);
+}
+
+/* ── Post list ──────────────────────────────────────────── */
+
+.pub-post-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pub-post-item {
+  animation: pub-fade-in 0.3s ease both;
+}
+
+.pub-post-link {
+  display: block;
+  padding: 1.25rem 1.5rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  text-decoration: none;
+  transition: border-color var(--transition-base),
+    background-color var(--transition-base),
+    box-shadow var(--transition-base);
+}
+
+.pub-post-link:hover {
+  border-color: var(--accent-dim);
+  background-color: var(--bg-hover);
+  box-shadow: 0 2px 16px var(--accent-glow);
+}
+
+.pub-post-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 0.5rem;
+  line-height: 1.4;
+  transition: color var(--transition-fast);
+}
+
+.pub-post-link:hover .pub-post-title {
+  color: var(--accent);
+}
+
+.pub-post-preview {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0 0 0.75rem;
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.pub-post-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.pub-post-tags {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.pub-post-tag {
+  color: var(--tag-text);
+  font-size: 0.78rem;
+}
+
+.pub-post-meta-sep {
+  color: var(--text-faint);
+  font-size: 0.75rem;
+}
+
+.pub-post-date,
+.pub-post-readtime {
+  color: var(--text-muted);
+}
+
+/* ── Empty state ────────────────────────────────────────── */
+
+.pub-empty {
+  text-align: center;
+  padding: 4rem 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+/* ── Pagination ─────────────────────────────────────────── */
+
+.pub-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.pub-page-btn {
+  padding: 5px 16px;
+  background: transparent;
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: color var(--transition-fast),
+    border-color var(--transition-fast),
+    background-color var(--transition-fast);
+}
+
+.pub-page-btn:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent-dim);
+  background-color: var(--accent-glow);
+}
+
+.pub-page-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.pub-page-info {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  min-width: 60px;
+  text-align: center;
+}
+
+/* ── Responsive ─────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .pub-profile-page {
+    padding: 2rem 1rem 4rem;
+  }
+
+  .pub-profile-card {
+    padding: 1.5rem 0 1.5rem;
+  }
+
+  .pub-profile-name {
+    font-size: 1.4rem;
+  }
+
+  .pub-post-link {
+    padding: 1rem 1.125rem;
+  }
+}

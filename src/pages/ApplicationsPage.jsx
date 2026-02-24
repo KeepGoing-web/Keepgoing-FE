@@ -1,6 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import { fetchApplications, createApplicationFromUrl, updateApplication, deleteApplication } from '../api/client'
+import { useToast } from '../contexts/ToastContext'
+import { useConfirm } from '../components/ConfirmModal'
 import './ApplicationsPage.css'
+
+function isSafeUrl(url) {
+  try {
+    const { protocol } = new URL(url)
+    return protocol === 'https:' || protocol === 'http:'
+  } catch {
+    return false
+  }
+}
 
 const STATUS_OPTIONS = [
   { value: 'APPLIED', label: '지원완료' },
@@ -11,6 +22,8 @@ const STATUS_OPTIONS = [
 ]
 
 export default function ApplicationsPage() {
+  const toast = useToast()
+  const confirm = useConfirm()
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [url, setUrl] = useState('')
@@ -60,8 +73,8 @@ export default function ApplicationsPage() {
       setItems((prev) => [created, ...prev])
       setUrl('')
       setNotes('')
-    } catch (e) {
-      alert('추가에 실패했습니다.')
+    } catch {
+      toast.error('추가에 실패했습니다.')
     }
   }
 
@@ -70,17 +83,23 @@ export default function ApplicationsPage() {
       const updated = await updateApplication(id, { status: nextStatus })
       setItems((prev) => prev.map((a) => (a.id === id ? updated : a)))
     } catch {
-      alert('상태 변경에 실패했습니다.')
+      toast.error('상태 변경에 실패했습니다.')
     }
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('이 지원 내역을 삭제할까요?')) return
+    const ok = await confirm('이 지원 내역을 삭제할까요?', {
+      title: '지원 내역 삭제',
+      confirmLabel: '삭제',
+      cancelLabel: '취소',
+    })
+    if (!ok) return
     try {
       await deleteApplication(id)
       setItems((prev) => prev.filter((a) => a.id !== id))
+      toast.success('지원 내역이 삭제되었습니다.')
     } catch {
-      alert('삭제에 실패했습니다.')
+      toast.error('삭제에 실패했습니다.')
     }
   }
 
@@ -127,14 +146,26 @@ export default function ApplicationsPage() {
       {loading ? (
         <div className="loading">로딩 중...</div>
       ) : filtered.length === 0 ? (
-        <div className="empty">등록된 지원 내역이 없습니다.</div>
+        <div className="empty-state">
+          <div className="empty-state-icon">📋</div>
+          <h3 className="empty-state-title">지원 내역이 없습니다</h3>
+          <p className="empty-state-desc">
+            채용 공고 URL을 입력하면 자동으로 정보를 파싱하여 등록합니다.
+          </p>
+          <p className="empty-state-hint">
+            사람인, 원티드, 잡코리아 등의 채용 공고 URL을 지원합니다.
+          </p>
+        </div>
       ) : (
         <div className="app-list">
           {filtered.map((a) => (
             <div key={a.id} className="app-card">
               <div className="app-header">
                 <div className="app-title">
-                  <a href={a.url} target="_blank" rel="noreferrer">{a.title}</a>
+                  {isSafeUrl(a.url)
+                    ? <a href={a.url} target="_blank" rel="noreferrer noopener">{a.title}</a>
+                    : <span title="유효하지 않은 URL">{a.title}</span>
+                  }
                   <span className="company">· {a.company}</span>
                 </div>
                 <div className="app-meta">

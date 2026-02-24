@@ -1,0 +1,270 @@
+/* ============================================================
+   ExplorePage — Discover other users' blogs
+   ============================================================ */
+
+.explore-page {
+  padding: 2rem 1.5rem;
+  max-width: 860px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ── Header ─────────────────────────────────────────────── */
+
+.explore-header {
+  margin-bottom: 1.5rem;
+}
+
+.explore-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 0.25rem;
+}
+
+.explore-subtitle {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* ── Search ─────────────────────────────────────────────── */
+
+.explore-search-wrap {
+  position: relative;
+  margin-bottom: 1.5rem;
+}
+
+.explore-search-icon {
+  position: absolute;
+  top: 50%;
+  left: 0.75rem;
+  transform: translateY(-50%);
+  color: var(--text-faint);
+  font-size: 0.85rem;
+  pointer-events: none;
+}
+
+.explore-search {
+  width: 100%;
+  padding: 0.6rem 0.75rem 0.6rem 2.2rem;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-family: var(--font-sans);
+  transition: border-color var(--transition-fast),
+    background-color var(--transition-fast);
+  box-sizing: border-box;
+}
+
+.explore-search::placeholder {
+  color: var(--text-faint);
+}
+
+.explore-search:focus {
+  outline: none;
+  border-color: var(--accent-dim);
+  background-color: var(--bg-secondary);
+}
+
+/* ── User grid ──────────────────────────────────────────── */
+
+.explore-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+@media (max-width: 640px) {
+  .explore-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── User card ──────────────────────────────────────────── */
+
+.explore-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 1rem;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  text-decoration: none;
+  transition: border-color var(--transition-fast),
+    background-color var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.explore-card:hover {
+  border-color: var(--accent-dim);
+  background-color: var(--accent-glow);
+  transform: translateY(-1px);
+}
+
+.explore-card-top {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.explore-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background-color: var(--accent-glow-md);
+  border: 1px solid var(--accent-dim);
+  color: var(--accent);
+  font-size: 0.9rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+}
+
+.explore-card-info {
+  min-width: 0;
+}
+
+.explore-card-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.explore-card-handle {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin: 0;
+  font-family: var(--font-mono);
+}
+
+.explore-card-bio {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.explore-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.explore-card-techs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.explore-tech-tag {
+  padding: 1px 6px;
+  background-color: var(--accent-glow);
+  border: 1px solid var(--accent-dim);
+  border-radius: 3px;
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.explore-card-posts {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── States ─────────────────────────────────────────────── */
+
+.explore-loading {
+  display: flex;
+  justify-content: center;
+  padding: 3rem 0;
+  gap: 6px;
+}
+
+.explore-loading-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--accent-dim);
+  animation: exploreBounce 1.4s infinite ease-in-out both;
+}
+
+.explore-loading-dot:nth-child(1) { animation-delay: -0.32s; }
+.explore-loading-dot:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes exploreBounce {
+  0%, 80%, 100% { transform: scale(0.4); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+.explore-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.explore-empty-icon {
+  font-size: 2rem;
+  opacity: 0.3;
+  margin-bottom: 0.5rem;
+}
+
+/* ── Pagination ─────────────────────────────────────────── */
+
+.explore-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.explore-page-btn {
+  padding: 4px 12px;
+  background: transparent;
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.explore-page-btn:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent-dim);
+}
+
+.explore-page-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.explore-page-info {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}

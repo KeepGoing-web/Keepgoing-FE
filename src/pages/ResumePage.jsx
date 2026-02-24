@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { useToast } from '../contexts/ToastContext'
 import './ResumePage.css'
 
 const ResumePage = () => {
+  const toast = useToast()
   const [resumeType, setResumeType] = useState('resume')
   const [additionalInfo, setAdditionalInfo] = useState('')
   const [generatedContent, setGeneratedContent] = useState('')
@@ -18,7 +20,7 @@ const ResumePage = () => {
       setGeneratedContent(mockContent)
     } catch (error) {
       console.error('생성 실패:', error)
-      alert('생성에 실패했습니다.')
+      toast.error('생성에 실패했습니다.')
     } finally {
       setLoading(false)
     }
@@ -26,7 +28,7 @@ const ResumePage = () => {
 
   const handleCopy = () => {
     navigator.clipboard.writeText(generatedContent)
-    alert('클립보드에 복사되었습니다.')
+    toast.success('클립보드에 복사되었습니다.')
   }
 
   const handleDownload = () => {
@@ -47,6 +49,8 @@ const ResumePage = () => {
         <h1>이력서 / 자기소개서 생성</h1>
         <p className="page-description">
           작성한 포스트들을 기반으로 AI가 이력서나 자기소개서를 생성합니다.
+          <br />
+          <span className="page-hint">AI 수집이 허용된 포스트의 내용이 분석됩니다. 추가 정보를 입력하면 더 정확한 결과를 얻을 수 있습니다.</span>
         </p>
       </div>
       <div className="resume-container">

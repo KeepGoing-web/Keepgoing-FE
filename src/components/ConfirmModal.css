@@ -1,0 +1,109 @@
+/* ============================================================
+   Confirm Modal — Dark theme confirm() replacement
+   ============================================================ */
+
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: confirmFadeIn 150ms ease;
+}
+
+@keyframes confirmFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.confirm-modal {
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  padding: 24px;
+  max-width: 380px;
+  width: calc(100% - 32px);
+  box-shadow: 0 8px 32px var(--shadow-heavy);
+  animation: confirmScaleIn 150ms ease;
+}
+
+@keyframes confirmScaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.confirm-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.confirm-message {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.confirm-btn {
+  padding: 7px 16px;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.confirm-btn--cancel {
+  background: transparent;
+  border: 1px solid var(--border-light);
+  color: var(--text-secondary);
+}
+
+.confirm-btn--cancel:hover {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.confirm-btn--confirm {
+  background: var(--danger);
+  border: 1px solid transparent;
+  color: var(--bg-overlay);
+}
+
+.confirm-btn--confirm:hover {
+  background: #e87393;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .confirm-modal {
+    padding: 20px;
+  }
+
+  .confirm-actions {
+    flex-direction: column-reverse;
+  }
+
+  .confirm-btn {
+    width: 100%;
+    text-align: center;
+  }
+}

@@ -1,0 +1,79 @@
+/* ============================================================
+   MermaidPreview — Widget decoration styles for TiptapEditor
+   ============================================================ */
+
+.mermaid-preview-widget {
+  margin: 0.5rem 0 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg-overlay);
+  user-select: none;
+}
+
+.mermaid-preview-header {
+  display: flex;
+  align-items: center;
+  padding: 0.35rem 0.8rem;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.mermaid-preview-body {
+  padding: 1rem;
+}
+
+.mermaid-preview-body .mermaid-svg {
+  display: flex;
+  justify-content: center;
+  overflow-x: auto;
+}
+
+.mermaid-preview-body .mermaid-svg svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.mermaid-preview-body .mermaid-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+}
+
+.mermaid-preview-body .mermaid-empty {
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 0.85rem;
+  padding: 1rem 0;
+}
+
+/* Shared label style (same as MermaidRenderer) */
+.mermaid-preview-widget .mermaid-label {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.mermaid-preview-widget .mermaid-error-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--danger, #f38ba8);
+  color: var(--bg-primary);
+  font-size: 0.7rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.mermaid-preview-widget .mermaid-error-text {
+  font-size: 0.8rem;
+  color: var(--danger, #f38ba8);
+  word-break: break-word;
+}

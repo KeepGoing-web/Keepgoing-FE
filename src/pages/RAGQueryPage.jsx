@@ -1,10 +1,21 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { useToast } from '../contexts/ToastContext'
 import './RAGQueryPage.css'
 
 const RAGQueryPage = () => {
+  const toast = useToast()
   const [query, setQuery] = useState('')
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(false)
+  const messagesEndRef = useRef(null)
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages, loading])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -27,7 +38,7 @@ const RAGQueryPage = () => {
       setMessages([...messages, newMessage])
     } catch (error) {
       console.error('질의 실패:', error)
-      alert('질의에 실패했습니다.')
+      toast.error('질의에 실패했습니다.')
     } finally {
       setLoading(false)
     }
@@ -45,7 +56,14 @@ const RAGQueryPage = () => {
         <div className="messages-container">
           {messages.length === 0 ? (
             <div className="empty-state">
-              <p>질문을 입력하면 작성한 포스트를 기반으로 답변을 받을 수 있습니다.</p>
+              <div className="empty-state-icon">⬡</div>
+              <h3 className="empty-state-title">AI에게 질문하세요</h3>
+              <p className="empty-state-desc">
+                작성한 포스트를 기반으로 AI가 답변을 생성합니다.
+              </p>
+              <p className="empty-state-hint">
+                <strong>팁:</strong> "AI 수집" 설정이 켜진 포스트만 분석 대상이 됩니다.
+              </p>
             </div>
           ) : (
             messages.map((message) => (
@@ -71,6 +89,7 @@ const RAGQueryPage = () => {
               </div>
             </div>
           )}
+          <div ref={messagesEndRef} />
         </div>
         <form onSubmit={handleSubmit} className="query-form">
           <input
@@ -95,4 +114,3 @@ const RAGQueryPage = () => {
 }
 
 export default RAGQueryPage
-

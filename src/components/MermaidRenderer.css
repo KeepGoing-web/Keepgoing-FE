@@ -1,0 +1,135 @@
+/* ============================================================
+   MermaidRenderer — Mermaid diagram container
+   ============================================================ */
+
+.mermaid-renderer {
+  margin: 1.5em 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg-overlay);
+}
+
+/* ── Header bar ────────────────────────────────────────── */
+
+.mermaid-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 0.8rem;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.mermaid-label {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.mermaid-toggle-btn {
+  background: transparent;
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.7rem;
+  font-family: var(--font-sans);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.mermaid-toggle-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--accent-dim);
+  background: var(--accent-glow);
+}
+
+/* ── SVG container ─────────────────────────────────────── */
+
+.mermaid-svg {
+  display: flex;
+  justify-content: center;
+  padding: 1.5rem 1rem;
+  overflow-x: auto;
+}
+
+.mermaid-svg svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* ── Source code view ──────────────────────────────────── */
+
+.mermaid-source {
+  margin: 0;
+  padding: 1rem 1.2rem;
+  overflow-x: auto;
+}
+
+.mermaid-source code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  line-height: 1.6;
+  color: var(--text-primary);
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+}
+
+/* ── Error state ───────────────────────────────────────── */
+
+.mermaid-error {
+  padding: 1rem 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mermaid-error-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--danger, #f38ba8);
+  color: var(--bg-primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.mermaid-error-text {
+  font-size: 0.85rem;
+  color: var(--danger, #f38ba8);
+}
+
+.mermaid-error-code {
+  margin: 0.5rem 0 0;
+  padding: 0.8rem 1rem;
+  background: var(--bg-surface);
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+.mermaid-error-code code {
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  color: var(--text-muted);
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+}
+
+/* ── Loading state ─────────────────────────────────────── */
+
+.mermaid-empty {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 0.85rem;
+}

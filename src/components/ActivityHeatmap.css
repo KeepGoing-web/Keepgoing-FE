@@ -1,0 +1,112 @@
+/* ── ActivityHeatmap — GitHub-style contribution grid ── */
+
+.heatmap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.heatmap-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.heatmap-streak {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.heatmap-streak-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  line-height: 1;
+}
+
+.heatmap-streak-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.heatmap-total {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+/* Grid */
+.heatmap-grid {
+  display: flex;
+  gap: 3px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.heatmap-col {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.heatmap-cell {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  transition: outline-color var(--transition-fast);
+}
+
+.heatmap-cell:hover {
+  outline: 1px solid var(--text-muted);
+  outline-offset: 1px;
+}
+
+.heatmap-cell--0 {
+  background: var(--bg-surface);
+}
+
+.heatmap-cell--1 {
+  background: var(--accent-border);
+}
+
+.heatmap-cell--2 {
+  background: var(--accent-border-active);
+}
+
+.heatmap-cell--3 {
+  background: var(--accent);
+}
+
+/* Legend */
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  align-self: flex-end;
+}
+
+.heatmap-legend .heatmap-cell {
+  width: 9px;
+  height: 9px;
+}
+
+.heatmap-legend-label {
+  font-size: 0.65rem;
+  color: var(--text-faint);
+  padding: 0 4px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .heatmap-grid {
+    max-width: 100%;
+  }
+
+  .heatmap-cell {
+    width: 9px;
+    height: 9px;
+  }
+}

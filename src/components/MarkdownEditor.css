@@ -1,0 +1,281 @@
+/* ============================================================
+   MarkdownEditor — Dark theme (Catppuccin Mocha)
+   ============================================================ */
+
+.md-editor {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg-secondary);
+}
+
+/* ── Toolbar ───────────────────────────────────────────────── */
+
+.md-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0 0.5rem;
+  background: var(--bg-overlay);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  min-height: 40px;
+}
+
+.md-toolbar-groups {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.md-toolbar-group {
+  display: flex;
+  align-items: center;
+  padding: 0 2px;
+}
+
+.md-toolbar-group + .md-toolbar-group {
+  border-left: 1px solid var(--border);
+}
+
+.md-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color var(--transition-fast), background var(--transition-fast);
+  user-select: none;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.md-toolbar-btn:hover {
+  color: var(--accent);
+  background: var(--accent-glow);
+}
+
+.md-toolbar-btn:active {
+  background: var(--accent-glow-md);
+  color: var(--accent-hover);
+}
+
+/* Bold/Italic/Strikethrough — slightly larger text */
+.md-toolbar-btn--bold {
+  font-size: 0.9rem;
+  font-style: normal;
+  font-family: var(--font-sans);
+}
+
+.md-toolbar-btn--italic {
+  font-style: italic;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+}
+
+.md-toolbar-btn--strikethrough {
+  text-decoration: line-through;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+}
+
+/* Heading buttons */
+.md-toolbar-btn--h1,
+.md-toolbar-btn--h2,
+.md-toolbar-btn--h3 {
+  font-size: 0.72rem;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  width: 28px;
+}
+
+/* Code block button — wider */
+.md-toolbar-btn--codeblock {
+  width: 36px;
+  font-size: 0.68rem;
+  letter-spacing: -0.03em;
+}
+
+/* Link/Image emoji buttons */
+.md-toolbar-btn--link,
+.md-toolbar-btn--image {
+  font-size: 0.85rem;
+}
+
+/* ── View tabs ─────────────────────────────────────────────── */
+
+.md-toolbar-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  padding: 4px 0;
+}
+
+.md-tab-btn {
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: color var(--transition-fast), background var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.md-tab-btn:hover {
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+}
+
+.md-tab-btn.active {
+  color: var(--accent);
+  background: var(--accent-glow);
+  border-color: var(--accent-glow-md);
+}
+
+/* ── Panes ─────────────────────────────────────────────────── */
+
+.md-panes {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.md-pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Split mode — equal halves with divider */
+[data-tab='split'] .md-pane--editor {
+  border-right: 1px solid var(--border);
+}
+
+/* ── Editor pane ───────────────────────────────────────────── */
+
+.md-textarea {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 1.1rem 1.3rem;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: none;
+  outline: none;
+  resize: none;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  line-height: 1.75;
+  letter-spacing: 0.01em;
+  tab-size: 2;
+  caret-color: var(--accent);
+  word-break: break-word;
+  overflow-wrap: break-word;
+  overflow-y: auto;
+}
+
+.md-textarea::placeholder {
+  color: var(--text-faint);
+}
+
+.md-textarea::-webkit-scrollbar {
+  width: 5px;
+}
+
+.md-textarea::-webkit-scrollbar-thumb {
+  background: var(--bg-hover);
+  border-radius: 3px;
+}
+
+/* ── Preview pane ──────────────────────────────────────────── */
+
+.md-pane--preview {
+  background: var(--bg-secondary);
+  overflow-y: auto;
+}
+
+.md-preview-body {
+  padding: 1.1rem 1.5rem;
+  max-width: 100%;
+}
+
+.md-preview-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-faint);
+  font-size: 0.85rem;
+  font-family: var(--font-mono);
+}
+
+/* ── Responsive: ≤768px — stacked tabs ───────────────────── */
+
+@media (max-width: 768px) {
+  .md-toolbar {
+    padding: 0 0.4rem;
+  }
+
+  .md-toolbar-btn {
+    width: 26px;
+    height: 26px;
+    font-size: 0.72rem;
+  }
+
+  .md-toolbar-btn--h1,
+  .md-toolbar-btn--h2,
+  .md-toolbar-btn--h3 {
+    width: 24px;
+    font-size: 0.66rem;
+  }
+
+  .md-toolbar-btn--codeblock {
+    width: 32px;
+    font-size: 0.62rem;
+  }
+
+  .md-panes {
+    flex-direction: column;
+  }
+
+  [data-tab='split'] .md-pane--editor {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    flex: 1;
+  }
+
+  .md-textarea {
+    font-size: 0.85rem;
+    padding: 0.85rem 1rem;
+  }
+
+  .md-preview-body {
+    padding: 0.85rem 1rem;
+  }
+}

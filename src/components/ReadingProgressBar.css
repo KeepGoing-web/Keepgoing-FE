@@ -1,0 +1,19 @@
+/* ── ReadingProgressBar — scroll progress indicator ── */
+
+.reading-progress {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: transparent;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.reading-progress-bar {
+  height: 100%;
+  background: var(--accent);
+  transition: width 80ms linear;
+  border-radius: 0 1px 1px 0;
+}

@@ -29,6 +29,65 @@
   margin-bottom: 2rem;
 }
 
+/* ── Google OAuth Button ───────────────────────────────── */
+
+.google-login-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 0.7rem 1rem;
+  background: #fff;
+  border: 1px solid #dadce0;
+  border-radius: 6px;
+  font-family: var(--font-sans, 'Inter', system-ui, sans-serif);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #3c4043;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.google-login-btn:hover {
+  background: #f7f8f8;
+  border-color: #c6c9cd;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.google-login-btn:active {
+  background: #eef0f1;
+}
+
+.google-login-btn svg {
+  flex-shrink: 0;
+}
+
+/* ── Divider ──────────────────────────────────────────── */
+
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 1.25rem 0;
+}
+
+.login-divider::before,
+.login-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e0e0e0;
+}
+
+.login-divider span {
+  font-size: 0.8rem;
+  color: #999;
+  white-space: nowrap;
+}
+
+/* ── Login Form ───────────────────────────────────────── */
+
 .login-form {
   display: flex;
   flex-direction: column;
