@@ -18,6 +18,7 @@ import ApplicationsPage from './pages/ApplicationsPage'
 import ExplorePage from './pages/ExplorePage'
 import PublicProfilePage from './pages/PublicProfilePage'
 import PublicPostPage from './pages/PublicPostPage'
+import OAuthCallbackPage from './pages/OAuthCallbackPage'
 import './App.css'
 
 function App() {
@@ -29,6 +30,7 @@ function App() {
             <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
+          <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
 
           {/* Public routes — no auth required */}
           <Route path="/@:username" element={<PublicLayout />}>

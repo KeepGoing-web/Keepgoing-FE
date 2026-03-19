@@ -1,9 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
+import { GOOGLE_OAUTH_AUTHORIZE_URL } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
 import './LoginPage.css'
-
-const OAUTH_BASE = 'http://localhost:8080'
 
 const GoogleIcon = () => (
   <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
@@ -19,10 +18,17 @@ const LoginPage = () => {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const { login } = useAuth()
+  const { login, isAuthenticated, loading: authLoading } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const successMessage = location.state?.message
+  const oauthErrorMessage = location.state?.error
+
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      navigate('/blogs', { replace: true })
+    }
+  }, [authLoading, isAuthenticated, navigate])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -44,7 +50,22 @@ const LoginPage = () => {
   }
 
   const handleGoogleLogin = () => {
-    window.location.href = `${OAUTH_BASE}/oauth2/authorization/google`
+    window.location.href = GOOGLE_OAUTH_AUTHORIZE_URL
+  }
+
+  if (authLoading) {
+    return (
+      <div className="login-page">
+        <div className="login-container">
+          <h1 className="login-title">Keepgoing</h1>
+          <p className="login-subtitle">로그인 상태를 확인하고 있습니다...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (isAuthenticated) {
+    return null
   }
 
   return (
@@ -90,6 +111,7 @@ const LoginPage = () => {
             />
           </div>
           {successMessage && <div className="success-message">{successMessage}</div>}
+          {!error && oauthErrorMessage && <div className="error-message">{oauthErrorMessage}</div>}
           {error && <div className="error-message">{error}</div>}
           <button type="submit" className="login-button" disabled={loading}>
             {loading ? '로그인 중...' : '로그인'}
@@ -104,4 +126,3 @@ const LoginPage = () => {
 }
 
 export default LoginPage
-

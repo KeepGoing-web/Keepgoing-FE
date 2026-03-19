@@ -1,8 +1,75 @@
-const BASE_URL = "http://localhost:8080/api";
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080/api").replace(/\/$/, "");
+const API_ORIGIN = BASE_URL.endsWith("/api") ? BASE_URL.slice(0, -4) : BASE_URL;
 const USE_MOCK = true;
+const USE_BACKEND_POSTS = true;
+export const AUTH_SESSION_EXPIRED_EVENT = "auth:session-expired";
+
+export const GOOGLE_OAUTH_AUTHORIZE_URL = `${API_ORIGIN}/oauth2/authorization/google`;
+
+let refreshSessionPromise = null;
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function dispatchAuthSessionExpired() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(AUTH_SESSION_EXPIRED_EVENT));
+}
+
+function fetchWithCredentials(url, options = {}) {
+  return fetch(url, {
+    credentials: "include",
+    ...options,
+  });
+}
+
+async function refreshSession() {
+  if (refreshSessionPromise) {
+    return refreshSessionPromise;
+  }
+
+  refreshSessionPromise = (async () => {
+    const res = await fetchWithCredentials(`${BASE_URL}/auth/refresh`, {
+      method: "POST",
+    });
+
+    if (!res.ok) {
+      dispatchAuthSessionExpired();
+      const errorBody = await res.json().catch(() => ({}));
+      const error = new Error(errorBody.error?.message || `HTTP ${res.status}`);
+      error.status = res.status;
+      error.code = errorBody.error?.code;
+      throw error;
+    }
+
+    return true;
+  })().finally(() => {
+    refreshSessionPromise = null;
+  });
+
+  return refreshSessionPromise;
+}
+
+async function apiFetch(url, options = {}) {
+  const { skipAuthRefresh = false, ...fetchOptions } = options;
+  const res = await fetchWithCredentials(url, fetchOptions);
+
+  if (res.status !== 401 || skipAuthRefresh) {
+    return res;
+  }
+
+  try {
+    await refreshSession();
+  } catch {
+    return res;
+  }
+
+  const retriedResponse = await fetchWithCredentials(url, fetchOptions);
+  if (retriedResponse.status === 401) {
+    dispatchAuthSessionExpired();
+  }
+  return retriedResponse;
 }
 
 function getAuthHeaders() {
@@ -40,8 +107,9 @@ async function handleResponse(res) {
 
 // ----- Auth API -----
 export async function login(email, password) {
-  const res = await fetch(`${BASE_URL}/auth/login`, {
+  const res = await apiFetch(`${BASE_URL}/auth/login`, {
     method: "POST",
+    skipAuthRefresh: true,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
@@ -49,16 +117,24 @@ export async function login(email, password) {
 }
 
 export async function signup(email, password, name) {
-  const res = await fetch(`${BASE_URL}/auth/signup`, {
+  const res = await apiFetch(`${BASE_URL}/auth/signup`, {
     method: "POST",
+    skipAuthRefresh: true,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password, name }),
   });
   return handleResponse(res);
 }
 
+export async function fetchMe() {
+  const res = await apiFetch(`${BASE_URL}/auth/me`, {
+    headers: getAuthHeaders(),
+  });
+  return handleResponse(res);
+}
+
 export async function fetchBlogs(params = {}) {
-  if (USE_MOCK) {
+  if (USE_MOCK && !USE_BACKEND_POSTS) {
     const {
       page = 1,
       size = 10,
@@ -139,14 +215,14 @@ export async function fetchBlogs(params = {}) {
       hasPrev: page > 1,
     };
   }
-  // 백엔드 API는 /v1/posts/me (내 포스트 목록)
-  const { page = 1, size = 10, sort = "createdAt", order = "desc" } = params;
+  const { page = 1, size = 10, q = "", sort = "createdAt", order = "desc" } = params;
+  const endpoint = q ? "/posts/me/search" : "/posts/me";
   const query = buildQuery({
+    ...(q ? { keyword: q } : { sort: `${sort},${order}` }),
     page: page - 1, // 백엔드는 0-indexed
     size,
-    sort: `${sort},${order}`,
   });
-  const res = await fetch(`${BASE_URL}/posts/me${query}`, {
+  const res = await apiFetch(`${BASE_URL}${endpoint}${query}`, {
     headers: getAuthHeaders(),
   });
   const data = await handleResponse(res);
@@ -168,7 +244,7 @@ export async function fetchBlogs(params = {}) {
 }
 
 export async function fetchBlog(id) {
-  if (USE_MOCK) {
+  if (USE_MOCK && !USE_BACKEND_POSTS) {
     const base = MOCK_POSTS.find((p) => p.id === String(id));
     await delay(200);
     if (!base) {
@@ -182,7 +258,7 @@ export async function fetchBlog(id) {
         .filter(Boolean),
     };
   }
-  const res = await fetch(`${BASE_URL}/posts/${id}`, {
+  const res = await apiFetch(`${BASE_URL}/posts/${id}`, {
     headers: getAuthHeaders(),
   });
   if (res.status === 404) {
@@ -196,7 +272,7 @@ export async function fetchBlog(id) {
 }
 
 export async function createBlog(payload) {
-  if (USE_MOCK) {
+  if (USE_MOCK && !USE_BACKEND_POSTS) {
     const id = String(MOCK_POSTS.length + 1);
     const now = new Date().toISOString();
     const item = {
@@ -227,7 +303,7 @@ export async function createBlog(payload) {
     visibility: payload.visibility || "PRIVATE",
     aiCollectable: payload.aiCollectable ?? true,
   };
-  const res = await fetch(`${BASE_URL}/posts`, {
+  const res = await apiFetch(`${BASE_URL}/posts`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify(backendPayload),
@@ -238,7 +314,7 @@ export async function createBlog(payload) {
 }
 
 export async function updateBlog(id, payload) {
-  if (USE_MOCK) {
+  if (USE_MOCK && !USE_BACKEND_POSTS) {
     const idx = MOCK_POSTS.findIndex((p) => p.id === String(id));
     if (idx === -1) {
       throw new Error("NOT_FOUND");
@@ -276,7 +352,7 @@ export async function updateBlog(id, payload) {
     visibility: payload.visibility || "PRIVATE",
     aiCollectable: payload.aiCollectable ?? true,
   };
-  const res = await fetch(`${BASE_URL}/posts/${id}`, {
+  const res = await apiFetch(`${BASE_URL}/posts/${id}`, {
     method: "PUT",
     headers: getAuthHeaders(),
     body: JSON.stringify(backendPayload),
@@ -292,7 +368,7 @@ export async function updateBlog(id, payload) {
 }
 
 export async function deleteBlog(id) {
-  if (USE_MOCK) {
+  if (USE_MOCK && !USE_BACKEND_POSTS) {
     const idx = MOCK_POSTS.findIndex((p) => p.id === String(id));
     if (idx === -1) {
       throw new Error("NOT_FOUND");
@@ -301,7 +377,7 @@ export async function deleteBlog(id) {
     await delay(150);
     return true;
   }
-  const res = await fetch(`${BASE_URL}/posts/${id}`, {
+  const res = await apiFetch(`${BASE_URL}/posts/${id}`, {
     method: "DELETE",
     headers: getAuthHeaders(),
   });
@@ -328,7 +404,7 @@ export async function fetchCategories(params = {}) {
     return { categories: items, total: items.length };
   }
   const query = buildQuery(params);
-  const res = await fetch(`${BASE_URL}/categories${query}`, {
+  const res = await apiFetch(`${BASE_URL}/categories${query}`, {
     headers: getAuthHeaders(),
   });
   if (!res.ok) {
@@ -349,7 +425,7 @@ export async function createCategory(name, parentId = null) {
     await delay(100);
     return newCat;
   }
-  const res = await fetch(`${BASE_URL}/categories`, {
+  const res = await apiFetch(`${BASE_URL}/categories`, {
     method: "POST",
     headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
     body: JSON.stringify({ name, parentId }),
@@ -372,7 +448,7 @@ export async function fetchTags(params = {}) {
     return { tags: items, total: items.length };
   }
   const query = buildQuery(params);
-  const res = await fetch(`${BASE_URL}/tags${query}`, {
+  const res = await apiFetch(`${BASE_URL}/tags${query}`, {
     headers: getAuthHeaders(),
   });
   if (!res.ok) {
@@ -388,7 +464,7 @@ export async function createTag(name) {
     await delay(150);
     return newTag;
   }
-  const res = await fetch(`${BASE_URL}/tags`, {
+  const res = await apiFetch(`${BASE_URL}/tags`, {
     method: "POST",
     headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
     body: JSON.stringify({ name }),
@@ -404,7 +480,7 @@ export async function fetchApplications() {
     await delay(120);
     return { applications: items };
   }
-  const res = await fetch(`${BASE_URL}/applications`, {
+  const res = await apiFetch(`${BASE_URL}/applications`, {
     headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error("지원 목록 조회 실패");
@@ -433,7 +509,7 @@ export async function createApplicationFromUrl(url, notes = "") {
     await delay(200);
     return next;
   }
-  const res = await fetch(`${BASE_URL}/applications`, {
+  const res = await apiFetch(`${BASE_URL}/applications`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify({ url, notes }),
@@ -454,7 +530,7 @@ export async function updateApplication(id, updates) {
     await delay(150);
     return next;
   }
-  const res = await fetch(`${BASE_URL}/applications/${id}`, {
+  const res = await apiFetch(`${BASE_URL}/applications/${id}`, {
     method: "PUT",
     headers: getAuthHeaders(),
     body: JSON.stringify(updates),
@@ -473,7 +549,7 @@ export async function deleteApplication(id) {
     await delay(120);
     return true;
   }
-  const res = await fetch(`${BASE_URL}/applications/${id}`, {
+  const res = await apiFetch(`${BASE_URL}/applications/${id}`, {
     method: "DELETE",
     headers: getAuthHeaders(),
   });
@@ -498,7 +574,7 @@ export async function fetchPublicProfile(username) {
     await delay(200);
     return mockProfile;
   }
-  const res = await fetch(`${BASE_URL}/users/${username}/profile`);
+  const res = await apiFetch(`${BASE_URL}/users/${username}/profile`);
   return handleResponse(res);
 }
 
@@ -535,7 +611,7 @@ export async function fetchPublicPosts(username, params = {}) {
     };
   }
   const query = buildQuery(params);
-  const res = await fetch(`${BASE_URL}/users/${username}/posts${query}`);
+  const res = await apiFetch(`${BASE_URL}/users/${username}/posts${query}`);
   return handleResponse(res);
 }
 
@@ -564,7 +640,7 @@ export async function fetchPublicPost(username, postId) {
           : null,
     };
   }
-  const res = await fetch(`${BASE_URL}/users/${username}/posts/${postId}`);
+  const res = await apiFetch(`${BASE_URL}/users/${username}/posts/${postId}`);
   if (res.status === 404) {
     const error = new Error('NOT_FOUND');
     error.status = 404;
@@ -604,7 +680,7 @@ export async function fetchUsers(params = {}) {
     };
   }
   const query = buildQuery(params);
-  const res = await fetch(`${BASE_URL}/users${query}`, {
+  const res = await apiFetch(`${BASE_URL}/users${query}`, {
     headers: getAuthHeaders(),
   });
   return handleResponse(res);
