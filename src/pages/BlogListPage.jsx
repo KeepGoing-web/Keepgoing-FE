@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { fetchNotes } from '../api/client'
 import { useVault } from '../contexts/VaultContext'
 import { useDebounce } from '../hooks/useDebounce'
+import { setDraggedNote } from '../utils/noteDrag'
 import { estimateReadTime } from '../utils/format'
 import { buildNoteListParams, DEFAULT_NOTE_LIST_PAGE_META } from './blogListState'
 import './BlogListPage.css'
@@ -14,6 +15,19 @@ const VISIBILITY_META = {
 }
 
 const getVisMeta = (visibility) => VISIBILITY_META[visibility] ?? { label: visibility, cls: 'public', dot: false }
+
+function attachCategoryMeta(posts, categories) {
+  return posts.map((post) => {
+    const folderId = post.folderId ?? post.categoryId ?? post.category?.id ?? null
+
+    return {
+      ...post,
+      folderId,
+      categoryId: folderId,
+      category: categories.find((category) => String(category.id) === String(folderId)) || post.category || null,
+    }
+  })
+}
 
 const formatDate = (iso) => {
   if (!iso) return '—'
@@ -28,6 +42,7 @@ const BlogListPage = () => {
     setCategoryId,
     setSelectedTagIds,
     addRecentNote,
+    notesRevision,
   } = useVault()
 
   const [posts, setNotes] = useState([])
@@ -52,6 +67,10 @@ const BlogListPage = () => {
   }, [setSelectedTagIds])
 
   useEffect(() => {
+    setPage(1)
+  }, [categoryId])
+
+  useEffect(() => {
     const load = async () => {
       setLoading(true)
       setError(null)
@@ -71,7 +90,7 @@ const BlogListPage = () => {
           dateTo,
         })
         const response = await fetchNotes(params)
-        setNotes(response.posts || [])
+        setNotes(attachCategoryMeta(response.posts || [], categories))
         setPageMeta({
           total: response.total ?? 0,
           totalPages: response.totalPages ?? 0,
@@ -86,7 +105,7 @@ const BlogListPage = () => {
     }
 
     void load()
-  }, [aiOnly, categoryId, dateFrom, dateTo, debouncedQuery, order, page, size, sort, visibility])
+  }, [aiOnly, categories, categoryId, dateFrom, dateTo, debouncedQuery, notesRevision, order, page, size, sort, visibility])
 
   const handleReset = () => {
     setQuery('')
@@ -305,6 +324,8 @@ const BlogListPage = () => {
                 to={`/notes/${post.id}`}
                 className="blog-card"
                 onClick={() => addRecentNote(post)}
+                draggable
+                onDragStart={(event) => setDraggedNote(event, post)}
               >
                 <div className="blog-card-main">
                   <div className="blog-card-head">

@@ -1,17 +1,20 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useVault } from '../contexts/VaultContext'
+import { useToast } from '../contexts/ToastContext'
+import { clearDraggedNote, getDraggedNote, setDraggedNote } from '../utils/noteDrag'
 import './VaultSidebar.css'
 
 const SIDEBAR_WIDTH_KEY = 'kg-sidebar-width'
 const MIN_SIDEBAR = 220
 const MAX_SIDEBAR = 360
 const DEFAULT_SIDEBAR = 248
+const ROOT_DROP_TARGET = '__root__'
 
-const SidebarSection = ({ title, children, defaultOpen = true }) => {
+const SidebarSection = ({ title, children, defaultOpen = true, aside, className = '', contentClassName = '' }) => {
   const [open, setOpen] = useState(defaultOpen)
   return (
-    <section className="sidebar-section">
+    <section className={`sidebar-section${className ? ` ${className}` : ''}`}>
       <button
         className="sidebar-section-header"
         onClick={() => setOpen((current) => !current)}
@@ -21,8 +24,9 @@ const SidebarSection = ({ title, children, defaultOpen = true }) => {
           <i className={`sidebar-section-chevron${open ? ' open' : ''}`}>▶</i>
           <span>{title}</span>
         </span>
+        {aside ? <span className="sidebar-section-aside">{aside}</span> : null}
       </button>
-      {open ? children : null}
+      {open ? <div className={`sidebar-section-content${contentClassName ? ` ${contentClassName}` : ''}`}>{children}</div> : null}
     </section>
   )
 }
@@ -49,6 +53,45 @@ function folderHasMatch(folder, categories, notes, query) {
   return children.some((child) => folderHasMatch(child, categories, notes, query))
 }
 
+function getFolderAncestry(folderId, categories) {
+  if (!folderId) return []
+
+  const ancestry = []
+  let currentId = String(folderId)
+
+  while (currentId) {
+    ancestry.push(currentId)
+    const currentFolder = categories.find((category) => String(category.id) === currentId)
+    currentId = currentFolder?.parentId ? String(currentFolder.parentId) : ''
+  }
+
+  return ancestry
+}
+
+const DraftFolderRow = ({
+  draftName,
+  onDraftNameChange,
+  onDraftSubmit,
+  onDraftKeyDown,
+  disabled = false,
+}) => (
+  <li className="tree-folder tree-folder--draft">
+    <form className="tree-folder-draft-form" onSubmit={onDraftSubmit}>
+      <span className="tree-folder-draft-icon" aria-hidden="true">📁</span>
+      <input
+        className="tree-folder-draft-input"
+        value={draftName}
+        onChange={(event) => onDraftNameChange(event.target.value)}
+        onKeyDown={onDraftKeyDown}
+        placeholder="새 폴더"
+        aria-label="새 폴더 이름"
+        disabled={disabled}
+        autoFocus
+      />
+    </form>
+  </li>
+)
+
 const FolderNode = ({
   folder,
   categories,
@@ -60,6 +103,20 @@ const FolderNode = ({
   onFolderClick,
   activePostId,
   searchQuery,
+  onFolderContextMenu,
+  onFolderDragOver,
+  onFolderDrop,
+  onNoteDragStart,
+  onNoteDragEnd,
+  dropTargetId,
+  draggingNoteId,
+  movingNoteId,
+  draftFolder,
+  draftName,
+  onDraftNameChange,
+  onDraftSubmit,
+  onDraftKeyDown,
+  isCreatingFolder,
 }) => {
   const childFolders = categories.filter((category) => String(category.parentId) === String(folder.id))
   const visibleChildFolders = childFolders.filter((child) => folderHasMatch(child, categories, notes, searchQuery))
@@ -67,6 +124,8 @@ const FolderNode = ({
     .filter((note) => note.category && String(note.category.id) === String(folder.id))
     .filter((note) => noteMatchesQuery(note, searchQuery))
   const isOpen = searchQuery ? true : Boolean(openFolders[folder.id])
+  const isDropTarget = dropTargetId === String(folder.id)
+  const showDraftHere = draftFolder && String(draftFolder.parentId ?? '') === String(folder.id)
 
   if (!searchQuery && visibleChildFolders.length === 0 && directNotes.length === 0 && !folderHasMatch(folder, categories, notes, searchQuery)) {
     return null
@@ -74,7 +133,11 @@ const FolderNode = ({
 
   return (
     <li className="tree-folder">
-      <div className="tree-folder-header">
+      <div
+        className="tree-folder-header"
+        onDragOver={(event) => onFolderDragOver(event, folder.id)}
+        onDrop={(event) => onFolderDrop(event, folder.id, folder.name)}
+      >
         <button
           className="tree-expand-btn"
           onClick={() => toggleFolder(folder.id)}
@@ -83,16 +146,36 @@ const FolderNode = ({
           <span className="tree-folder-icon">{isOpen ? '📂' : '📁'}</span>
         </button>
         <button
-          className={`sidebar-item sidebar-folder-label${activeFolderId === String(folder.id) ? ' active' : ''}`}
+          className={`sidebar-item sidebar-folder-label${activeFolderId === String(folder.id) ? ' active' : ''}${isDropTarget ? ' drop-target' : ''}`}
           onClick={() => onFolderClick(String(folder.id))}
+          onContextMenu={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            if (!isOpen) toggleFolder(folder.id)
+            onFolderContextMenu(folder, event)
+          }}
         >
           <span className="tree-label">{folder.name}</span>
           <span className="sidebar-item-count">{directNotes.length}</span>
         </button>
       </div>
 
-      {isOpen && (visibleChildFolders.length > 0 || directNotes.length > 0) && (
-        <ul className="tree-children">
+      {isOpen && (showDraftHere || visibleChildFolders.length > 0 || directNotes.length > 0) && (
+        <ul
+          className="tree-children"
+          onDragOver={(event) => onFolderDragOver(event, folder.id)}
+          onDrop={(event) => onFolderDrop(event, folder.id, folder.name)}
+        >
+          {showDraftHere ? (
+            <DraftFolderRow
+              draftName={draftName}
+              onDraftNameChange={onDraftNameChange}
+              onDraftSubmit={onDraftSubmit}
+              onDraftKeyDown={onDraftKeyDown}
+              disabled={isCreatingFolder}
+            />
+          ) : null}
+
           {visibleChildFolders.map((child) => (
             <FolderNode
               key={child.id}
@@ -106,14 +189,32 @@ const FolderNode = ({
               onFolderClick={onFolderClick}
               activePostId={activePostId}
               searchQuery={searchQuery}
+              onFolderContextMenu={onFolderContextMenu}
+              onFolderDragOver={onFolderDragOver}
+              onFolderDrop={onFolderDrop}
+              onNoteDragStart={onNoteDragStart}
+              onNoteDragEnd={onNoteDragEnd}
+              dropTargetId={dropTargetId}
+              draggingNoteId={draggingNoteId}
+              movingNoteId={movingNoteId}
+              draftFolder={draftFolder}
+              draftName={draftName}
+              onDraftNameChange={onDraftNameChange}
+              onDraftSubmit={onDraftSubmit}
+              onDraftKeyDown={onDraftKeyDown}
+              isCreatingFolder={isCreatingFolder}
             />
           ))}
 
           {directNotes.map((note) => (
             <li key={note.id}>
               <button
-                className={`sidebar-item sidebar-file-item${activePostId === String(note.id) ? ' active' : ''}`}
+                draggable={String(movingNoteId) !== String(note.id)}
+                className={`sidebar-item sidebar-file-item${activePostId === String(note.id) ? ' active' : ''}${draggingNoteId === String(note.id) ? ' is-dragging' : ''}`}
                 onClick={() => onPostClick(note)}
+                onContextMenu={(event) => event.stopPropagation()}
+                onDragStart={(event) => onNoteDragStart(event, note)}
+                onDragEnd={onNoteDragEnd}
                 title={note.title}
               >
                 <span className="tree-file-icon">📄</span>
@@ -135,6 +236,21 @@ const CategoryTree = ({
   onFolderClick,
   activePostId,
   searchQuery,
+  onTreeContextMenu,
+  onFolderContextMenu,
+  onFolderDragOver,
+  onFolderDrop,
+  onNoteDragStart,
+  onNoteDragEnd,
+  dropTargetId,
+  draggingNoteId,
+  movingNoteId,
+  draftFolder,
+  draftName,
+  onDraftNameChange,
+  onDraftSubmit,
+  onDraftKeyDown,
+  isCreatingFolder,
 }) => {
   const [openFolders, setOpenFolders] = useState({})
 
@@ -153,6 +269,32 @@ const CategoryTree = ({
     })
   }, [categories])
 
+  useEffect(() => {
+    if (!draftFolder?.parentId) return
+    setOpenFolders((prev) => ({ ...prev, [draftFolder.parentId]: true }))
+  }, [draftFolder])
+
+  useEffect(() => {
+    if (!activeFolderId) return
+
+    const ancestry = getFolderAncestry(activeFolderId, categories)
+    if (ancestry.length === 0) return
+
+    setOpenFolders((prev) => {
+      const next = { ...prev }
+      let changed = false
+
+      ancestry.forEach((folderId) => {
+        if (!next[folderId]) {
+          next[folderId] = true
+          changed = true
+        }
+      })
+
+      return changed ? next : prev
+    })
+  }, [activeFolderId, categories])
+
   const toggleFolder = (id) => {
     if (searchQuery) return
     setOpenFolders((prev) => ({ ...prev, [id]: !prev[id] }))
@@ -163,59 +305,98 @@ const CategoryTree = ({
   const uncategorizedNotes = notes
     .filter((note) => !note.category)
     .filter((note) => noteMatchesQuery(note, searchQuery))
+  const showRootDraft = draftFolder && !draftFolder.parentId
 
   return (
-    <ul className="sidebar-items tree-root">
-      <li>
-        <button
-          className={`sidebar-item sidebar-folder-row${activeFolderId === '' ? ' active' : ''}`}
-          onClick={() => onFolderClick('')}
-        >
-          <span className="tree-icon">◈</span>
-          <span className="tree-label">전체 문서</span>
-          <span className="sidebar-item-count">{notes.length}</span>
-        </button>
-      </li>
+    <div className="sidebar-tree-surface" onContextMenu={onTreeContextMenu}>
+      <ul className="sidebar-items tree-root">
+        {showRootDraft ? (
+          <DraftFolderRow
+            draftName={draftName}
+            onDraftNameChange={onDraftNameChange}
+            onDraftSubmit={onDraftSubmit}
+            onDraftKeyDown={onDraftKeyDown}
+            disabled={isCreatingFolder}
+          />
+        ) : null}
 
-      {visibleTopLevelFolders.map((folder) => (
-        <FolderNode
-          key={folder.id}
-          folder={folder}
-          categories={categories}
-          notes={notes}
-          openFolders={openFolders}
-          toggleFolder={toggleFolder}
-          onPostClick={onPostClick}
-          activeFolderId={activeFolderId}
-          onFolderClick={onFolderClick}
-          activePostId={activePostId}
-          searchQuery={searchQuery}
-        />
-      ))}
-
-      {uncategorizedNotes.map((note) => (
-        <li key={note.id}>
+        <li>
           <button
-            className={`sidebar-item sidebar-file-item sidebar-file-item--root${activePostId === String(note.id) ? ' active' : ''}`}
-            onClick={() => onPostClick(note)}
-            title={note.title}
+            className={`sidebar-item sidebar-folder-row${activeFolderId === '' ? ' active' : ''}${dropTargetId === ROOT_DROP_TARGET ? ' drop-target' : ''}`}
+            onClick={() => onFolderClick('')}
+            onContextMenu={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
+              onTreeContextMenu(event)
+            }}
+            onDragOver={(event) => onFolderDragOver(event, null)}
+            onDrop={(event) => onFolderDrop(event, null, '전체 문서')}
           >
-            <span className="tree-file-icon">📄</span>
-            <span className="tree-file-label">{note.title}</span>
+            <span className="tree-icon">◈</span>
+            <span className="tree-label">전체 문서</span>
+            <span className="sidebar-item-count">{notes.length}</span>
           </button>
         </li>
-      ))}
 
-      {searchQuery && visibleTopLevelFolders.length === 0 && uncategorizedNotes.length === 0 ? (
-        <li className="tree-empty-hint">검색 결과가 없습니다</li>
-      ) : null}
-    </ul>
+        {visibleTopLevelFolders.map((folder) => (
+          <FolderNode
+            key={folder.id}
+            folder={folder}
+            categories={categories}
+            notes={notes}
+            openFolders={openFolders}
+            toggleFolder={toggleFolder}
+            onPostClick={onPostClick}
+            activeFolderId={activeFolderId}
+            onFolderClick={onFolderClick}
+            activePostId={activePostId}
+            searchQuery={searchQuery}
+            onFolderContextMenu={onFolderContextMenu}
+            onFolderDragOver={onFolderDragOver}
+            onFolderDrop={onFolderDrop}
+            onNoteDragStart={onNoteDragStart}
+            onNoteDragEnd={onNoteDragEnd}
+            dropTargetId={dropTargetId}
+            draggingNoteId={draggingNoteId}
+            movingNoteId={movingNoteId}
+            draftFolder={draftFolder}
+            draftName={draftName}
+            onDraftNameChange={onDraftNameChange}
+            onDraftSubmit={onDraftSubmit}
+            onDraftKeyDown={onDraftKeyDown}
+            isCreatingFolder={isCreatingFolder}
+          />
+        ))}
+
+        {uncategorizedNotes.map((note) => (
+          <li key={note.id}>
+            <button
+              draggable={String(movingNoteId) !== String(note.id)}
+              className={`sidebar-item sidebar-file-item sidebar-file-item--root${activePostId === String(note.id) ? ' active' : ''}${draggingNoteId === String(note.id) ? ' is-dragging' : ''}`}
+              onClick={() => onPostClick(note)}
+              onContextMenu={(event) => event.stopPropagation()}
+              onDragStart={(event) => onNoteDragStart(event, note)}
+              onDragEnd={onNoteDragEnd}
+              title={note.title}
+            >
+              <span className="tree-file-icon">📄</span>
+              <span className="tree-file-label">{note.title}</span>
+            </button>
+          </li>
+        ))}
+
+        {searchQuery && visibleTopLevelFolders.length === 0 && uncategorizedNotes.length === 0 ? (
+          <li className="tree-empty-hint">검색 결과가 없습니다</li>
+        ) : null}
+      </ul>
+    </div>
   )
 }
 
 const VaultSidebar = () => {
   const navigate = useNavigate()
   const location = useLocation()
+  const toast = useToast()
   const activePostId = location.pathname.match(/^\/notes\/([^/]+)$/)?.[1] || null
   const {
     allNotes,
@@ -225,6 +406,8 @@ const VaultSidebar = () => {
     setCategoryId,
     navigateToNote,
     resetFilters,
+    createCategory,
+    moveNoteToFolder,
   } = useVault()
 
   const [explorerQuery, setExplorerQuery] = useState('')
@@ -244,8 +427,18 @@ const VaultSidebar = () => {
     }
   })
   const [isSidebarResizing, setIsSidebarResizing] = useState(false)
+  const [draftFolder, setDraftFolder] = useState(null)
+  const [draftFolderName, setDraftFolderName] = useState('')
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false)
+  const [dropTargetId, setDropTargetId] = useState(null)
+  const [draggingNoteId, setDraggingNoteId] = useState(null)
+  const [movingNoteId, setMovingNoteId] = useState(null)
+  const [contextMenu, setContextMenu] = useState(null)
+  const contextMenuRef = useRef(null)
+  const creatingFolderRef = useRef(false)
 
   const filteredRecentNotes = recentNotes
+    .map((note) => allNotes.find((candidate) => String(candidate.id) === String(note.id)) || note)
     .filter((note) => matchesQuery(note.title, explorerQuery.trim().toLowerCase()))
     .slice(0, 5)
 
@@ -279,6 +472,61 @@ const VaultSidebar = () => {
     }
   }, [isSidebarResizing, sidebarWidth])
 
+  useEffect(() => {
+    const clearDragState = () => {
+      setDropTargetId(null)
+      setDraggingNoteId(null)
+      clearDraggedNote()
+    }
+
+    window.addEventListener('drop', clearDragState)
+    window.addEventListener('dragend', clearDragState)
+
+    return () => {
+      window.removeEventListener('drop', clearDragState)
+      window.removeEventListener('dragend', clearDragState)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!draftFolder) return undefined
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setDraftFolder(null)
+        setDraftFolderName('')
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [draftFolder])
+
+  useEffect(() => {
+    if (!contextMenu) return undefined
+
+    const handlePointerDown = (event) => {
+      if (contextMenuRef.current?.contains(event.target)) return
+      setContextMenu(null)
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setContextMenu(null)
+      }
+    }
+
+    window.addEventListener('mousedown', handlePointerDown)
+    window.addEventListener('resize', handlePointerDown)
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      window.removeEventListener('mousedown', handlePointerDown)
+      window.removeEventListener('resize', handlePointerDown)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [contextMenu])
+
   const toggleSidebar = () => {
     setSidebarCollapsed((current) => {
       const next = !current
@@ -294,6 +542,107 @@ const VaultSidebar = () => {
   const handleFolderClick = (folderId) => {
     setCategoryId(folderId)
     navigate('/notes/list')
+  }
+
+  const openFolderDraft = (parentFolder = null) => {
+    setDraftFolder({
+      parentId: parentFolder?.id ?? null,
+      parentName: parentFolder?.name ?? null,
+    })
+    setDraftFolderName('')
+  }
+
+  const openContextMenu = (event, parentFolder = null) => {
+    event.preventDefault()
+    event.stopPropagation()
+    setContextMenu({
+      x: event.clientX,
+      y: event.clientY,
+      parentFolder,
+    })
+  }
+
+  const handleCreateFolder = async (event) => {
+    event.preventDefault()
+    if (creatingFolderRef.current || isCreatingFolder || !draftFolder) return
+
+    const trimmedName = draftFolderName.trim()
+    if (!trimmedName) {
+      toast.error('폴더 이름을 입력해주세요.')
+      return
+    }
+
+    const pendingDraft = draftFolder
+    creatingFolderRef.current = true
+    setIsCreatingFolder(true)
+    setDraftFolder(null)
+    setDraftFolderName('')
+
+    try {
+      await createCategory(trimmedName, pendingDraft?.parentId ?? null)
+      toast.success(pendingDraft?.parentName ? `${pendingDraft.parentName} 안에 폴더를 만들었습니다.` : '새 폴더를 만들었습니다.')
+    } catch {
+      setDraftFolder(pendingDraft)
+      setDraftFolderName(trimmedName)
+      toast.error('폴더 생성에 실패했습니다.')
+    } finally {
+      creatingFolderRef.current = false
+      setIsCreatingFolder(false)
+    }
+  }
+
+  const handleDraftKeyDown = (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      setDraftFolder(null)
+      setDraftFolderName('')
+    }
+  }
+
+  const handleFolderDragOver = (event, folderId) => {
+    if (!getDraggedNote(event)) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+    setDropTargetId(folderId == null ? ROOT_DROP_TARGET : String(folderId))
+  }
+
+  const handleFolderDrop = async (event, folderId, folderName) => {
+    const draggedNote = getDraggedNote(event)
+    if (!draggedNote) return
+
+    event.preventDefault()
+    event.stopPropagation()
+    setDropTargetId(null)
+    setDraggingNoteId(null)
+    clearDraggedNote()
+
+    const currentFolderId = draggedNote.folderId ?? null
+    const nextFolderId = folderId ?? null
+    if (String(currentFolderId ?? '') === String(nextFolderId ?? '')) {
+      return
+    }
+
+    setMovingNoteId(String(draggedNote.id))
+    try {
+      await moveNoteToFolder(draggedNote.id, nextFolderId)
+      setCategoryId(nextFolderId == null ? '' : String(nextFolderId))
+      toast.success(`"${draggedNote.title}" 문서를 ${folderName}로 이동했습니다.`)
+    } catch {
+      toast.error('문서 이동에 실패했습니다.')
+    } finally {
+      setMovingNoteId(null)
+    }
+  }
+
+  const handleNoteDragStart = (event, note) => {
+    setDraggedNote(event, note)
+    setDraggingNoteId(String(note.id))
+  }
+
+  const handleNoteDragEnd = () => {
+    setDraggingNoteId(null)
+    setDropTargetId(null)
+    clearDraggedNote()
   }
 
   return (
@@ -326,6 +675,28 @@ const VaultSidebar = () => {
       )}
 
       <div className="sidebar-inner">
+        {contextMenu ? (
+          <div
+            ref={contextMenuRef}
+            className="sidebar-context-menu"
+            style={{ left: contextMenu.x, top: contextMenu.y }}
+            role="menu"
+            aria-label="폴더 메뉴"
+          >
+            <button
+              type="button"
+              className="sidebar-context-menu-item"
+              onClick={() => {
+                openFolderDraft(contextMenu.parentFolder)
+                setContextMenu(null)
+              }}
+              role="menuitem"
+            >
+              새 폴더
+            </button>
+          </div>
+        ) : null}
+
         <div className="sidebar-minimal-header">
           <div>
             <span className="sidebar-minimal-title">문서</span>
@@ -356,8 +727,12 @@ const VaultSidebar = () => {
               {filteredRecentNotes.map((note) => (
                 <li key={note.id}>
                   <button
-                    className={`sidebar-item sidebar-file-item recent-file-item${activePostId === String(note.id) ? ' active' : ''}`}
+                    draggable={String(movingNoteId) !== String(note.id)}
+                    className={`sidebar-item sidebar-file-item recent-file-item${activePostId === String(note.id) ? ' active' : ''}${draggingNoteId === String(note.id) ? ' is-dragging' : ''}`}
                     onClick={() => navigate(`/notes/${note.id}`)}
+                    onContextMenu={(event) => event.stopPropagation()}
+                    onDragStart={(event) => handleNoteDragStart(event, note)}
+                    onDragEnd={handleNoteDragEnd}
                     title={note.title}
                   >
                     <span className="recent-file-dot">·</span>
@@ -369,16 +744,33 @@ const VaultSidebar = () => {
           </SidebarSection>
         )}
 
-        <SidebarSection title="폴더" defaultOpen>
-          <CategoryTree
-            categories={categories}
-            notes={allNotes}
-            onPostClick={navigateToNote}
-            activeFolderId={categoryId}
-            onFolderClick={handleFolderClick}
-            activePostId={activePostId}
-            searchQuery={explorerQuery.trim().toLowerCase()}
-          />
+        <SidebarSection title="폴더" defaultOpen aside="우클릭 +" className="sidebar-section--folders" contentClassName="sidebar-section-content--fill">
+          <div className="sidebar-folder-surface" onContextMenu={(event) => openContextMenu(event, null)}>
+            <CategoryTree
+              categories={categories}
+              notes={allNotes}
+              onPostClick={navigateToNote}
+              activeFolderId={categoryId}
+              onFolderClick={handleFolderClick}
+              activePostId={activePostId}
+              searchQuery={explorerQuery.trim().toLowerCase()}
+              onTreeContextMenu={(event) => openContextMenu(event, null)}
+              onFolderContextMenu={(folder, event) => openContextMenu(event, folder)}
+              onFolderDragOver={handleFolderDragOver}
+              onFolderDrop={handleFolderDrop}
+              onNoteDragStart={handleNoteDragStart}
+              onNoteDragEnd={handleNoteDragEnd}
+              dropTargetId={dropTargetId}
+              draggingNoteId={draggingNoteId}
+              movingNoteId={movingNoteId}
+              draftFolder={draftFolder}
+              draftName={draftFolderName}
+              onDraftNameChange={setDraftFolderName}
+              onDraftSubmit={handleCreateFolder}
+              onDraftKeyDown={handleDraftKeyDown}
+              isCreatingFolder={isCreatingFolder}
+            />
+          </div>
         </SidebarSection>
 
         {categoryId ? (

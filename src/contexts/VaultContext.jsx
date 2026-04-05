@@ -1,10 +1,23 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { fetchNotes, fetchCategories, createCategory as apiCreateCategory } from '../api/client'
+import { fetchNotes, fetchCategories, createCategory as apiCreateCategory, moveNote as apiMoveNote } from '../api/client'
 
 const RECENT_KEY = 'kg-recent-notes'
 const LEGACY_RECENT_KEY = 'kg-recent-posts'
 const RECENT_MAX = 5
+
+function attachCategoryMeta(posts, categories) {
+  return posts.map((post) => {
+    const folderId = post.folderId ?? post.categoryId ?? post.category?.id ?? null
+
+    return {
+      ...post,
+      category: categories.find((category) => String(category.id) === String(folderId)) || post.category || null,
+      categoryId: folderId,
+      folderId,
+    }
+  })
+}
 
 function getRecentNotes() {
   try {
@@ -43,12 +56,7 @@ async function fetchVaultData() {
   ])
 
   const categories = categoryResponse.categories || []
-  const posts = (postsResponse.posts || []).map((post) => ({
-    ...post,
-    category: categories.find((category) => String(category.id) === String(post.folderId || post.categoryId || post.category?.id)) || post.category || null,
-    categoryId: post.categoryId ?? post.folderId ?? post.category?.id ?? null,
-    folderId: post.folderId ?? post.categoryId ?? post.category?.id ?? null,
-  }))
+  const posts = attachCategoryMeta(postsResponse.posts || [], categories)
 
   return {
     posts,
@@ -78,6 +86,7 @@ export function VaultProvider({ children }) {
   const [loading, setLoading] = useState(true)
   const [categoryId, setCategoryId] = useState('')
   const [selectedTagIds, setSelectedTagIds] = useState([])
+  const [notesRevision, setNotesRevision] = useState(0)
 
   const hydrateVault = useCallback(async () => {
     setLoading(true)
@@ -131,7 +140,15 @@ export function VaultProvider({ children }) {
 
   const createCategory = useCallback(async (name, parentId = null) => {
     const nextCategory = await apiCreateCategory(name, parentId)
-    setCategories((prev) => [...prev, nextCategory])
+    try {
+      const data = await fetchVaultData()
+      setAllNotes(data.posts)
+      setCategories(data.categories)
+      setTags(data.tags)
+      setNotesRevision((prev) => prev + 1)
+    } catch {
+      setCategories((prev) => [...prev, nextCategory])
+    }
     return nextCategory
   }, [])
 
@@ -141,10 +158,38 @@ export function VaultProvider({ children }) {
       setAllNotes(data.posts)
       setCategories(data.categories)
       setTags(data.tags)
+      setNotesRevision((prev) => prev + 1)
     } catch {
       // non-blocking refresh failure
     }
   }, [])
+
+  const moveNoteToFolder = useCallback(async (noteId, folderId = null) => {
+    const movedNote = await apiMoveNote(noteId, folderId)
+    const nextFolderId = movedNote.folderId ?? movedNote.categoryId ?? movedNote.category?.id ?? null
+
+    setAllNotes((prev) => attachCategoryMeta(
+      prev.map((note) => (
+        String(note.id) === String(noteId)
+          ? { ...note, ...movedNote, folderId: nextFolderId, categoryId: nextFolderId }
+          : note
+      )),
+      categories,
+    ))
+
+    try {
+      const data = await fetchVaultData()
+      setAllNotes(data.posts)
+      setCategories(data.categories)
+      setTags(data.tags)
+    } catch {
+      // keep optimistic state if refresh fails
+    } finally {
+      setNotesRevision((prev) => prev + 1)
+    }
+
+    return movedNote
+  }, [categories])
 
   const value = {
     allNotes,
@@ -154,6 +199,7 @@ export function VaultProvider({ children }) {
     recentNotes,
     tagCounts,
     loading,
+    notesRevision,
     categoryId,
     setCategoryId,
     selectedTagIds,
@@ -165,6 +211,7 @@ export function VaultProvider({ children }) {
     resetFilters,
     refreshNotes,
     createCategory,
+    moveNoteToFolder,
   }
 
   return <VaultContext.Provider value={value}>{children}</VaultContext.Provider>

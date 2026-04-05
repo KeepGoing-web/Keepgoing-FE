@@ -20,6 +20,12 @@ function normalizeNote(note) {
   }
 }
 
+function normalizeOptionalFolderId(folderId) {
+  if (folderId === undefined || folderId === null || folderId === '') return null
+  const numericFolderId = Number(folderId)
+  return Number.isFinite(numericFolderId) ? numericFolderId : folderId
+}
+
 function sortNotes(items, sort, order) {
   return [...items].sort((left, right) => {
     let leftValue = left[sort]
@@ -326,10 +332,32 @@ export async function createNote(payload) {
 }
 
 export async function moveNote(id, folderId) {
+  if (shouldUseMockNotes) {
+    const index = MOCK_NOTES.findIndex((note) => note.id === String(id))
+    if (index === -1) {
+      throw new Error('NOT_FOUND')
+    }
+
+    const previousNote = MOCK_NOTES[index]
+    const nextFolderId = folderId ?? null
+    const nextNote = {
+      ...previousNote,
+      folderId: nextFolderId,
+      categoryId: nextFolderId,
+      updatedAt: new Date().toISOString(),
+    }
+
+    MOCK_NOTES[index] = nextNote
+    await delay(150)
+    return enrichMockNote(nextNote)
+  }
+
+  const normalizedFolderId = normalizeOptionalFolderId(folderId)
+
   const res = await apiFetch(`${BASE_URL}/notes/${id}/folder`, {
     method: 'PATCH',
     headers: getAuthHeaders(),
-    body: JSON.stringify({ folderId: folderId ?? null }),
+    body: JSON.stringify({ folderId: normalizedFolderId }),
   })
 
   if (res.status === 404) {

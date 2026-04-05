@@ -1,6 +1,8 @@
-import { BASE_URL, USE_MOCK_API } from './config'
+import { BASE_URL, USE_BACKEND_POSTS, USE_MOCK_API } from './config'
 import { apiFetch, delay, getAuthHeaders, handleResponse } from './http'
 import { MOCK_CATEGORIES, MOCK_TAGS } from './mockData'
+
+const shouldUseMockTaxonomy = USE_MOCK_API && !USE_BACKEND_POSTS
 
 function flattenFolderTree(nodes = [], accumulator = []) {
   nodes.forEach((node) => {
@@ -19,9 +21,9 @@ function flattenFolderTree(nodes = [], accumulator = []) {
 }
 
 export async function fetchCategories(params = {}) {
-  if (USE_MOCK_API) {
+  if (shouldUseMockTaxonomy) {
     const { q = '' } = params
-    let items = MOCK_CATEGORIES
+    let items = [...MOCK_CATEGORIES]
 
     if (q) {
       const lowerQuery = q.toLowerCase()
@@ -29,7 +31,10 @@ export async function fetchCategories(params = {}) {
     }
 
     await delay(120)
-    return { categories: items, total: items.length }
+    return {
+      categories: items.map((category) => ({ ...category })),
+      total: items.length,
+    }
   }
 
   const res = await apiFetch(`${BASE_URL}/folders/tree`, {
@@ -47,7 +52,7 @@ export async function fetchCategories(params = {}) {
 }
 
 export async function createCategory(name, parentId = null) {
-  if (USE_MOCK_API) {
+  if (shouldUseMockTaxonomy) {
     const nextCategory = {
       id: `cat_${Date.now()}`,
       name,
@@ -75,7 +80,7 @@ export async function createCategory(name, parentId = null) {
 }
 
 export async function fetchTags(params = {}) {
-  if (USE_MOCK_API) {
+  if (shouldUseMockTaxonomy) {
     const { q = '' } = params
     let items = MOCK_TAGS
 
@@ -92,7 +97,7 @@ export async function fetchTags(params = {}) {
 }
 
 export async function createTag(name) {
-  if (USE_MOCK_API) {
+  if (shouldUseMockTaxonomy) {
     const nextTag = {
       id: `tag_${Date.now()}`,
       name,

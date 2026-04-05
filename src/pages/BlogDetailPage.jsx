@@ -32,6 +32,7 @@ const BlogDetailPage = () => {
   const addRecentNote = vault?.addRecentNote ?? null
   const allNotes = vault?.allNotes ?? EMPTY_NOTES
   const categories = vault?.categories ?? EMPTY_FOLDERS
+  const notesRevision = vault?.notesRevision ?? 0
 
   useEffect(() => {
     const load = async () => {
@@ -53,7 +54,7 @@ const BlogDetailPage = () => {
       }
     }
     void load()
-  }, [addRecentNote, id])
+  }, [addRecentNote, id, notesRevision])
 
   const getVisibilityLabel = (visibility) => {
     switch (visibility) {
@@ -121,7 +122,7 @@ const BlogDetailPage = () => {
   }
 
   const currentFolderId = post.folderId ?? post.categoryId ?? post.category?.id ?? null
-  const folderName = post.category?.name || categories.find((category) => String(category.id) === String(currentFolderId))?.name || '루트'
+  const folderName = post.category?.name || categories.find((category) => String(category.id) === String(currentFolderId))?.name || '전체 문서'
   const truncatedTitle = post.title.length > 30 ? `${post.title.slice(0, 30)}…` : post.title
 
   return (
