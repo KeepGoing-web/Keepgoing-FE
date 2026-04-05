@@ -22,7 +22,7 @@ export async function signup(email, password, name) {
 }
 
 export async function fetchMe() {
-  const res = await apiFetch(`${BASE_URL}/auth/me`, {
+  const res = await apiFetch(`${BASE_URL}/users/me`, {
     headers: getAuthHeaders(),
   })
   return handleResponse(res)
