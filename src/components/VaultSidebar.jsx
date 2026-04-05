@@ -259,9 +259,11 @@ const VaultSidebar = () => {
   const activePostId = location.pathname.match(/^\/notes\/(\d+)$/)?.[1] || null
   const {
     allNotes, categories, tags, recentNotes, tagCounts,
-    categoryId, setCategoryId, selectedTagIds, toggleTag, navigateToNote,
+    categoryId, setCategoryId, selectedTagIds, toggleTag, navigateToNote, resetFilters,
     createCategory,
   } = useVault()
+  const aiReadyCount = allNotes.filter((note) => note.visibility === 'AI_COLLECTABLE' || note.aiCollectable).length
+  const hasActiveFilters = Boolean(categoryId || selectedTagIds.length)
 
   /* ── Context menu state ── */
   const [ctxMenu, setCtxMenu] = useState(null) // { x, y, parentId }
@@ -414,6 +416,44 @@ const VaultSidebar = () => {
       )}
 
       <div className="sidebar-inner">
+        <div className="sidebar-workspace-card">
+          <div className="sidebar-workspace-header">
+            <span className="sidebar-workspace-title">노트 작업공간</span>
+            {hasActiveFilters && <span className="sidebar-workspace-badge">필터 적용 중</span>}
+          </div>
+          <div className="sidebar-workspace-stats">
+            <div>
+              <strong>{allNotes.length}</strong>
+              <span>노트</span>
+            </div>
+            <div>
+              <strong>{categories.length}</strong>
+              <span>카테고리</span>
+            </div>
+            <div>
+              <strong>{aiReadyCount}</strong>
+              <span>AI 수집</span>
+            </div>
+          </div>
+          <div className="sidebar-workspace-actions">
+            <button
+              type="button"
+              className={`sidebar-workspace-action ${!hasActiveFilters ? 'active' : ''}`}
+              onClick={() => {
+                resetFilters()
+                navigate('/notes/list')
+              }}
+            >
+              전체 보기
+            </button>
+            {hasActiveFilters && (
+              <button type="button" className="sidebar-workspace-action" onClick={resetFilters}>
+                필터 초기화
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* Write button */}
         <Link to="/notes/write" className="sidebar-write-btn">
           <span>✦</span>

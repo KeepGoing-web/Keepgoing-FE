@@ -5,6 +5,12 @@ import ActivityHeatmap from '../components/ActivityHeatmap'
 import LoadingDots from '../components/LoadingDots'
 import './DashboardPage.css'
 
+const VISIBILITY_LABELS = {
+  PUBLIC: '공개',
+  PRIVATE: '비공개',
+  AI_COLLECTABLE: 'AI 수집',
+}
+
 const DashboardPage = () => {
   const {
     allNotes,
@@ -19,10 +25,13 @@ const DashboardPage = () => {
     toggleTag,
   } = useVault()
 
-  const uncategorizedCount = allNotes.filter((post) => !post.category).length
+  const uncategorizedCount = allNotes.filter((note) => !note.category).length
   const latestNotes = [...allNotes]
     .sort((left, right) => new Date(right.updatedAt || right.createdAt) - new Date(left.updatedAt || left.createdAt))
     .slice(0, 5)
+  const aiReadyCount = allNotes.filter((note) => note.visibility === 'AI_COLLECTABLE' || note.aiCollectable).length
+  const publicCount = allNotes.filter((note) => note.visibility === 'PUBLIC').length
+  const lastUpdatedAt = latestNotes[0]?.updatedAt || latestNotes[0]?.createdAt || null
 
   if (loading) {
     return (
@@ -60,11 +69,46 @@ const DashboardPage = () => {
         ) : (
           <>
             <div className="dash-header">
-              <h1 className="dash-title">Dashboard</h1>
-              <Link to="/notes/write" className="dash-write-btn">
-                <span>✦</span> 새 노트 작성
-              </Link>
+              <div className="dash-header-copy">
+                <p className="dash-kicker">NOTE HUB</p>
+                <h1 className="dash-title">노트 대시보드</h1>
+                <p className="dash-subtitle">
+                  최근 작성 흐름, 정리 상태, AI 활용 가능한 노트를 한 번에 확인하세요.
+                </p>
+              </div>
+              <div className="dash-header-actions">
+                <Link to="/notes/list" className="dash-secondary-btn">
+                  전체 노트 보기
+                </Link>
+                <Link to="/notes/write" className="dash-write-btn">
+                  <span>✦</span> 새 노트 작성
+                </Link>
+              </div>
             </div>
+
+            <section className="dash-overview">
+              <div className="dash-overview-main">
+                <div className="dash-overview-card">
+                  <span className="dash-overview-label">보관 중인 노트</span>
+                  <strong>{allNotes.length}</strong>
+                  <span className="dash-overview-meta">공개 {publicCount} · AI 수집 {aiReadyCount}</span>
+                </div>
+                <div className="dash-overview-card">
+                  <span className="dash-overview-label">마지막 업데이트</span>
+                  <strong>{lastUpdatedAt ? formatDate(lastUpdatedAt) : '아직 없음'}</strong>
+                  <span className="dash-overview-meta">최근 수정된 노트에서 이어서 정리해보세요.</span>
+                </div>
+                <div className="dash-overview-card dash-overview-card--accent">
+                  <span className="dash-overview-label">지금 추천 작업</span>
+                  <strong>{latestNotes[0]?.title || '첫 노트 작성하기'}</strong>
+                  <span className="dash-overview-meta">
+                    {latestNotes[0]
+                      ? '가장 최근 노트를 다듬거나 관련 노트를 이어서 작성해보세요.'
+                      : '짧은 아이디어라도 바로 남겨두면 대시보드가 채워집니다.'}
+                  </span>
+                </div>
+              </div>
+            </section>
 
             <div className="dash-stats">
               <div className="dash-stat-card">
@@ -81,7 +125,7 @@ const DashboardPage = () => {
               </div>
               <div className="dash-stat-card">
                 <span className="dash-stat-value">
-                  {allNotes.filter((post) => post.visibility === 'AI_COLLECTABLE' || post.aiCollectable).length}
+                  {aiReadyCount}
                 </span>
                 <span className="dash-stat-label">AI 수집</span>
               </div>
@@ -98,16 +142,24 @@ const DashboardPage = () => {
                   <p className="dash-empty">아직 노트가 없습니다.</p>
                 ) : (
                   <ul className="dash-recent-list">
-                    {latestNotes.map((post) => (
-                      <li key={post.id}>
-                        <button className="dash-recent-item" onClick={() => navigateToNote(post)}>
+                    {latestNotes.map((note) => (
+                      <li key={note.id}>
+                        <button className="dash-recent-item" onClick={() => navigateToNote(note)}>
                           <span className="dash-recent-icon">📄</span>
                           <div className="dash-recent-info">
-                            <span className="dash-recent-title">{post.title}</span>
+                            <div className="dash-recent-topline">
+                              <span className="dash-recent-title">{note.title}</span>
+                              <span className="dash-recent-badge">
+                                {VISIBILITY_LABELS[note.visibility] || note.visibility}
+                              </span>
+                            </div>
+                            <span className="dash-recent-preview">
+                              {(note.content || '').replace(/\s+/g, ' ').slice(0, 96) || '본문이 아직 없습니다.'}
+                            </span>
                             <span className="dash-recent-date">
-                              {formatDate(post.updatedAt || post.createdAt)}
-                              {post.category && <span className="dash-recent-cat"> · {post.category.name}</span>}
-                              <span className="dash-recent-readtime"> · {estimateReadTime(post.content)}분 읽기</span>
+                              {formatDate(note.updatedAt || note.createdAt)}
+                              {note.category && <span className="dash-recent-cat"> · {note.category.name}</span>}
+                              <span className="dash-recent-readtime"> · {estimateReadTime(note.content)}분 읽기</span>
                             </span>
                           </div>
                         </button>
@@ -170,12 +222,12 @@ const DashboardPage = () => {
 
             {recentNotes.length > 0 && (
               <section className="dash-section dash-section--full">
-                <h2 className="dash-section-title">최근 열어본 파일</h2>
+                <h2 className="dash-section-title">최근 열어본 노트</h2>
                 <div className="dash-quick-list">
-                  {recentNotes.map((post) => (
-                    <Link key={post.id} to={`/notes/${post.id}`} className="dash-quick-item">
+                  {recentNotes.map((note) => (
+                    <Link key={note.id} to={`/notes/${note.id}`} className="dash-quick-item">
                       <span className="dash-quick-dot">·</span>
-                      {post.title}
+                      {note.title}
                     </Link>
                   ))}
                 </div>

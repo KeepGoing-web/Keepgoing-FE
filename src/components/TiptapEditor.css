@@ -25,18 +25,26 @@
   background: var(--bg-overlay);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   min-height: 40px;
+  overflow-x: auto;
+  overflow-y: visible;
+  scrollbar-width: thin;
 }
 
 .tiptap-toolbar-group {
   display: flex;
   align-items: center;
   padding: 0 2px;
+  flex-shrink: 0;
 }
 
 .tiptap-toolbar-group + .tiptap-toolbar-group {
   border-left: 1px solid var(--border);
+}
+
+.tiptap-toolbar-group--insert {
+  position: relative;
 }
 
 .tiptap-toolbar-btn {
@@ -80,6 +88,79 @@
 
 .tiptap-toolbar-btn svg {
   flex-shrink: 0;
+}
+
+.tiptap-insert-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(260px, 80vw);
+  padding: 0.75rem;
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  box-shadow: 0 12px 24px var(--shadow-overlay);
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.tiptap-insert-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+}
+
+.tiptap-insert-input {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  outline: none;
+}
+
+.tiptap-insert-input:focus {
+  border-color: var(--accent-dim);
+}
+
+.tiptap-insert-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.tiptap-insert-btn {
+  padding: 0.35rem 0.65rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.tiptap-insert-btn:hover {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.tiptap-insert-btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg-overlay);
+}
+
+.tiptap-insert-btn--primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 /* ── Content area ───────────────────────────────────────────── */

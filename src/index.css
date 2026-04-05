@@ -76,6 +76,8 @@
   /* Shadows */
   --shadow-overlay: rgba(0, 0, 0, 0.4);
   --shadow-heavy:   rgba(0, 0, 0, 0.5);
+  --card-raised-start: rgba(26, 31, 46, 0.96);
+  --card-raised-end: rgba(15, 19, 25, 0.96);
 
   /* Functional */
   --success: #a6e3a1;
@@ -133,6 +135,8 @@
   /* Shadows */
   --shadow-overlay: rgba(0, 0, 0, 0.12);
   --shadow-heavy:   rgba(0, 0, 0, 0.18);
+  --card-raised-start: rgba(255, 255, 255, 0.98);
+  --card-raised-end: rgba(238, 241, 246, 0.96);
 
   /* Functional */
   --success: #147339;

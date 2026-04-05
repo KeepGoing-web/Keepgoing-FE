@@ -12,6 +12,104 @@
   height: 100%;
 }
 
+.note-shell-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.5rem 1rem 0.5rem;
+}
+
+.note-shell-header-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.note-shell-kicker {
+  margin: 0;
+  color: var(--accent-dim);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+}
+
+.note-shell-title {
+  margin: 0;
+  font-size: 1.45rem;
+  color: var(--text-primary);
+  letter-spacing: -0.03em;
+}
+
+.note-shell-subtitle {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  max-width: 54ch;
+}
+
+.note-shell-create-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: var(--accent-glow);
+  border: 1px solid var(--accent-border-hover);
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.note-shell-create-btn:hover {
+  background: var(--accent-glow-md);
+}
+
+.note-list-summary {
+  padding: 0 16px 8px;
+}
+
+.note-list-summary-main {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  padding: 0.9rem 1rem;
+  background: linear-gradient(180deg, var(--card-raised-start), var(--card-raised-end));
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 10px 20px var(--shadow-overlay);
+}
+
+.note-list-summary-count {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.note-list-summary-hint {
+  color: var(--text-faint);
+  font-size: 0.8rem;
+}
+
+.note-list-active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.note-list-filter-chip {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  font-family: var(--font-mono);
+}
+
 /* ── Search bar (command-palette style) ─────────────────── */
 
 .search-bar-wrap {
@@ -477,6 +575,29 @@
   border-color: var(--accent-border-active);
 }
 
+.empty-state-btn--ghost {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text-secondary);
+}
+
+.empty-state-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.blog-card-preview {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.55;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 /* ── Loading / Error states ──────────────────────────────── */
 
 .vault-loading {
@@ -638,6 +759,11 @@
 }
 
 @media (max-width: 680px) {
+  .note-shell-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
   .post-list-header,
   .post-entry {
     grid-template-columns: 1fr 70px;

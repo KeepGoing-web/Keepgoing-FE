@@ -123,8 +123,44 @@ const ToolbarBtn = ({ onClick, active, title, children, wide }) => (
   </button>
 )
 
+const InsertPopover = ({ label, placeholder, value, onChange, onCancel, onConfirm, confirmLabel }) => (
+  <div className="tiptap-insert-popover" role="dialog" aria-label={label}>
+    <label className="tiptap-insert-label">
+      <span>{label}</span>
+      <input
+        className="tiptap-insert-input"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault()
+            onConfirm()
+          }
+          if (event.key === 'Escape') {
+            event.preventDefault()
+            onCancel()
+          }
+        }}
+        placeholder={placeholder}
+        autoFocus
+      />
+    </label>
+    <div className="tiptap-insert-actions">
+      <button type="button" className="tiptap-insert-btn" onClick={onCancel}>
+        취소
+      </button>
+      <button type="button" className="tiptap-insert-btn tiptap-insert-btn--primary" onClick={onConfirm}>
+        {confirmLabel}
+      </button>
+    </div>
+  </div>
+)
+
 /* ── Main component ──────────────────────────────────────────── */
 const TiptapEditor = ({ value = '', onChange, placeholder = '내용을 입력하세요...' }) => {
+  const [insertMenu, setInsertMenu] = useState(null)
+  const insertMenuRef = useRef(null)
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ codeBlock: false }),
@@ -168,25 +204,54 @@ const TiptapEditor = ({ value = '', onChange, placeholder = '내용을 입력하
     }
   }, [editor])
 
-  const setLink = useCallback(() => {
-    if (!editor) return
-    const prev = editor.getAttributes('link').href || ''
-    const url = window.prompt('링크 URL을 입력하세요:', prev)
-    if (url === null) return
-    if (url === '') {
-      editor.chain().focus().extendMarkRange('link').unsetLink().run()
-    } else {
-      editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
+  useEffect(() => {
+    if (!insertMenu) return undefined
+
+    const handleOutsideClick = (event) => {
+      if (insertMenuRef.current && !insertMenuRef.current.contains(event.target)) {
+        setInsertMenu(null)
+      }
     }
+
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [insertMenu])
+
+  const openLinkMenu = useCallback(() => {
+    if (!editor) return
+    setInsertMenu({
+      type: 'link',
+      value: editor.getAttributes('link').href || '',
+    })
   }, [editor])
 
-  const setImage = useCallback(() => {
+  const openImageMenu = useCallback(() => {
     if (!editor) return
-    const url = window.prompt('이미지 URL을 입력하세요:')
-    if (url) {
-      editor.chain().focus().setImage({ src: url }).run()
-    }
+    setInsertMenu({
+      type: 'image',
+      value: '',
+    })
   }, [editor])
+
+  const handleInsertConfirm = useCallback(() => {
+    if (!editor || !insertMenu) return
+
+    const nextValue = insertMenu.value.trim()
+
+    if (insertMenu.type === 'link') {
+      if (!nextValue) {
+        editor.chain().focus().extendMarkRange('link').unsetLink().run()
+      } else {
+        editor.chain().focus().extendMarkRange('link').setLink({ href: nextValue }).run()
+      }
+    }
+
+    if (insertMenu.type === 'image' && nextValue) {
+      editor.chain().focus().setImage({ src: nextValue }).run()
+    }
+
+    setInsertMenu(null)
+  }, [editor, insertMenu])
 
   if (!editor) return null
 
@@ -301,21 +366,32 @@ const TiptapEditor = ({ value = '', onChange, placeholder = '내용을 입력하
         </div>
 
         {/* Group 6: Insert */}
-        <div className="tiptap-toolbar-group">
+        <div className="tiptap-toolbar-group tiptap-toolbar-group--insert" ref={insertMenuRef}>
           <ToolbarBtn
-            onClick={setLink}
+            onClick={openLinkMenu}
             active={editor.isActive('link')}
             title="Link (Ctrl+K)"
           >
             <Icon d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
           </ToolbarBtn>
           <ToolbarBtn
-            onClick={setImage}
+            onClick={openImageMenu}
             active={false}
             title="Image"
           >
             <Icon d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" size={13} />
           </ToolbarBtn>
+          {insertMenu && (
+            <InsertPopover
+              label={insertMenu.type === 'link' ? '링크 URL' : '이미지 URL'}
+              placeholder={insertMenu.type === 'link' ? 'https://example.com' : 'https://example.com/image.png'}
+              value={insertMenu.value}
+              onChange={(nextValue) => setInsertMenu((prev) => ({ ...prev, value: nextValue }))}
+              onCancel={() => setInsertMenu(null)}
+              onConfirm={handleInsertConfirm}
+              confirmLabel={insertMenu.type === 'link' ? '적용' : '삽입'}
+            />
+          )}
         </div>
 
         {/* Group 6: Block */}

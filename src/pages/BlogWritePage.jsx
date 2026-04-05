@@ -20,6 +20,7 @@ import './BlogWritePage.css'
 const TiptapEditor = lazy(() => import('../components/TiptapEditor'))
 
 const BLOG_LIST_PATH = '/notes/list'
+const MOBILE_BREAKPOINT = 768
 
 const BlogWritePage = () => {
   const { id } = useParams()
@@ -28,6 +29,7 @@ const BlogWritePage = () => {
   const vault = useVaultOptional()
   const confirm = useConfirm()
   const isEdit = Boolean(id)
+  const [isMobileViewport, setIsMobileViewport] = useState(() => window.innerWidth <= MOBILE_BREAKPOINT)
 
   const [formData, setFormData] = useState({
     title: '',
@@ -43,7 +45,7 @@ const BlogWritePage = () => {
   const [categories, setCategories] = useState([])
   const [tags, setTags] = useState([])
   const [error, setError] = useState(null)
-  const [metaOpen, setMetaOpen] = useState(false)
+  const [metaOpen, setMetaOpen] = useState(() => window.innerWidth > MOBILE_BREAKPOINT)
   const [newTagInput, setNewTagInput] = useState(false)
   const [newTagName, setNewTagName] = useState('')
   const [newCatInput, setNewCatInput] = useState(false)
@@ -51,6 +53,20 @@ const BlogWritePage = () => {
 
   const newTagRef = useRef(null)
   const newCatRef = useRef(null)
+  const showMetaPanel = !isMobileViewport || metaOpen
+
+  useEffect(() => {
+    const handleResize = () => {
+      const nextIsMobile = window.innerWidth <= MOBILE_BREAKPOINT
+      setIsMobileViewport(nextIsMobile)
+      if (!nextIsMobile) {
+        setMetaOpen(true)
+      }
+    }
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   useEffect(() => {
     const loadMeta = async () => {
@@ -123,13 +139,25 @@ const BlogWritePage = () => {
       return
     }
 
+    const existingTag = tags.find((tag) => tag.name.trim().toLowerCase() === name.toLowerCase())
+    if (existingTag) {
+      if (!formData.tagIds.includes(existingTag.id)) {
+        handleFormChange({ tagIds: [...formData.tagIds, existingTag.id] })
+      }
+      toast.info(`기존 태그 "${existingTag.name}"를 선택했습니다.`)
+      setNewTagInput(false)
+      setNewTagName('')
+      return
+    }
+
     try {
       const response = await createTag(name)
       const createdTag = response.tag || response
       setTags((prev) => [...prev, createdTag])
       handleFormChange({ tagIds: [...formData.tagIds, createdTag.id] })
-    } catch {
-      // ignore duplicate creation errors
+      toast.success(`태그 "${createdTag.name}"를 추가했습니다.`)
+    } catch (commitError) {
+      toast.error(commitError?.message || '태그 생성에 실패했습니다.')
     }
 
     setNewTagInput(false)
@@ -160,13 +188,25 @@ const BlogWritePage = () => {
       return
     }
 
+    const existingCategory = categories.find(
+      (category) => category.name.trim().toLowerCase() === name.toLowerCase(),
+    )
+    if (existingCategory) {
+      handleFormChange({ categoryId: existingCategory.id })
+      toast.info(`기존 카테고리 "${existingCategory.name}"를 선택했습니다.`)
+      setNewCatInput(false)
+      setNewCatName('')
+      return
+    }
+
     try {
       const response = await apiCreateCategory(name)
       const createdCategory = response.category || response
       setCategories((prev) => [...prev, createdCategory])
       handleFormChange({ categoryId: createdCategory.id })
-    } catch {
-      // ignore category creation errors for now
+      toast.success(`카테고리 "${createdCategory.name}"를 추가했습니다.`)
+    } catch (commitError) {
+      toast.error(commitError?.message || '카테고리 생성에 실패했습니다.')
     }
 
     setNewCatInput(false)
@@ -200,16 +240,14 @@ const BlogWritePage = () => {
         tagIds: formData.tagIds || [],
       }
 
-      if (isEdit) {
-        await updateNote(id, payload)
-      } else {
-        await createNote(payload)
-      }
+      const savedNote = isEdit
+        ? await updateNote(id, payload)
+        : await createNote(payload)
 
       await vault?.refreshNotes?.()
       setIsDirty(false)
       toast.success(isEdit ? '노트가 수정되었습니다.' : '노트가 저장되었습니다.')
-      navigate(BLOG_LIST_PATH)
+      navigate(`/notes/${savedNote?.id ?? id}`)
     } catch {
       toast.error('저장에 실패했습니다.')
     } finally {
@@ -249,6 +287,15 @@ const BlogWritePage = () => {
 
   return (
     <div className="bw-page">
+      {isMobileViewport && showMetaPanel && (
+        <button
+          type="button"
+          className="bw-meta-backdrop"
+          aria-label="설정 패널 닫기"
+          onClick={() => setMetaOpen(false)}
+        />
+      )}
+
       <header className="bw-header">
         <div className="bw-header-left">
           <button type="button" className="bw-btn bw-btn--ghost" onClick={handleBack} aria-label="목록으로 돌아가기">
@@ -289,7 +336,7 @@ const BlogWritePage = () => {
             type="button"
             className={`bw-btn bw-btn--ghost bw-meta-toggle ${metaOpen ? 'active' : ''}`}
             onClick={() => setMetaOpen((open) => !open)}
-            aria-expanded={metaOpen}
+            aria-expanded={showMetaPanel}
             title="메타데이터 패널"
           >
             ⚙ 설정
@@ -321,11 +368,15 @@ const BlogWritePage = () => {
           </div>
         </div>
 
-        <aside className={`bw-meta-panel ${metaOpen ? 'open' : ''}`}>
+        <aside className={`bw-meta-panel ${showMetaPanel ? 'open' : ''}`} aria-hidden={!showMetaPanel}>
           <div className="bw-meta-group">
             <label className="bw-meta-label">카테고리</label>
             <div className="bw-meta-row">
-              <select value={formData.categoryId} onChange={(event) => handleFormChange({ categoryId: event.target.value })}>
+              <select
+                className="bw-meta-select"
+                value={formData.categoryId}
+                onChange={(event) => handleFormChange({ categoryId: event.target.value })}
+              >
                 <option value="">카테고리 선택</option>
                 {categories.map((category) => (
                   <option key={category.id} value={category.id}>
@@ -400,6 +451,23 @@ const BlogWritePage = () => {
             </div>
           </div>
         </aside>
+      </div>
+
+      <div className="bw-status-bar">
+        <span className={saving ? 'bw-status-dirty' : isDirty ? 'bw-status-dirty' : 'bw-status-saved'}>
+          {saving ? '저장 중…' : isDirty ? '작성 중' : isEdit ? '저장됨' : '새 노트'}
+        </span>
+        <span>{countChars(formData.content)}자</span>
+        <span>{estimateReadTime(formData.content)}분 읽기</span>
+        {isMobileViewport && (
+          <button
+            type="button"
+            className="bw-status-meta-btn"
+            onClick={() => setMetaOpen((open) => !open)}
+          >
+            {showMetaPanel ? '설정 닫기' : '설정 열기'}
+          </button>
+        )}
       </div>
     </div>
   )

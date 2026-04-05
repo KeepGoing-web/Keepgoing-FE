@@ -22,6 +22,7 @@ const formatDate = (iso) => {
 
 const BlogListPage = () => {
   const {
+    categories,
     tags,
     categoryId,
     setCategoryId,
@@ -133,8 +134,38 @@ const BlogListPage = () => {
         .slice(0, 6)
     : []
 
+  const activeCategory = categories.find((category) => String(category.id) === String(categoryId))
+  const activeFilterChips = [
+    debouncedQuery ? `검색: ${debouncedQuery}` : null,
+    activeCategory ? `카테고리: ${activeCategory.name}` : null,
+    ...selectedTagIds
+      .map((tagId) => tags.find((tag) => tag.id === tagId))
+      .filter(Boolean)
+      .map((tag) => `#${tag.name}`),
+    visibility ? `공개: ${getVisMeta(visibility).label}` : null,
+    aiOnly === 'true' ? 'AI 수집 허용' : null,
+    aiOnly === 'false' ? 'AI 수집 미허용' : null,
+    dateFrom ? `${dateFrom}부터` : null,
+    dateTo ? `${dateTo}까지` : null,
+  ].filter(Boolean)
+
   return (
     <div className="blog-main">
+      <div className="note-shell-header">
+        <div className="note-shell-header-copy">
+          <p className="note-shell-kicker">NOTE LIBRARY</p>
+          <h1 className="note-shell-title">노트 보관함</h1>
+          <p className="note-shell-subtitle">
+            검색, 태그, 공개 범위, 날짜 필터로 필요한 노트를 빠르게 찾고 이어서 작업하세요.
+          </p>
+        </div>
+        <div className="note-shell-header-actions">
+          <Link to="/notes/write" className="note-shell-create-btn">
+            새 노트 작성
+          </Link>
+        </div>
+      </div>
+
       <div className="search-bar-wrap">
         <div className="search-bar">
           <i className="search-icon">⌕</i>
@@ -154,6 +185,21 @@ const BlogListPage = () => {
             </button>
           )}
           <span className="search-kbd">Ctrl K</span>
+        </div>
+      </div>
+
+      <div className="note-list-summary">
+        <div className="note-list-summary-main">
+          <span className="note-list-summary-count">총 {pageMeta.total}개 노트</span>
+          {activeFilterChips.length > 0 ? (
+            <div className="note-list-active-filters">
+              {activeFilterChips.map((chip) => (
+                <span key={chip} className="note-list-filter-chip">{chip}</span>
+              ))}
+            </div>
+          ) : (
+            <span className="note-list-summary-hint">현재 모든 노트를 표시하고 있습니다.</span>
+          )}
         </div>
       </div>
 
@@ -322,7 +368,25 @@ const BlogListPage = () => {
       {loading ? (
         <div className="blog-empty">불러오는 중...</div>
       ) : posts.length === 0 ? (
-        <div className="blog-empty">조건에 맞는 노트가 없습니다.</div>
+        <div className="empty-state">
+          <div className="empty-state-icon">📝</div>
+          <h2 className="empty-state-title">
+            {activeFilterChips.length > 0 ? '조건에 맞는 노트가 없습니다.' : '아직 작성된 노트가 없습니다.'}
+          </h2>
+          <p className="empty-state-sub">
+            {activeFilterChips.length > 0
+              ? '필터를 조금 완화하거나 검색어를 바꿔보세요.'
+              : '첫 노트를 작성하면 이 공간에서 최근 작성한 흐름과 메타데이터를 바로 확인할 수 있습니다.'}
+          </p>
+          <div className="empty-state-actions">
+            <button type="button" className="empty-state-btn empty-state-btn--ghost" onClick={handleReset}>
+              필터 초기화
+            </button>
+            <Link to="/notes/write" className="empty-state-btn">
+              새 노트 작성
+            </Link>
+          </div>
+        </div>
       ) : (
         <div className="blog-list">
           {posts.map((post) => {
@@ -349,6 +413,10 @@ const BlogListPage = () => {
                   {post.category && <span className="blog-card-category">📂 {post.category.name}</span>}
                   {post.aiCollectable && <span className="blog-card-ai">🤖 AI 수집 허용</span>}
                 </div>
+
+                <p className="blog-card-preview">
+                  {(post.content || '').replace(/\s+/g, ' ').slice(0, 140) || '본문이 아직 없습니다.'}
+                </p>
 
                 {Array.isArray(post.tags) && post.tags.length > 0 && (
                   <div className="blog-card-tags">
