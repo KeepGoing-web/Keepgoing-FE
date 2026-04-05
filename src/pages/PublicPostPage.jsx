@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
 import '../styles/hljs-theme.css'
-import { fetchPublicPost } from '../api/client'
+import { fetchPublicNote } from '../api/client'
 import './PublicPostPage.css'
 import '../components/MarkdownBody.css'
 import MermaidCodeBlock from '../components/MermaidCodeBlock'
@@ -21,35 +21,35 @@ const estimateReadTime = (content = '') => {
 }
 
 const PublicPostPage = () => {
-  const { username, postId } = useParams()
+  const { username, noteId } = useParams()
   const location = useLocation()
   const basePath = location.pathname.startsWith('/users/') ? `/users/${username}` : `/@${username}`
-  const [post, setPost] = useState(null)
+  const [note, setNote] = useState(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [error, setError] = useState(null)
 
   useEffect(() => {
     const load = async () => {
-      if (!postId) return
+      if (!noteId) return
       setLoading(true)
       setNotFound(false)
       setError(null)
       try {
-        const data = await fetchPublicPost(username, postId)
-        setPost(data)
+        const data = await fetchPublicNote(username, noteId)
+        setNote(data)
       } catch (e) {
         if (e.message === 'NOT_FOUND') {
           setNotFound(true)
         } else {
-          setError('포스트를 불러올 수 없습니다.')
+          setError('노트를 불러올 수 없습니다.')
         }
       } finally {
         setLoading(false)
       }
     }
     load()
-  }, [username, postId])
+  }, [username, noteId])
 
   if (loading) {
     return (
@@ -70,11 +70,11 @@ const PublicPostPage = () => {
       <div className="pub-post-page">
         <div className="pub-post-container">
           <Link to={basePath} className="pub-post-back">
-            ← @{username}의 블로그
+            ← @{username}의 노트
           </Link>
           <div className="pub-post-notfound">
-            <p>포스트를 찾을 수 없습니다.</p>
-            <Link to={basePath} className="pub-post-back-link">블로그로 돌아가기</Link>
+            <p>노트를 찾을 수 없습니다.</p>
+            <Link to={basePath} className="pub-post-back-link">노트로 돌아가기</Link>
           </div>
         </div>
       </div>
@@ -86,7 +86,7 @@ const PublicPostPage = () => {
       <div className="pub-post-page">
         <div className="pub-post-container">
           <Link to={basePath} className="pub-post-back">
-            ← @{username}의 블로그
+            ← @{username}의 노트
           </Link>
           <div className="pub-post-error">{error}</div>
         </div>
@@ -100,31 +100,31 @@ const PublicPostPage = () => {
 
         {/* ── Back link ─────────────────────────────────── */}
         <Link to={basePath} className="pub-post-back">
-          ← @{username}의 블로그
+          ← @{username}의 노트
         </Link>
 
         {/* ── Article ───────────────────────────────────── */}
-        <article className="pub-article" aria-label={post.title}>
+        <article className="pub-article" aria-label={note.title}>
           <header className="pub-article-header">
-            <h1 className="pub-article-title">{post.title}</h1>
+            <h1 className="pub-article-title">{note.title}</h1>
 
             <div className="pub-article-meta">
-              <time className="pub-article-date" dateTime={post.createdAt}>
-                {formatDate(post.createdAt)}
+              <time className="pub-article-date" dateTime={note.createdAt}>
+                {formatDate(note.createdAt)}
               </time>
 
-              {post.category && (
+              {note.category && (
                 <>
                   <span className="pub-meta-sep">·</span>
-                  <span className="pub-article-category">{post.category.name}</span>
+                  <span className="pub-article-category">{note.category.name}</span>
                 </>
               )}
 
-              {Array.isArray(post.tags) && post.tags.length > 0 && (
+              {Array.isArray(note.tags) && note.tags.length > 0 && (
                 <>
                   <span className="pub-meta-sep">·</span>
                   <span className="pub-article-tags">
-                    {post.tags.map((t) => (
+                    {note.tags.map((t) => (
                       <span key={t.id} className="pub-article-tag">#{t.name}</span>
                     ))}
                   </span>
@@ -132,7 +132,7 @@ const PublicPostPage = () => {
               )}
 
               <span className="pub-meta-sep">·</span>
-              <span className="pub-article-readtime">{estimateReadTime(post.content)}</span>
+              <span className="pub-article-readtime">{estimateReadTime(note.content)}</span>
             </div>
           </header>
 
@@ -144,31 +144,31 @@ const PublicPostPage = () => {
               rehypePlugins={[rehypeHighlight]}
               components={{ code: MermaidCodeBlock }}
             >
-              {post.content}
+              {note.content}
             </ReactMarkdown>
           </div>
         </article>
 
-        {/* ── Post navigation ───────────────────────────── */}
-        {(post.prevPost || post.nextPost) && (
+        {/* ── Note navigation ───────────────────────────── */}
+        {(note.prevNote || note.nextNote) && (
           <>
             <div className="pub-article-divider" role="separator" />
-            <nav className="pub-post-nav" aria-label="이전/다음 포스트">
+            <nav className="pub-post-nav" aria-label="이전/다음 노트">
               <div className="pub-post-nav-prev">
-                {post.prevPost ? (
-                  <Link to={`${basePath}/${post.prevPost.id}`} className="pub-post-nav-link">
-                    <span className="pub-post-nav-label">← 이전 글</span>
-                    <span className="pub-post-nav-title">{post.prevPost.title}</span>
+                {note.prevNote ? (
+                  <Link to={`${basePath}/${note.prevNote.id}`} className="pub-post-nav-link">
+                    <span className="pub-post-nav-label">← 이전 노트</span>
+                    <span className="pub-post-nav-title">{note.prevNote.title}</span>
                   </Link>
                 ) : (
                   <span />
                 )}
               </div>
               <div className="pub-post-nav-next">
-                {post.nextPost ? (
-                  <Link to={`${basePath}/${post.nextPost.id}`} className="pub-post-nav-link pub-post-nav-link--right">
-                    <span className="pub-post-nav-label">다음 글 →</span>
-                    <span className="pub-post-nav-title">{post.nextPost.title}</span>
+                {note.nextNote ? (
+                  <Link to={`${basePath}/${note.nextNote.id}`} className="pub-post-nav-link pub-post-nav-link--right">
+                    <span className="pub-post-nav-label">다음 노트 →</span>
+                    <span className="pub-post-nav-title">{note.nextNote.title}</span>
                   </Link>
                 ) : (
                   <span />

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { fetchBlogs } from '../api/client'
+import { fetchNotes } from '../api/client'
 import './CommandPalette.css'
 
 const CommandPalette = ({ isOpen, onClose, onAIQuery }) => {
@@ -32,7 +32,7 @@ const CommandPalette = ({ isOpen, onClose, onAIQuery }) => {
     const timer = setTimeout(async () => {
       setLoading(true)
       try {
-        const res = await fetchBlogs({ q: query.trim(), page: 1, size: 8 })
+        const res = await fetchNotes({ q: query.trim(), page: 1, size: 8 })
         setResults(res.posts || [])
         setSelectedIndex(0)
       } catch {
@@ -59,7 +59,7 @@ const CommandPalette = ({ isOpen, onClose, onAIQuery }) => {
     }
     const post = results[index]
     if (post) {
-      navigate(`/blogs/${post.id}`)
+      navigate(`/notes/${post.id}`)
       onClose()
     }
   }, [results, query, hasAIOption, navigate, onClose, onAIQuery])
@@ -108,7 +108,7 @@ const CommandPalette = ({ isOpen, onClose, onAIQuery }) => {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="포스트 검색 또는 AI에게 질문..."
+            placeholder="노트 검색 또는 AI에게 질문..."
             aria-label="검색"
             autoComplete="off"
             spellCheck={false}
@@ -124,7 +124,7 @@ const CommandPalette = ({ isOpen, onClose, onAIQuery }) => {
 
           {!loading && query.trim() && results.length === 0 && (
             <div className="cmd-no-results">
-              일치하는 포스트가 없습니다
+              일치하는 노트가 없습니다
             </div>
           )}
 
@@ -168,7 +168,7 @@ const CommandPalette = ({ isOpen, onClose, onAIQuery }) => {
                 <span className="cmd-result-icon">⬡</span>
                 <div className="cmd-result-info">
                   <span className="cmd-result-title">AI에게 질문하기</span>
-                  <span className="cmd-ai-query">"{query.trim()}"</span>
+                  <span className="cmd-ai-query">&quot;{query.trim()}&quot;</span>
                 </div>
                 <span className="cmd-ai-badge">AI</span>
               </button>

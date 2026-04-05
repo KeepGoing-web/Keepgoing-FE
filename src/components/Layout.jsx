@@ -91,7 +91,7 @@ const Layout = () => {
       <a href="#main-content" className="skip-to-content">본문으로 건너뛰기</a>
       <header className="header">
         <div className="header-content">
-          <Link to="/blogs" className="logo">
+          <Link to="/notes" className="logo">
             keepgoing
           </Link>
           <button
@@ -102,8 +102,8 @@ const Layout = () => {
             {navOpen ? "✕" : "☰"}
           </button>
           <nav className={`nav${navOpen ? " nav--mobile-open" : ""}`}>
-            <Link to="/blogs" className={isActive("/blogs") ? "active" : ""}>
-              블로그
+            <Link to="/notes" className={isActive("/notes") ? "active" : ""}>
+              노트
             </Link>
             <Link
               to="/explore"

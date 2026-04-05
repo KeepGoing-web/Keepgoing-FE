@@ -30,18 +30,10 @@ const SidebarSection = ({ title, children, defaultOpen = true }) => {
 
 /* ── CategoryTree: folder/file tree (recursive) ────── */
 
-/* Helper: collect all descendant category IDs */
-const getDescendantIds = (catId, categories) => {
-  const children = categories.filter((c) => c.parentId === catId)
-  let ids = children.map((c) => c.id)
-  children.forEach((c) => { ids = ids.concat(getDescendantIds(c.id, categories)) })
-  return ids
-}
-
 /* Single folder node (recursive) */
-const FolderNode = ({ cat, categories, allPosts, openFolders, toggleFolder, onPostClick, activeCategoryId, onCategoryClick, activePostId, onFolderContextMenu, newDir }) => {
+const FolderNode = ({ cat, categories, allNotes, openFolders, toggleFolder, onPostClick, activeCategoryId, onCategoryClick, activePostId, onFolderContextMenu, newDir }) => {
   const childCats = categories.filter((c) => c.parentId === cat.id)
-  const directPosts = allPosts.filter((p) => p.category && p.category.id === cat.id)
+  const directNotes = allNotes.filter((p) => p.category && p.category.id === cat.id)
   const isOpen = !!openFolders[cat.id]
   const showNewDirInput = newDir.active && newDir.parentId === cat.id
 
@@ -70,7 +62,7 @@ const FolderNode = ({ cat, categories, allPosts, openFolders, toggleFolder, onPo
           onClick={handleFolderClick}
         >
           <span className="tree-label">{cat.name}</span>
-          <span className="sidebar-item-count">{directPosts.length}</span>
+          <span className="sidebar-item-count">{directNotes.length}</span>
         </button>
       </div>
 
@@ -82,7 +74,7 @@ const FolderNode = ({ cat, categories, allPosts, openFolders, toggleFolder, onPo
               key={child.id}
               cat={child}
               categories={categories}
-              allPosts={allPosts}
+              allNotes={allNotes}
               openFolders={openFolders}
               toggleFolder={toggleFolder}
               onPostClick={onPostClick}
@@ -94,7 +86,7 @@ const FolderNode = ({ cat, categories, allPosts, openFolders, toggleFolder, onPo
             />
           ))}
           {/* Direct posts */}
-          {directPosts.map((post) => (
+          {directNotes.map((post) => (
             <li key={post.id}>
               <button
                 className={`sidebar-item sidebar-file-item${activePostId === String(post.id) ? ' active' : ''}`}
@@ -123,8 +115,8 @@ const FolderNode = ({ cat, categories, allPosts, openFolders, toggleFolder, onPo
               />
             </li>
           )}
-          {childCats.length === 0 && directPosts.length === 0 && !showNewDirInput && (
-            <li className="tree-empty-hint">포스트 없음</li>
+          {childCats.length === 0 && directNotes.length === 0 && !showNewDirInput && (
+            <li className="tree-empty-hint">노트 없음</li>
           )}
         </ul>
       )}
@@ -132,7 +124,7 @@ const FolderNode = ({ cat, categories, allPosts, openFolders, toggleFolder, onPo
   )
 }
 
-const CategoryTree = ({ categories, allPosts, onPostClick, activeCategoryId, onCategoryClick, activePostId, onFolderContextMenu, newDir }) => {
+const CategoryTree = ({ categories, allNotes, onPostClick, activeCategoryId, onCategoryClick, activePostId, onFolderContextMenu, newDir }) => {
   const [openFolders, setOpenFolders] = useState({ __uncategorized__: true })
 
   useEffect(() => {
@@ -161,7 +153,7 @@ const CategoryTree = ({ categories, allPosts, onPostClick, activeCategoryId, onC
     setOpenFolders((prev) => ({ ...prev, [id]: !prev[id] }))
   }
 
-  const uncategorized = allPosts.filter((p) => !p.category)
+  const uncategorized = allNotes.filter((p) => !p.category)
   const topLevelCats = categories.filter((c) => !c.parentId)
   const showRootNewDir = newDir.active && newDir.parentId == null
 
@@ -174,8 +166,8 @@ const CategoryTree = ({ categories, allPosts, onPostClick, activeCategoryId, onC
           onClick={() => onCategoryClick('')}
         >
           <span className="tree-icon">◈</span>
-          <span className="tree-label">전체 포스트</span>
-          <span className="sidebar-item-count">{allPosts.length}</span>
+          <span className="tree-label">전체 노트</span>
+          <span className="sidebar-item-count">{allNotes.length}</span>
         </button>
       </li>
 
@@ -185,7 +177,7 @@ const CategoryTree = ({ categories, allPosts, onPostClick, activeCategoryId, onC
           key={cat.id}
           cat={cat}
           categories={categories}
-          allPosts={allPosts}
+          allNotes={allNotes}
           openFolders={openFolders}
           toggleFolder={toggleFolder}
           onPostClick={onPostClick}
@@ -264,10 +256,10 @@ const CategoryTree = ({ categories, allPosts, onPostClick, activeCategoryId, onC
 const VaultSidebar = () => {
   const navigate = useNavigate()
   const location = useLocation()
-  const activePostId = location.pathname.match(/^\/blogs\/(\d+)$/)?.[1] || null
+  const activePostId = location.pathname.match(/^\/notes\/(\d+)$/)?.[1] || null
   const {
-    allPosts, categories, tags, recentPosts, tagCounts,
-    categoryId, setCategoryId, selectedTagIds, toggleTag, navigateToPost,
+    allNotes, categories, tags, recentNotes, tagCounts,
+    categoryId, setCategoryId, selectedTagIds, toggleTag, navigateToNote,
     createCategory,
   } = useVault()
 
@@ -297,7 +289,7 @@ const VaultSidebar = () => {
   const toggleSidebar = () => {
     setSidebarCollapsed((c) => {
       const next = !c
-      try { localStorage.setItem('kg-sidebar-collapsed', String(next)) } catch {}
+      try { localStorage.setItem('kg-sidebar-collapsed', String(next)) } catch { /* ignore */ }
       return next
     })
   }
@@ -318,7 +310,7 @@ const VaultSidebar = () => {
 
     const handleEnd = () => {
       setIsSidebarResizing(false)
-      try { localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sidebarWidth)) } catch {}
+      try { localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sidebarWidth)) } catch { /* ignore */ }
     }
 
     document.addEventListener('mousemove', handleMove)
@@ -343,10 +335,6 @@ const VaultSidebar = () => {
   const handleContextMenu = useCallback((e) => {
     e.preventDefault()
     setCtxMenu({ x: e.clientX, y: e.clientY, parentId: null })
-  }, [])
-
-  const closeCtxMenu = useCallback(() => {
-    setCtxMenu(null)
   }, [])
 
   const handleNewDir = useCallback(() => {
@@ -427,23 +415,23 @@ const VaultSidebar = () => {
 
       <div className="sidebar-inner">
         {/* Write button */}
-        <Link to="/blogs/write" className="sidebar-write-btn">
+        <Link to="/notes/write" className="sidebar-write-btn">
           <span>✦</span>
-          새 포스트 작성
+          새 노트 작성
         </Link>
 
         <div className="sidebar-divider" />
 
         {/* Recent Files */}
-        {recentPosts.length > 0 && (
+        {recentNotes.length > 0 && (
           <>
             <SidebarSection title="최근 파일" defaultOpen={true}>
               <ul className="sidebar-items">
-                {recentPosts.map((p) => (
+                {recentNotes.map((p) => (
                   <li key={p.id}>
                     <button
                       className="sidebar-item sidebar-file-item recent-file-item"
-                      onClick={() => navigate(`/blogs/${p.id}`)}
+                      onClick={() => navigate(`/notes/${p.id}`)}
                       title={p.title}
                     >
                       <span className="sidebar-item-icon recent-file-dot">·</span>
@@ -461,8 +449,8 @@ const VaultSidebar = () => {
         <SidebarSection title="파일 탐색기" defaultOpen={true}>
           <CategoryTree
             categories={categories}
-            allPosts={allPosts}
-            onPostClick={navigateToPost}
+            allNotes={allNotes}
+            onPostClick={navigateToNote}
             activeCategoryId={categoryId}
             onCategoryClick={handleCategoryClick}
             activePostId={activePostId}
@@ -513,9 +501,9 @@ const VaultSidebar = () => {
             <span className="sidebar-ctx-icon">📁</span>
             {ctxMenu.parentId ? '하위 디렉토리' : '새 디렉토리'}
           </button>
-          <button className="sidebar-ctx-item" onClick={() => { setCtxMenu(null); navigate('/blogs/write') }}>
+          <button className="sidebar-ctx-item" onClick={() => { setCtxMenu(null); navigate('/notes/write') }}>
             <span className="sidebar-ctx-icon">📄</span>
-            새 포스트
+            새 노트
           </button>
         </div>
       )}

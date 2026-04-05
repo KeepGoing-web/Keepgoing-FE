@@ -12,7 +12,7 @@ export default function OAuthCallbackPage() {
     processed.current = true
 
     oauthLogin()
-      .then(() => navigate('/blogs', { replace: true }))
+      .then(() => navigate('/notes', { replace: true }))
       .catch(() => {
         navigate('/login', {
           replace: true,

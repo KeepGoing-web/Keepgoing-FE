@@ -16,7 +16,8 @@ export function ToastProvider({ children }) {
 
   /* Cleanup all timers on unmount */
   useEffect(() => {
-    return () => Object.values(timers.current).forEach(clearTimeout)
+    const currentTimers = timers.current
+    return () => Object.values(currentTimers).forEach(clearTimeout)
   }, [])
 
   const removeToast = useCallback((id) => {

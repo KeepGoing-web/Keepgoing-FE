@@ -10,7 +10,7 @@ const PublicLayout = () => {
     <div className="public-layout">
       <header className="public-header">
         <div className="public-header-content">
-          <Link to={isAuthenticated ? '/blogs' : '/'} className="public-logo">
+          <Link to={isAuthenticated ? '/notes' : '/'} className="public-logo">
             keepgoing
           </Link>
           <div className="public-header-actions">
@@ -19,7 +19,7 @@ const PublicLayout = () => {
                 <div className="public-user-initial">
                   {user?.name ? user.name.charAt(0) : user?.email?.charAt(0)?.toUpperCase() || '?'}
                 </div>
-                <Link to="/blogs" className="public-dashboard-link">
+                <Link to="/notes" className="public-dashboard-link">
                   내 대시보드
                 </Link>
               </div>

@@ -26,7 +26,7 @@ const LoginPage = () => {
 
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
-      navigate('/blogs', { replace: true })
+      navigate('/notes', { replace: true })
     }
   }, [authLoading, isAuthenticated, navigate])
 
@@ -37,7 +37,7 @@ const LoginPage = () => {
 
     try {
       await login(email, password)
-      navigate('/blogs')
+      navigate('/notes')
     } catch (err) {
       if (err.code === 'AUTH_INVALID_CREDENTIALS') {
         setError('이메일 또는 비밀번호가 올바르지 않습니다.')
@@ -72,7 +72,7 @@ const LoginPage = () => {
     <div className="login-page">
       <div className="login-container">
         <h1 className="login-title">Keepgoing</h1>
-        <p className="login-subtitle">블로그 & 포트폴리오 관리</p>
+        <p className="login-subtitle">노트 & 포트폴리오 관리</p>
 
         <button
           type="button"

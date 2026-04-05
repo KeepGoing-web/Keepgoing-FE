@@ -3,9 +3,9 @@ import './ActivityHeatmap.css'
 
 /**
  * GitHub-style activity heatmap for writing streak visualization.
- * Shows last 90 days of post creation activity.
+ * Shows last 90 days of note creation activity.
  *
- * @param {Array} posts — array of posts with createdAt field
+ * @param {Array} posts — array of notes with createdAt field
  * @param {number} [days=90] — number of days to display
  */
 const ActivityHeatmap = ({ posts = [], days = 90 }) => {
@@ -13,7 +13,7 @@ const ActivityHeatmap = ({ posts = [], days = 90 }) => {
     const now = new Date()
     now.setHours(23, 59, 59, 999)
 
-    /* Build a map of date-string → post count */
+    /* Build a map of date-string → note count */
     const countMap = {}
     posts.forEach((p) => {
       const d = new Date(p.createdAt)
@@ -40,7 +40,7 @@ const ActivityHeatmap = ({ posts = [], days = 90 }) => {
         dayOfWeek: date.getDay(),
       })
 
-      /* Calculate streak (consecutive days with posts, counting from today backwards) */
+      /* Calculate streak (consecutive days with notes, counting from today backwards) */
       if (i === 0 || !streakBroken) {
         if (count > 0) {
           currentStreak++
@@ -82,7 +82,7 @@ const ActivityHeatmap = ({ posts = [], days = 90 }) => {
           <span className="heatmap-streak-value">{streak}</span>
           <span className="heatmap-streak-label">일 연속 작성</span>
         </div>
-        <span className="heatmap-total">최근 {days}일간 {totalInPeriod}개 포스트</span>
+        <span className="heatmap-total">최근 {days}일간 {totalInPeriod}개 노트</span>
       </div>
       <div className="heatmap-grid" role="img" aria-label={`최근 ${days}일 활동 히트맵`}>
         {grid.map((week, wi) => (
@@ -91,8 +91,8 @@ const ActivityHeatmap = ({ posts = [], days = 90 }) => {
               <div
                 key={cell.date}
                 className={`heatmap-cell heatmap-cell--${getLevel(cell.count)}`}
-                title={`${cell.date}: ${cell.count}개 포스트`}
-                aria-label={`${cell.date}: ${cell.count}개 포스트`}
+                title={`${cell.date}: ${cell.count}개 노트`}
+                aria-label={`${cell.date}: ${cell.count}개 노트`}
               />
             ))}
           </div>

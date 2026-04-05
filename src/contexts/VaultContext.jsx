@@ -1,123 +1,140 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { fetchBlogs, fetchCategories, fetchTags, createCategory as apiCreateCategory } from '../api/client'
+import { fetchNotes, fetchCategories, fetchTags, createCategory as apiCreateCategory } from '../api/client'
 
-/* ── localStorage helpers ─────────────────────────────── */
-
-const RECENT_KEY = 'kg-recent-posts'
+const RECENT_KEY = 'kg-recent-notes'
+const LEGACY_RECENT_KEY = 'kg-recent-posts'
 const RECENT_MAX = 5
 
-function getRecentPosts() {
+function getRecentNotes() {
   try {
-    const raw = localStorage.getItem(RECENT_KEY)
+    const raw = localStorage.getItem(RECENT_KEY) || localStorage.getItem(LEGACY_RECENT_KEY)
     if (!raw) return []
+
     const parsed = JSON.parse(raw)
-    /* Deduplicate by string-coerced id (guards against type mismatches) */
     const seen = new Set()
-    return parsed.filter((p) => {
-      const key = String(p.id)
+
+    return parsed.filter((post) => {
+      const key = String(post.id)
       if (seen.has(key)) return false
       seen.add(key)
       return true
     })
-  } catch { return [] }
+  } catch {
+    return []
+  }
 }
 
-function addRecentPostToStorage(post) {
+function addRecentNoteToStorage(post) {
   try {
-    const prev = getRecentPosts().filter((p) => String(p.id) !== String(post.id))
-    const next = [{ id: post.id, title: post.title }, ...prev].slice(0, RECENT_MAX)
-    localStorage.setItem(RECENT_KEY, JSON.stringify(next))
-    return next
-  } catch { return getRecentPosts() }
+    const previousNotes = getRecentNotes().filter((recentPost) => String(recentPost.id) !== String(post.id))
+    const nextNotes = [{ id: post.id, title: post.title }, ...previousNotes].slice(0, RECENT_MAX)
+    localStorage.setItem(RECENT_KEY, JSON.stringify(nextNotes))
+    return nextNotes
+  } catch {
+    return getRecentNotes()
+  }
 }
 
-/* ── Context ──────────────────────────────────────────── */
+async function fetchVaultData() {
+  const [postsResponse, categoryResponse, tagResponse] = await Promise.all([
+    fetchNotes({ page: 1, size: 200, sort: 'createdAt', order: 'desc' }),
+    fetchCategories(),
+    fetchTags(),
+  ])
+
+  const categories = categoryResponse.categories || []
+  const tags = tagResponse.tags || []
+  const posts = (postsResponse.posts || []).map((post) => ({
+    ...post,
+    category: categories.find((category) => category.id === (post.categoryId || post.category?.id)) || post.category || null,
+  }))
+
+  return {
+    posts,
+    categories,
+    tags,
+  }
+}
 
 const VaultContext = createContext(null)
 
 export function useVault() {
-  const ctx = useContext(VaultContext)
-  if (!ctx) throw new Error('useVault must be used within VaultProvider')
-  return ctx
+  const context = useContext(VaultContext)
+  if (!context) throw new Error('useVault must be used within VaultProvider')
+  return context
 }
 
-/** Safe version — returns null outside VaultProvider */
 export function useVaultOptional() {
   return useContext(VaultContext)
 }
 
 export function VaultProvider({ children }) {
   const navigate = useNavigate()
-
-  /* Shared data */
-  const [allPosts, setAllPosts]       = useState([])
-  const [categories, setCategories]   = useState([])
-  const [tags, setTags]               = useState([])
-  const [recentPosts, setRecentPosts] = useState(() => getRecentPosts())
-  const [loading, setLoading]         = useState(true)
-
-  /* Filter state (shared between sidebar & pages) */
-  const [categoryId, setCategoryId]       = useState('')
+  const [allNotes, setAllNotes] = useState([])
+  const [categories, setCategories] = useState([])
+  const [tags, setTags] = useState([])
+  const [recentNotes, setRecentNotes] = useState(() => getRecentNotes())
+  const [loading, setLoading] = useState(true)
+  const [categoryId, setCategoryId] = useState('')
   const [selectedTagIds, setSelectedTagIds] = useState([])
 
-  /* ── Fetch categories + tags ── */
+  const hydrateVault = useCallback(async () => {
+    setLoading(true)
+    try {
+      const data = await fetchVaultData()
+      setAllNotes(data.posts)
+      setCategories(data.categories)
+      setTags(data.tags)
+    } catch {
+      // non-blocking fetch failure; consumers render empty states
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
-    const loadMeta = async () => {
-      try {
-        const [catRes, tagRes] = await Promise.all([fetchCategories(), fetchTags()])
-        setCategories(catRes.categories || [])
-        setTags(tagRes.tags || [])
-      } catch { /* non-blocking */ }
-    }
-    loadMeta()
+    void hydrateVault()
+  }, [hydrateVault])
+
+  const tagCounts = useMemo(
+    () =>
+      allNotes.reduce((counts, post) => {
+        if (Array.isArray(post.tags)) {
+          post.tags.forEach((tag) => {
+            counts[tag.id] = (counts[tag.id] || 0) + 1
+          })
+        }
+        return counts
+      }, {}),
+    [allNotes],
+  )
+
+  const categoryStats = useMemo(
+    () =>
+      categories.map((category) => ({
+        ...category,
+        count: allNotes.filter((post) => post.category && post.category.id === category.id).length,
+      })),
+    [allNotes, categories],
+  )
+
+  const addRecentNote = useCallback((post) => {
+    const nextNotes = addRecentNoteToStorage(post)
+    setRecentNotes(nextNotes)
   }, [])
 
-  /* ── Fetch all posts for sidebar tree ── */
-  useEffect(() => {
-    const loadAll = async () => {
-      setLoading(true)
-      try {
-        const res = await fetchBlogs({ page: 1, size: 200, sort: 'createdAt', order: 'desc' })
-        const catRes = await fetchCategories()
-        const cats = catRes.categories || []
-        const postsWithCat = (res.posts || []).map((p) => ({
-          ...p,
-          category: cats.find((c) => c.id === (p.categoryId || p.category?.id)) || p.category || null,
-        }))
-        setAllPosts(postsWithCat)
-      } catch { /* non-blocking */ }
-      finally { setLoading(false) }
-    }
-    loadAll()
-  }, [])
-
-  /* ── Tag counts from allPosts ── */
-  const tagCounts = allPosts.reduce((acc, p) => {
-    if (Array.isArray(p.tags)) {
-      p.tags.forEach((t) => { acc[t.id] = (acc[t.id] || 0) + 1 })
-    }
-    return acc
-  }, {})
-
-  /* ── Actions ── */
-
-  const addRecentPost = useCallback((post) => {
-    const next = addRecentPostToStorage(post)
-    setRecentPosts(next)
-  }, [])
-
-  const navigateToPost = useCallback((post) => {
-    addRecentPost(post)
-    navigate(`/blogs/${post.id}`)
-  }, [navigate, addRecentPost])
+  const navigateToNote = useCallback((post) => {
+    addRecentNote(post)
+    navigate(`/notes/${post.id}`)
+  }, [addRecentNote, navigate])
 
   const toggleTag = useCallback((tagId) => {
-    setSelectedTagIds((prev) =>
+    setSelectedTagIds((prev) => (
       prev.includes(tagId)
         ? prev.filter((id) => id !== tagId)
         : [...prev, tagId]
-    )
+    ))
   }, [])
 
   const removeTag = useCallback((tagId) => {
@@ -129,53 +146,43 @@ export function VaultProvider({ children }) {
     setSelectedTagIds([])
   }, [])
 
-  /* Create a new category (directory) */
   const createCategory = useCallback(async (name, parentId = null) => {
-    const newCat = await apiCreateCategory(name, parentId)
-    setCategories((prev) => [...prev, newCat])
-    return newCat
+    const nextCategory = await apiCreateCategory(name, parentId)
+    setCategories((prev) => [...prev, nextCategory])
+    return nextCategory
   }, [])
 
-  /* Refresh posts (e.g. after creating/editing a post) */
-  const refreshPosts = useCallback(async () => {
+  const refreshNotes = useCallback(async () => {
     try {
-      const res = await fetchBlogs({ page: 1, size: 200, sort: 'createdAt', order: 'desc' })
-      const catRes = await fetchCategories()
-      const cats = catRes.categories || []
-      const postsWithCat = (res.posts || []).map((p) => ({
-        ...p,
-        category: cats.find((c) => c.id === (p.categoryId || p.category?.id)) || p.category || null,
-      }))
-      setAllPosts(postsWithCat)
-    } catch { /* non-blocking */ }
+      const data = await fetchVaultData()
+      setAllNotes(data.posts)
+      setCategories(data.categories)
+      setTags(data.tags)
+    } catch {
+      // non-blocking refresh failure
+    }
   }, [])
 
   const value = {
-    /* Data */
-    allPosts,
+    allNotes,
     categories,
+    categoryStats,
     tags,
-    recentPosts,
+    recentNotes,
     tagCounts,
     loading,
-    /* Filter state */
     categoryId,
     setCategoryId,
     selectedTagIds,
     setSelectedTagIds,
-    /* Actions */
-    addRecentPost,
-    navigateToPost,
+    addRecentNote,
+    navigateToNote,
     toggleTag,
     removeTag,
     resetFilters,
-    refreshPosts,
+    refreshNotes,
     createCategory,
   }
 
-  return (
-    <VaultContext.Provider value={value}>
-      {children}
-    </VaultContext.Provider>
-  )
+  return <VaultContext.Provider value={value}>{children}</VaultContext.Provider>
 }

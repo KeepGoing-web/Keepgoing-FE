@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { AI_DEMO_MODE } from '../api/client'
 import { useToast } from '../contexts/ToastContext'
 import './RAGQueryPage.css'
 
@@ -9,33 +10,28 @@ const RAGQueryPage = () => {
   const [loading, setLoading] = useState(false)
   const messagesEndRef = useRef(null)
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
-
   useEffect(() => {
-    scrollToBottom()
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  const handleSubmit = async (event) => {
+    event.preventDefault()
     if (!query.trim() || loading) return
 
-    const question = query
+    const question = query.trim()
     setQuery('')
     setLoading(true)
 
-    // TODO: API 호출로 RAG 질의 수행
     try {
       await new Promise((resolve) => setTimeout(resolve, 1500))
-      const answer = `질문에 대한 답변입니다. 실제로는 RAG 시스템을 통해 작성한 포스트들을 기반으로 답변을 생성합니다.\n\n질문: "${question}"`
+      const answer = `질문에 대한 답변입니다. 실제로는 RAG 시스템을 통해 작성한 노트들을 기반으로 답변을 생성합니다.\n\n질문: "${question}"`
       const newMessage = {
-        id: Date.now().toString(),
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         question,
         answer,
         timestamp: new Date(),
       }
-      setMessages([...messages, newMessage])
+      setMessages((prev) => [...prev, newMessage])
     } catch (error) {
       console.error('질의 실패:', error)
       toast.error('질의에 실패했습니다.')
@@ -49,7 +45,8 @@ const RAGQueryPage = () => {
       <div className="page-header">
         <h1>RAG 질의</h1>
         <p className="page-description">
-          작성한 포스트들을 기반으로 AI가 질문에 답변합니다.
+          작성한 노트들을 기반으로 AI가 질문에 답변합니다.
+          {AI_DEMO_MODE && <><br />현재는 데모 응답 모드로 표시됩니다.</>}
         </p>
       </div>
       <div className="query-container">
@@ -58,11 +55,9 @@ const RAGQueryPage = () => {
             <div className="empty-state">
               <div className="empty-state-icon">⬡</div>
               <h3 className="empty-state-title">AI에게 질문하세요</h3>
-              <p className="empty-state-desc">
-                작성한 포스트를 기반으로 AI가 답변을 생성합니다.
-              </p>
+              <p className="empty-state-desc">작성한 노트를 기반으로 AI가 답변을 생성합니다.</p>
               <p className="empty-state-hint">
-                <strong>팁:</strong> "AI 수집" 설정이 켜진 포스트만 분석 대상이 됩니다.
+                <strong>팁:</strong> &quot;AI 수집&quot; 설정이 켜진 노트만 분석 대상이 됩니다.
               </p>
             </div>
           ) : (
@@ -95,16 +90,12 @@ const RAGQueryPage = () => {
           <input
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(event) => setQuery(event.target.value)}
             placeholder="질문을 입력하세요..."
             disabled={loading}
             className="query-input"
           />
-          <button
-            type="submit"
-            disabled={loading || !query.trim()}
-            className="query-button"
-          >
+          <button type="submit" disabled={loading || !query.trim()} className="query-button">
             전송
           </button>
         </form>

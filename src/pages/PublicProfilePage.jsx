@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useLocation, Link } from 'react-router-dom'
-import { fetchPublicProfile, fetchPublicPosts } from '../api/client'
+import { fetchPublicProfile, fetchPublicNotes } from '../api/client'
 import './PublicProfilePage.css'
 
 const formatDate = (iso) => {
@@ -20,12 +20,12 @@ const PublicProfilePage = () => {
   const basePath = location.pathname.startsWith('/users/') ? `/users/${username}` : `/@${username}`
 
   const [profile, setProfile] = useState(null)
-  const [posts, setPosts] = useState([])
+  const [notes, setNotes] = useState([])
   const [pageMeta, setPageMeta] = useState({ total: 0, totalPages: 1, hasNext: false, hasPrev: false })
   const [page, setPage] = useState(1)
   const [order, setOrder] = useState('desc')
   const [profileLoading, setProfileLoading] = useState(true)
-  const [postsLoading, setPostsLoading] = useState(true)
+  const [notesLoading, setNotesLoading] = useState(true)
   const [error, setError] = useState(null)
 
   /* Load profile once */
@@ -44,13 +44,13 @@ const PublicProfilePage = () => {
     load()
   }, [username])
 
-  /* Load posts on page / order change */
+  /* Load notes on page / order change */
   useEffect(() => {
     const load = async () => {
-      setPostsLoading(true)
+      setNotesLoading(true)
       try {
-        const data = await fetchPublicPosts(username, { page, size: 10, sort: 'createdAt', order })
-        setPosts(data.posts || [])
+        const data = await fetchPublicNotes(username, { page, size: 10, sort: 'createdAt', order })
+        setNotes(data.notes || data.posts || [])
         setPageMeta({
           total: data.total ?? 0,
           totalPages: data.totalPages ?? 1,
@@ -60,7 +60,7 @@ const PublicProfilePage = () => {
       } catch {
         /* non-fatal */
       } finally {
-        setPostsLoading(false)
+        setNotesLoading(false)
       }
     }
     load()
@@ -125,12 +125,12 @@ const PublicProfilePage = () => {
 
         <div className="pub-divider" role="separator" />
 
-        {/* ── Posts section ─────────────────────────────── */}
-        <section className="pub-posts-section" aria-label="포스트 목록">
+        {/* ── Notes section ─────────────────────────────── */}
+        <section className="pub-posts-section" aria-label="노트 목록">
           <div className="pub-posts-header">
             <h2 className="pub-posts-title">
               <span className="pub-posts-icon">📝</span>
-              Posts
+              노트
               {pageMeta.total > 0 && (
                 <span className="pub-posts-count">({pageMeta.total})</span>
               )}
@@ -144,47 +144,47 @@ const PublicProfilePage = () => {
             </button>
           </div>
 
-          {postsLoading ? (
+          {notesLoading ? (
             <div className="pub-loading" aria-live="polite" aria-busy="true">
               <span className="pub-loading-dot" />
               <span className="pub-loading-dot" />
               <span className="pub-loading-dot" />
             </div>
-          ) : posts.length === 0 ? (
+          ) : notes.length === 0 ? (
             <div className="pub-empty">
-              <p>아직 공개된 포스트가 없습니다.</p>
+              <p>아직 공개된 노트가 없습니다.</p>
             </div>
           ) : (
             <ul className="pub-post-list" role="list">
-              {posts.map((post) => (
-                <li key={post.id} className="pub-post-item" role="listitem">
+              {notes.map((note) => (
+                <li key={note.id} className="pub-post-item" role="listitem">
                   <Link
-                    to={`${basePath}/${post.id}`}
+                    to={`${basePath}/${note.id}`}
                     className="pub-post-link"
-                    aria-label={post.title}
+                    aria-label={note.title}
                   >
-                    <h3 className="pub-post-title">{post.title}</h3>
-                    {post.content && (
+                    <h3 className="pub-post-title">{note.title}</h3>
+                    {note.content && (
                       <p className="pub-post-preview">
-                        {post.content.length > 120
-                          ? post.content.slice(0, 120) + '…'
-                          : post.content}
+                        {note.content.length > 120
+                          ? note.content.slice(0, 120) + '…'
+                          : note.content}
                       </p>
                     )}
                     <div className="pub-post-meta">
-                      {Array.isArray(post.tags) && post.tags.length > 0 && (
+                      {Array.isArray(note.tags) && note.tags.length > 0 && (
                         <span className="pub-post-tags">
-                          {post.tags.map((t) => (
+                          {note.tags.map((t) => (
                             <span key={t.id} className="pub-post-tag">#{t.name}</span>
                           ))}
                         </span>
                       )}
                       <span className="pub-post-meta-sep">·</span>
-                      <time className="pub-post-date" dateTime={post.createdAt}>
-                        {formatDate(post.createdAt)}
+                      <time className="pub-post-date" dateTime={note.createdAt}>
+                        {formatDate(note.createdAt)}
                       </time>
                       <span className="pub-post-meta-sep">·</span>
-                      <span className="pub-post-readtime">{estimateReadTime(post.content)}</span>
+                      <span className="pub-post-readtime">{estimateReadTime(note.content)}</span>
                     </div>
                   </Link>
                 </li>

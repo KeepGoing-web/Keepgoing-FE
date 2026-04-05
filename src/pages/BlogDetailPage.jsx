@@ -6,7 +6,7 @@ import rehypeHighlight from 'rehype-highlight'
 import '../styles/hljs-theme.css'
 import './BlogDetailPage.css'
 import '../components/MarkdownBody.css'
-import { fetchBlog, deleteBlog } from '../api/client'
+import { fetchNote, deleteNote } from '../api/client'
 import MermaidCodeBlock from '../components/MermaidCodeBlock'
 import { useVaultOptional } from '../contexts/VaultContext'
 import { formatDate, estimateReadTime } from '../utils/format'
@@ -26,8 +26,8 @@ const BlogDetailPage = () => {
 
   /* VaultContext may not exist if accessed outside VaultLayout */
   const vault = useVaultOptional()
-  const addRecentPost = vault?.addRecentPost ?? null
-  const allPosts = vault?.allPosts ?? []
+  const addRecentNote = vault?.addRecentNote ?? null
+  const allNotes = vault?.allNotes ?? []
 
   useEffect(() => {
     const load = async () => {
@@ -35,9 +35,9 @@ const BlogDetailPage = () => {
       setLoading(true)
       setError(null)
       try {
-        const res = await fetchBlog(id)
+        const res = await fetchNote(id)
         setPost(res)
-        if (addRecentPost && res) addRecentPost(res)
+        if (addRecentNote && res) addRecentNote(res)
       } catch (e) {
         if (e.message === 'NOT_FOUND') {
           setPost(null)
@@ -65,24 +65,24 @@ const BlogDetailPage = () => {
   }
 
   const handleDelete = async () => {
-    const ok = await confirm('이 포스트를 삭제하시겠습니까?', {
-      title: '포스트 삭제',
+    const ok = await confirm('이 노트를 삭제하시겠습니까?', {
+      title: '노트 삭제',
       confirmLabel: '삭제',
       cancelLabel: '취소',
     })
     if (!ok) return
     try {
-      await deleteBlog(post.id)
-      toast.success('포스트가 삭제되었습니다.')
-      navigate('/blogs')
+      await deleteNote(post.id)
+      toast.success('노트가 삭제되었습니다.')
+      navigate('/notes')
     } catch {
       toast.error('삭제에 실패했습니다.')
     }
   }
 
   /* C4: related posts — same category OR at least one common tag */
-  const relatedPosts = post
-    ? allPosts
+  const relatedNotes = post
+    ? allNotes
         .filter((p) => {
           if (String(p.id) === String(post.id)) return false
           const sameCat =
@@ -101,7 +101,7 @@ const BlogDetailPage = () => {
   }
 
   if (!post) {
-    return <div className="error">포스트를 찾을 수 없습니다.</div>
+    return <div className="error">노트를 찾을 수 없습니다.</div>
   }
 
   /* C5: breadcrumb segments */
@@ -119,9 +119,9 @@ const BlogDetailPage = () => {
       <div className="blog-actions">
         {/* C5: breadcrumb */}
         <nav className="breadcrumb" aria-label="breadcrumb">
-          <Link to="/blogs" className="breadcrumb-link">대시보드</Link>
+          <Link to="/notes" className="breadcrumb-link">대시보드</Link>
           <span className="breadcrumb-sep">/</span>
-          <Link to={`/blogs?category=${post.category?.id ?? ''}`} className="breadcrumb-link">
+          <Link to="/notes/list" className="breadcrumb-link">
             {categoryName}
           </Link>
           <span className="breadcrumb-sep">/</span>
@@ -129,7 +129,7 @@ const BlogDetailPage = () => {
         </nav>
 
         <div className="blog-actions-right">
-          <Link to={`/blogs/edit/${post.id}`} className="edit-button">
+          <Link to={`/notes/edit/${post.id}`} className="edit-button">
             수정
           </Link>
           <button className="delete-button" onClick={handleDelete}>
@@ -181,14 +181,14 @@ const BlogDetailPage = () => {
       </article>
 
       {/* C4: related posts */}
-      {relatedPosts.length > 0 && (
+      {relatedNotes.length > 0 && (
         <section className="related-posts">
-          <h2 className="related-posts-title">관련 포스트</h2>
+          <h2 className="related-posts-title">관련 노트</h2>
           <div className="related-posts-list">
-            {relatedPosts.map((p) => (
+            {relatedNotes.map((p) => (
               <Link
                 key={p.id}
-                to={`/blogs/${p.id}`}
+                to={`/notes/${p.id}`}
                 className="related-post-item"
               >
                 <span className="related-post-title">{p.title}</span>

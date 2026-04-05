@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchUsers } from '../api/client'
 import './ExplorePage.css'
@@ -47,7 +47,7 @@ const ExplorePage = () => {
       {/* ── Header ──────────────────────────────────────── */}
       <div className="explore-header">
         <h1 className="explore-title">탐색</h1>
-        <p className="explore-subtitle">다른 사용자의 블로그를 둘러보세요</p>
+        <p className="explore-subtitle">다른 사용자의 노트를 둘러보세요</p>
       </div>
 
       {/* ── Search ──────────────────────────────────────── */}
@@ -82,7 +82,7 @@ const ExplorePage = () => {
               key={u.id}
               to={`/users/${u.username}`}
               className="explore-card"
-              aria-label={`${u.name}의 블로그`}
+              aria-label={`${u.name}의 노트`}
             >
               <div className="explore-card-top">
                 <div className="explore-avatar">
@@ -107,7 +107,7 @@ const ExplorePage = () => {
                     )}
                   </div>
                 )}
-                <span className="explore-card-posts">{u.postCount}개 포스트</span>
+                <span className="explore-card-posts">{u.noteCount}개 노트</span>
               </div>
             </Link>
           ))}

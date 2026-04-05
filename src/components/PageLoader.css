@@ -1,0 +1,14 @@
+.page-loader {
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-muted);
+}
+
+.page-loader__label {
+  margin: 0;
+  font-size: 0.95rem;
+}
