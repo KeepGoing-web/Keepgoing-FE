@@ -1,11 +1,25 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { AI_DEMO_MODE } from '../api/client'
+import { useNavigate } from 'react-router-dom'
+import { AI_DEMO_MODE, fetchNote } from '../api/client'
+import { getRAGScopeLabel, queryRAG } from '../api/rag'
+import { buildRAGWorkspaceHref } from '../utils/ai'
 import './AIChatPanel.css'
 
 const WIDTH_KEY = 'kg-ai-panel-width'
 const MIN_WIDTH = 280
 const MAX_WIDTH = 700
 const DEFAULT_WIDTH = 360
+const DEFAULT_SCOPE = {
+  mode: 'all',
+  currentNoteId: null,
+  aiOnly: true,
+}
+const SCOPE_OPTIONS = [
+  { value: 'all', label: '전체 지식베이스' },
+  { value: 'notes', label: '메모만' },
+  { value: 'blogs', label: '블로그만' },
+  { value: 'current-note', label: '현재 문서' },
+]
 
 function createChatMessage(role, content) {
   return {
@@ -13,17 +27,32 @@ function createChatMessage(role, content) {
     role,
     content,
     timestamp: new Date(),
+    meta: null,
   }
 }
 
-function buildDemoReply(question) {
-  return `"${question}"에 대한 답변입니다.\n\n실제로는 RAG 시스템을 통해 작성한 노트들을 기반으로 맥락에 맞는 답변을 생성합니다. 현재는 백엔드 연동 전 단계입니다.`
+function createAssistantMessage(result, question, scope) {
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    role: 'assistant',
+    content: result.answer?.text || `"${question}"에 대한 답변을 만들었습니다.`,
+    timestamp: new Date(),
+    meta: {
+      scope,
+      summary: result.answer?.summary,
+      sourceCount: result.sources?.length || 0,
+      workspaceHref: buildRAGWorkspaceHref({ query: question, scope }),
+    },
+  }
 }
 
-const AIChatPanel = ({ isOpen, onClose, externalQuery, onExternalQueryConsumed }) => {
+const AIChatPanel = ({ isOpen, onClose, externalQuery, externalScope, onExternalQueryConsumed }) => {
+  const navigate = useNavigate()
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [scope, setScope] = useState(DEFAULT_SCOPE)
+  const [scopeContextLabel, setScopeContextLabel] = useState('')
   const [panelWidth, setPanelWidth] = useState(() => {
     try {
       const saved = parseInt(localStorage.getItem(WIDTH_KEY), 10)
@@ -50,7 +79,30 @@ const AIChatPanel = ({ isOpen, onClose, externalQuery, onExternalQueryConsumed }
     return () => clearTimeout(focusTimer)
   }, [isOpen])
 
-  const sendMessage = useCallback(async (rawQuestion) => {
+  useEffect(() => {
+    if (!externalScope) return
+    setScope((prev) => ({ ...prev, ...externalScope }))
+  }, [externalScope])
+
+  useEffect(() => {
+    const loadScopeContext = async () => {
+      if (scope.mode !== 'current-note' || !scope.currentNoteId) {
+        setScopeContextLabel('')
+        return
+      }
+
+      try {
+        const note = await fetchNote(scope.currentNoteId)
+        setScopeContextLabel(note?.title || '')
+      } catch {
+        setScopeContextLabel('')
+      }
+    }
+
+    void loadScopeContext()
+  }, [scope.currentNoteId, scope.mode])
+
+  const sendMessage = useCallback(async (rawQuestion, targetScope = scope) => {
     const question = rawQuestion.trim()
     if (!question || loading) return false
 
@@ -59,8 +111,8 @@ const AIChatPanel = ({ isOpen, onClose, externalQuery, onExternalQueryConsumed }
     setMessages((prev) => [...prev, createChatMessage('user', question)])
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-      setMessages((prev) => [...prev, createChatMessage('assistant', buildDemoReply(question))])
+      const result = await queryRAG({ query: question, scope: targetScope })
+      setMessages((prev) => [...prev, createAssistantMessage(result, question, targetScope)])
       return true
     } catch (error) {
       console.error('AI 응답 실패:', error)
@@ -68,7 +120,7 @@ const AIChatPanel = ({ isOpen, onClose, externalQuery, onExternalQueryConsumed }
     } finally {
       setLoading(false)
     }
-  }, [loading])
+  }, [loading, scope])
 
   useEffect(() => {
     if (!externalQuery || !isOpen) return
@@ -77,11 +129,11 @@ const AIChatPanel = ({ isOpen, onClose, externalQuery, onExternalQueryConsumed }
     onExternalQueryConsumed?.()
 
     const submitTimer = setTimeout(() => {
-      void sendMessage(externalQuery)
+      void sendMessage(externalQuery, externalScope || scope)
     }, 400)
 
     return () => clearTimeout(submitTimer)
-  }, [externalQuery, isOpen, onExternalQueryConsumed, sendMessage])
+  }, [externalQuery, externalScope, isOpen, onExternalQueryConsumed, scope, sendMessage])
 
   const handleResizeStart = useCallback((event) => {
     event.preventDefault()
@@ -137,6 +189,7 @@ const AIChatPanel = ({ isOpen, onClose, externalQuery, onExternalQueryConsumed }
   }
 
   const formatTime = (date) => date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+  const scopeLabel = getRAGScopeLabel(scope)
 
   return (
     <aside
@@ -180,22 +233,43 @@ const AIChatPanel = ({ isOpen, onClose, externalQuery, onExternalQueryConsumed }
         </div>
       </div>
 
+      <div className="ai-scope-bar">
+        <label className="ai-scope-label">
+          <span>Scope</span>
+          <select
+            className="ai-scope-select"
+            value={scope.mode}
+            onChange={(event) => setScope((prev) => ({ ...prev, mode: event.target.value }))}
+          >
+            {SCOPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <span className="ai-scope-chip">
+          {scopeLabel}
+          {scopeContextLabel ? ` · ${scopeContextLabel}` : ''}
+        </span>
+      </div>
+
       <div className="ai-messages" role="log" aria-live="polite">
         {messages.length === 0 && !loading ? (
           <div className="ai-empty-state">
             <div className="ai-empty-icon">⬡</div>
             <p className="ai-empty-title">무엇이든 물어보세요</p>
-            <p className="ai-empty-desc">작성한 노트를 기반으로 질문에 답변합니다.</p>
+            <p className="ai-empty-desc">짧은 응답은 여기서, 근거 확인은 전체 RAG 작업실에서 이어갈 수 있습니다.</p>
             {AI_DEMO_MODE && <p className="ai-empty-desc">현재 데모 응답 모드로 동작 중입니다.</p>}
             <ul className="ai-empty-suggestions">
-              <li className="ai-suggestion" onClick={() => setInput('이 노트에서 핵심 개념 3개를 정리해줘')}>
-                핵심 개념 정리해줘
+              <li className="ai-suggestion" onClick={() => setInput('현재 문서의 핵심 개념 3개를 정리해줘')}>
+                현재 문서 핵심 3줄 요약
               </li>
-              <li className="ai-suggestion" onClick={() => setInput('최근 작성한 노트 요약해줘')}>
-                최근 노트 요약
+              <li className="ai-suggestion" onClick={() => setInput('이 내용과 연결되는 관련 노트를 찾아줘')}>
+                관련 노트 찾아줘
               </li>
-              <li className="ai-suggestion" onClick={() => setInput('내 기술 스택을 분석해줘')}>
-                기술 스택 분석
+              <li className="ai-suggestion" onClick={() => setInput('이 내용을 블로그 초안 구조로 바꿔줘')}>
+                블로그 초안으로 바꿔줘
               </li>
             </ul>
           </div>
@@ -204,7 +278,23 @@ const AIChatPanel = ({ isOpen, onClose, externalQuery, onExternalQueryConsumed }
             <div key={message.id} className={`ai-message ai-message--${message.role}`}>
               <div className="ai-message-bubble">
                 <p className="ai-message-content">{message.content}</p>
+                {message.role === 'assistant' && message.meta ? (
+                  <div className="ai-message-meta">
+                    <span>{message.meta.summary}</span>
+                    <span>참조 문서 {message.meta.sourceCount}개</span>
+                  </div>
+                ) : null}
               </div>
+              {message.role === 'assistant' && message.meta ? (
+                <div className="ai-message-actions">
+                  <button type="button" onClick={() => navigate(message.meta.workspaceHref)}>
+                    근거 보기
+                  </button>
+                  <button type="button" onClick={() => navigate(message.meta.workspaceHref)}>
+                    작업실에서 이어서 보기
+                  </button>
+                </div>
+              ) : null}
               <span className="ai-message-time">{formatTime(message.timestamp)}</span>
             </div>
           ))

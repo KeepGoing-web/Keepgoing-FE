@@ -1,8 +1,3 @@
-/* ============================================================
-   VaultLayout — Sidebar + Main content split
-   Wraps VaultSidebar + nested <Outlet />
-   ============================================================ */
-
 .vault-layout {
   display: flex;
   flex: 1;

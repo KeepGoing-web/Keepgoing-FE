@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { fetchNotes, fetchCategories, fetchTags, createCategory as apiCreateCategory } from '../api/client'
+import { fetchNotes, fetchCategories, createCategory as apiCreateCategory } from '../api/client'
 
 const RECENT_KEY = 'kg-recent-notes'
 const LEGACY_RECENT_KEY = 'kg-recent-posts'
@@ -37,23 +37,23 @@ function addRecentNoteToStorage(post) {
 }
 
 async function fetchVaultData() {
-  const [postsResponse, categoryResponse, tagResponse] = await Promise.all([
+  const [postsResponse, categoryResponse] = await Promise.all([
     fetchNotes({ page: 1, size: 200, sort: 'createdAt', order: 'desc' }),
     fetchCategories(),
-    fetchTags(),
   ])
 
   const categories = categoryResponse.categories || []
-  const tags = tagResponse.tags || []
   const posts = (postsResponse.posts || []).map((post) => ({
     ...post,
-    category: categories.find((category) => category.id === (post.categoryId || post.category?.id)) || post.category || null,
+    category: categories.find((category) => String(category.id) === String(post.folderId || post.categoryId || post.category?.id)) || post.category || null,
+    categoryId: post.categoryId ?? post.folderId ?? post.category?.id ?? null,
+    folderId: post.folderId ?? post.categoryId ?? post.category?.id ?? null,
   }))
 
   return {
     posts,
     categories,
-    tags,
+    tags: [],
   }
 }
 
@@ -98,23 +98,15 @@ export function VaultProvider({ children }) {
   }, [hydrateVault])
 
   const tagCounts = useMemo(
-    () =>
-      allNotes.reduce((counts, post) => {
-        if (Array.isArray(post.tags)) {
-          post.tags.forEach((tag) => {
-            counts[tag.id] = (counts[tag.id] || 0) + 1
-          })
-        }
-        return counts
-      }, {}),
-    [allNotes],
+    () => ({}),
+    [],
   )
 
   const categoryStats = useMemo(
     () =>
       categories.map((category) => ({
         ...category,
-        count: allNotes.filter((post) => post.category && post.category.id === category.id).length,
+        count: allNotes.filter((post) => post.category && String(post.category.id) === String(category.id)).length,
       })),
     [allNotes, categories],
   )
@@ -129,17 +121,8 @@ export function VaultProvider({ children }) {
     navigate(`/notes/${post.id}`)
   }, [addRecentNote, navigate])
 
-  const toggleTag = useCallback((tagId) => {
-    setSelectedTagIds((prev) => (
-      prev.includes(tagId)
-        ? prev.filter((id) => id !== tagId)
-        : [...prev, tagId]
-    ))
-  }, [])
-
-  const removeTag = useCallback((tagId) => {
-    setSelectedTagIds((prev) => prev.filter((id) => id !== tagId))
-  }, [])
+  const toggleTag = useCallback(() => {}, [])
+  const removeTag = useCallback(() => {}, [])
 
   const resetFilters = useCallback(() => {
     setCategoryId('')

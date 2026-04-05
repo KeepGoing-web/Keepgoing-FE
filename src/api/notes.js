@@ -3,14 +3,39 @@ import { apiFetch, buildQuery, delay, getAuthHeaders, handleResponse } from './h
 import { enrichMockNote, MOCK_NOTES } from './mockData'
 
 const shouldUseMockNotes = USE_MOCK_API && !USE_BACKEND_POSTS
+const BACKEND_FETCH_SIZE = 100
+const MAX_BACKEND_FETCH_PAGES = 10
 
 function normalizeNote(note) {
   if (!note) return note
 
+  const id = note.id ?? note.noteId ?? note.postId ?? null
+  const folderId = note.folderId ?? note.categoryId ?? note.category?.id ?? null
+
   return {
     ...note,
-    id: note.id ?? note.noteId ?? note.postId ?? null,
+    id,
+    folderId,
+    categoryId: folderId,
   }
+}
+
+function sortNotes(items, sort, order) {
+  return [...items].sort((left, right) => {
+    let leftValue = left[sort]
+    let rightValue = right[sort]
+
+    if (sort === 'createdAt' || sort === 'updatedAt') {
+      leftValue = new Date(leftValue || left.createdAt).getTime()
+      rightValue = new Date(rightValue || right.createdAt).getTime()
+    } else if (sort === 'title') {
+      leftValue = String(leftValue || '').toLowerCase()
+      rightValue = String(rightValue || '').toLowerCase()
+    }
+
+    const comparison = leftValue < rightValue ? -1 : leftValue > rightValue ? 1 : 0
+    return order === 'asc' ? comparison : -comparison
+  })
 }
 
 function normalizePagedNotes(data, fallbackSize) {
@@ -35,6 +60,93 @@ function normalizePagedNotes(data, fallbackSize) {
   }
 }
 
+async function fetchAllBackendNotes({ q = '', sort = 'createdAt', order = 'desc' }) {
+  const endpoint = q ? '/notes/me/search' : '/notes/me'
+  const collected = []
+  let currentPage = 0
+  let hasNext = true
+
+  while (hasNext && currentPage < MAX_BACKEND_FETCH_PAGES) {
+    const query = buildQuery({
+      ...(q ? { keyword: q } : { sort: `${sort},${order}` }),
+      page: currentPage,
+      size: BACKEND_FETCH_SIZE,
+    })
+
+    const res = await apiFetch(`${BASE_URL}${endpoint}${query}`, {
+      headers: getAuthHeaders(),
+    })
+    const data = await handleResponse(res)
+    const normalized = normalizePagedNotes(data, BACKEND_FETCH_SIZE)
+
+    collected.push(...normalized.posts)
+    hasNext = normalized.hasNext
+    currentPage += 1
+  }
+
+  return q ? sortNotes(collected, sort, order) : collected
+}
+
+function applyClientFilters(items, params) {
+  const {
+    categoryId,
+    uncategorized,
+    visibility,
+    aiCollectable,
+    dateFrom,
+    dateTo,
+    sort = 'createdAt',
+    order = 'desc',
+    page = 1,
+    size = 10,
+  } = params
+
+  let filtered = [...items]
+
+  if (uncategorized === true || uncategorized === 'true') {
+    filtered = filtered.filter((note) => !note.folderId && !note.category?.id)
+  } else if (categoryId) {
+    filtered = filtered.filter((note) => String(note.folderId || note.category?.id) === String(categoryId))
+  }
+
+  if (visibility) {
+    filtered = filtered.filter((note) => note.visibility === visibility)
+  }
+
+  if (typeof aiCollectable !== 'undefined' && aiCollectable !== '') {
+    const flag = aiCollectable === true || aiCollectable === 'true'
+    filtered = filtered.filter((note) => Boolean(note.aiCollectable) === flag)
+  }
+
+  if (dateFrom) {
+    const fromTimestamp = new Date(dateFrom).getTime()
+    filtered = filtered.filter((note) => new Date(note.updatedAt || note.createdAt).getTime() >= fromTimestamp)
+  }
+
+  if (dateTo) {
+    const toTimestamp = new Date(dateTo).getTime()
+    filtered = filtered.filter((note) => new Date(note.updatedAt || note.createdAt).getTime() <= toTimestamp)
+  }
+
+  filtered = sortNotes(filtered, sort, order)
+
+  const start = (page - 1) * size
+  const pagedNotes = filtered.slice(start, start + Number(size))
+  const total = filtered.length
+  const totalPages = Math.ceil(total / size) || 1
+
+  return {
+    notes: pagedNotes,
+    posts: pagedNotes,
+    total,
+    page,
+    size,
+    totalPages,
+    hasNext: page < totalPages,
+    hasPrev: page > 1,
+  }
+}
+
 export async function fetchNotes(params = {}) {
   if (shouldUseMockNotes) {
     const {
@@ -42,6 +154,7 @@ export async function fetchNotes(params = {}) {
       size = 10,
       q = '',
       categoryId,
+      uncategorized,
       tagId,
       sort = 'createdAt',
       order = 'desc',
@@ -62,7 +175,9 @@ export async function fetchNotes(params = {}) {
       )
     }
 
-    if (categoryId) {
+    if (uncategorized === true || uncategorized === 'true') {
+      items = items.filter((note) => !note.category)
+    } else if (categoryId) {
       items = items.filter((note) => note.category && note.category.id === categoryId)
     }
 
@@ -90,21 +205,7 @@ export async function fetchNotes(params = {}) {
       items = items.filter((note) => new Date(note.createdAt).getTime() <= toTimestamp)
     }
 
-    items.sort((left, right) => {
-      let leftValue = left[sort]
-      let rightValue = right[sort]
-
-      if (sort === 'createdAt' || sort === 'updatedAt') {
-        leftValue = new Date(leftValue).getTime()
-        rightValue = new Date(rightValue).getTime()
-      } else if (sort === 'title') {
-        leftValue = String(leftValue).toLowerCase()
-        rightValue = String(rightValue).toLowerCase()
-      }
-
-      const comparison = leftValue < rightValue ? -1 : leftValue > rightValue ? 1 : 0
-      return order === 'asc' ? comparison : -comparison
-    })
+    items = sortNotes(items, sort, order)
 
     const start = (page - 1) * size
     const pagedNotes = items.slice(start, start + Number(size))
@@ -124,7 +225,28 @@ export async function fetchNotes(params = {}) {
     }
   }
 
-  const { page = 1, size = 10, q = '', sort = 'createdAt', order = 'desc' } = params
+  const {
+    page = 1,
+    size = 10,
+    q = '',
+    sort = 'createdAt',
+    order = 'desc',
+    categoryId,
+    uncategorized,
+    visibility,
+    aiCollectable,
+    dateFrom,
+    dateTo,
+  } = params
+
+  const needsClientFiltering = Boolean(categoryId || uncategorized || visibility || aiCollectable || dateFrom || dateTo)
+  const needsLargeClientFetch = Number(size) > BACKEND_FETCH_SIZE
+
+  if (needsClientFiltering || needsLargeClientFetch) {
+    const allNotes = await fetchAllBackendNotes({ q, sort, order })
+    return applyClientFilters(allNotes, { page, size, categoryId, uncategorized, visibility, aiCollectable, dateFrom, dateTo, sort, order })
+  }
+
   const endpoint = q ? '/notes/me/search' : '/notes/me'
   const query = buildQuery({
     ...(q ? { keyword: q } : { sort: `${sort},${order}` }),
@@ -167,6 +289,7 @@ export async function fetchNote(id) {
 export async function createNote(payload) {
   if (shouldUseMockNotes) {
     const now = new Date().toISOString()
+    const nextFolderId = payload.folderId ?? payload.categoryId ?? null
     const nextNote = {
       id: String(MOCK_NOTES.length + 1),
       title: payload.title,
@@ -175,7 +298,8 @@ export async function createNote(payload) {
       aiCollectable: Boolean(payload.aiCollectable),
       createdAt: now,
       updatedAt: now,
-      categoryId: payload.categoryId || null,
+      categoryId: nextFolderId,
+      folderId: nextFolderId,
       tagIds: Array.isArray(payload.tagIds) ? payload.tagIds : [],
     }
 
@@ -185,6 +309,7 @@ export async function createNote(payload) {
   }
 
   const backendPayload = {
+    folderId: payload.folderId ?? payload.categoryId ?? null,
     title: payload.title,
     content: payload.content,
     visibility: payload.visibility || 'PRIVATE',
@@ -200,6 +325,23 @@ export async function createNote(payload) {
   return normalizeNote(data)
 }
 
+export async function moveNote(id, folderId) {
+  const res = await apiFetch(`${BASE_URL}/notes/${id}/folder`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ folderId: folderId ?? null }),
+  })
+
+  if (res.status === 404) {
+    const error = new Error('NOT_FOUND')
+    error.status = 404
+    throw error
+  }
+
+  const data = await handleResponse(res)
+  return normalizeNote(data)
+}
+
 export async function updateNote(id, payload) {
   if (shouldUseMockNotes) {
     const index = MOCK_NOTES.findIndex((note) => note.id === String(id))
@@ -208,6 +350,7 @@ export async function updateNote(id, payload) {
     }
 
     const previousNote = MOCK_NOTES[index]
+    const nextFolderId = payload.folderId ?? payload.categoryId
     const nextNote = {
       ...previousNote,
       title: payload.title ?? previousNote.title,
@@ -215,7 +358,8 @@ export async function updateNote(id, payload) {
       visibility: payload.visibility ?? previousNote.visibility,
       aiCollectable:
         typeof payload.aiCollectable === 'boolean' ? payload.aiCollectable : previousNote.aiCollectable,
-      categoryId: payload.categoryId !== undefined ? payload.categoryId : previousNote.categoryId,
+      categoryId: nextFolderId !== undefined ? nextFolderId : previousNote.categoryId,
+      folderId: nextFolderId !== undefined ? nextFolderId : previousNote.folderId,
       tagIds: Array.isArray(payload.tagIds) ? payload.tagIds : previousNote.tagIds,
       updatedAt: new Date().toISOString(),
     }
@@ -244,7 +388,12 @@ export async function updateNote(id, payload) {
     throw error
   }
 
-  const data = await handleResponse(res)
+  let data = normalizeNote(await handleResponse(res))
+  const nextFolderId = payload.folderId ?? payload.categoryId
+  if (nextFolderId !== undefined && String(nextFolderId ?? '') !== String(data.folderId ?? '')) {
+    data = await moveNote(id, nextFolderId)
+  }
+
   return normalizeNote(data)
 }
 

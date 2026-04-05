@@ -1,6 +1,22 @@
 import { BASE_URL, USE_MOCK_API } from './config'
-import { apiFetch, buildQuery, delay, getAuthHeaders } from './http'
+import { apiFetch, delay, getAuthHeaders, handleResponse } from './http'
 import { MOCK_CATEGORIES, MOCK_TAGS } from './mockData'
+
+function flattenFolderTree(nodes = [], accumulator = []) {
+  nodes.forEach((node) => {
+    accumulator.push({
+      id: String(node.folderId),
+      name: node.name,
+      parentId: node.parentId != null ? String(node.parentId) : null,
+    })
+
+    if (Array.isArray(node.children) && node.children.length > 0) {
+      flattenFolderTree(node.children, accumulator)
+    }
+  })
+
+  return accumulator
+}
 
 export async function fetchCategories(params = {}) {
   if (USE_MOCK_API) {
@@ -16,16 +32,18 @@ export async function fetchCategories(params = {}) {
     return { categories: items, total: items.length }
   }
 
-  const query = buildQuery(params)
-  const res = await apiFetch(`${BASE_URL}/categories${query}`, {
+  const res = await apiFetch(`${BASE_URL}/folders/tree`, {
     headers: getAuthHeaders(),
   })
+  const data = await handleResponse(res)
+  let categories = flattenFolderTree(data)
 
-  if (!res.ok) {
-    throw new Error('카테고리 목록 조회 실패')
+  if (params.q) {
+    const lowerQuery = String(params.q).toLowerCase()
+    categories = categories.filter((category) => category.name.toLowerCase().includes(lowerQuery))
   }
 
-  return res.json()
+  return { categories, total: categories.length }
 }
 
 export async function createCategory(name, parentId = null) {
@@ -42,17 +60,18 @@ export async function createCategory(name, parentId = null) {
     return nextCategory
   }
 
-  const res = await apiFetch(`${BASE_URL}/categories`, {
+  const res = await apiFetch(`${BASE_URL}/folders`, {
     method: 'POST',
     headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
     body: JSON.stringify({ name, parentId }),
   })
+  const data = await handleResponse(res)
 
-  if (!res.ok) {
-    throw new Error('카테고리 생성 실패')
+  return {
+    id: String(data.folderId),
+    name: data.name,
+    parentId: data.parentId != null ? String(data.parentId) : null,
   }
-
-  return res.json()
 }
 
 export async function fetchTags(params = {}) {
@@ -69,16 +88,7 @@ export async function fetchTags(params = {}) {
     return { tags: items, total: items.length }
   }
 
-  const query = buildQuery(params)
-  const res = await apiFetch(`${BASE_URL}/tags${query}`, {
-    headers: getAuthHeaders(),
-  })
-
-  if (!res.ok) {
-    throw new Error('태그 목록 조회 실패')
-  }
-
-  return res.json()
+  return { tags: [], total: 0 }
 }
 
 export async function createTag(name) {
@@ -93,15 +103,5 @@ export async function createTag(name) {
     return nextTag
   }
 
-  const res = await apiFetch(`${BASE_URL}/tags`, {
-    method: 'POST',
-    headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name }),
-  })
-
-  if (!res.ok) {
-    throw new Error('태그 생성 실패')
-  }
-
-  return res.json()
+  return { id: `tag_${Date.now()}`, name }
 }

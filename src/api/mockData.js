@@ -1,8 +1,4 @@
-export const MOCK_CATEGORIES = [
-  { id: 'cat_1', name: 'Frontend', parentId: null, createdAt: '2024-01-01T00:00:00Z' },
-  { id: 'cat_2', name: 'Backend', parentId: null, createdAt: '2024-01-02T00:00:00Z' },
-  { id: 'cat_3', name: 'AI/ML', parentId: null, createdAt: '2024-01-03T00:00:00Z' },
-]
+export const MOCK_CATEGORIES = []
 
 export const MOCK_TAGS = [
   { id: 'tag_1', name: 'React', createdAt: '2024-01-01T00:00:00Z' },

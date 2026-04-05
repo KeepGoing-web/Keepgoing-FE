@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchNotes } from '../api/client'
 import { useVault } from '../contexts/VaultContext'
 import { useDebounce } from '../hooks/useDebounce'
+import { estimateReadTime } from '../utils/format'
 import { buildNoteListParams, DEFAULT_NOTE_LIST_PAGE_META } from './blogListState'
 import './BlogListPage.css'
 
@@ -23,13 +24,9 @@ const formatDate = (iso) => {
 const BlogListPage = () => {
   const {
     categories,
-    tags,
     categoryId,
     setCategoryId,
-    selectedTagIds,
     setSelectedTagIds,
-    toggleTag,
-    removeTag,
     addRecentNote,
   } = useVault()
 
@@ -37,7 +34,6 @@ const BlogListPage = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [query, setQuery] = useState('')
-  const [tagQuery, setTagQuery] = useState('')
   const [sort, setSort] = useState('createdAt')
   const [order, setOrder] = useState('desc')
   const [page, setPage] = useState(1)
@@ -49,8 +45,11 @@ const BlogListPage = () => {
   const [dateTo, setDateTo] = useState('')
   const [filterOpen, setFilterOpen] = useState(false)
 
-  const tagInputRef = useRef(null)
   const debouncedQuery = useDebounce(query, 300)
+
+  useEffect(() => {
+    setSelectedTagIds([])
+  }, [setSelectedTagIds])
 
   useEffect(() => {
     const load = async () => {
@@ -63,7 +62,7 @@ const BlogListPage = () => {
           size,
           query: debouncedQuery,
           categoryId,
-          selectedTagIds,
+          selectedTagIds: [],
           sort,
           order,
           visibility,
@@ -87,13 +86,11 @@ const BlogListPage = () => {
     }
 
     void load()
-  }, [aiOnly, categoryId, dateFrom, dateTo, debouncedQuery, order, page, selectedTagIds, size, sort, visibility])
+  }, [aiOnly, categoryId, dateFrom, dateTo, debouncedQuery, order, page, size, sort, visibility])
 
   const handleReset = () => {
     setQuery('')
     setCategoryId('')
-    setSelectedTagIds([])
-    setTagQuery('')
     setVisibility('')
     setAiOnly('')
     setDateFrom('')
@@ -104,44 +101,10 @@ const BlogListPage = () => {
     setPage(1)
   }
 
-  const addTag = (tag) => {
-    if (!selectedTagIds.includes(tag.id)) {
-      setSelectedTagIds((prev) => [...prev, tag.id])
-      setPage(1)
-    }
-    setTagQuery('')
-  }
-
-  const handleTagKeyDown = (event) => {
-    if (event.key === 'Enter') {
-      event.preventDefault()
-      const candidate = tags.find((tag) => tag.name.toLowerCase() === tagQuery.trim().toLowerCase())
-      if (candidate) addTag(candidate)
-    }
-
-    if (event.key === 'Escape') {
-      setTagQuery('')
-    }
-  }
-
-  const tagSuggestions = tagQuery.trim()
-    ? tags
-        .filter(
-          (tag) =>
-            tag.name.toLowerCase().includes(tagQuery.trim().toLowerCase()) &&
-            !selectedTagIds.includes(tag.id),
-        )
-        .slice(0, 6)
-    : []
-
-  const activeCategory = categories.find((category) => String(category.id) === String(categoryId))
+  const activeFolder = categories.find((category) => String(category.id) === String(categoryId))
   const activeFilterChips = [
     debouncedQuery ? `검색: ${debouncedQuery}` : null,
-    activeCategory ? `카테고리: ${activeCategory.name}` : null,
-    ...selectedTagIds
-      .map((tagId) => tags.find((tag) => tag.id === tagId))
-      .filter(Boolean)
-      .map((tag) => `#${tag.name}`),
+    activeFolder ? `폴더: ${activeFolder.name}` : null,
     visibility ? `공개: ${getVisMeta(visibility).label}` : null,
     aiOnly === 'true' ? 'AI 수집 허용' : null,
     aiOnly === 'false' ? 'AI 수집 미허용' : null,
@@ -149,20 +112,26 @@ const BlogListPage = () => {
     dateTo ? `${dateTo}까지` : null,
   ].filter(Boolean)
 
+  const scopeSummary = activeFilterChips.length > 0
+    ? `${activeFilterChips.length}개 조건이 적용된 문서 범위`
+    : '전체 문서 범위'
+
+  const utilitySummary = activeFolder
+    ? `${activeFolder.name} 폴더를 기준으로 문서를 보고 있습니다.`
+    : '왼쪽 패널과 검색을 함께 써서 필요한 문서를 빠르게 이어볼 수 있습니다.'
+
   return (
     <div className="blog-main">
       <div className="note-shell-header">
         <div className="note-shell-header-copy">
           <p className="note-shell-kicker">NOTE LIBRARY</p>
-          <h1 className="note-shell-title">노트 보관함</h1>
+          <h1 className="note-shell-title">문서 라이브러리</h1>
           <p className="note-shell-subtitle">
-            검색, 태그, 공개 범위, 날짜 필터로 필요한 노트를 빠르게 찾고 이어서 작업하세요.
+            왼쪽 패널에서 위치를 잡고, 여기서는 검색과 조건으로 문서를 빠르게 좁혀갈 수 있게 정리했습니다.
           </p>
         </div>
         <div className="note-shell-header-actions">
-          <Link to="/notes/write" className="note-shell-create-btn">
-            새 노트 작성
-          </Link>
+          <Link to="/notes/write" className="note-shell-create-btn">새 노트 작성</Link>
         </div>
       </div>
 
@@ -176,7 +145,7 @@ const BlogListPage = () => {
               setPage(1)
               setQuery(event.target.value)
             }}
-            placeholder="노트 검색 (제목 / 내용)..."
+            placeholder="제목 또는 본문으로 문서 찾기"
             aria-label="노트 검색"
           />
           {query && (
@@ -190,78 +159,32 @@ const BlogListPage = () => {
 
       <div className="note-list-summary">
         <div className="note-list-summary-main">
-          <span className="note-list-summary-count">총 {pageMeta.total}개 노트</span>
-          {activeFilterChips.length > 0 ? (
-            <div className="note-list-active-filters">
-              {activeFilterChips.map((chip) => (
-                <span key={chip} className="note-list-filter-chip">{chip}</span>
-              ))}
-            </div>
-          ) : (
-            <span className="note-list-summary-hint">현재 모든 노트를 표시하고 있습니다.</span>
-          )}
+          <div>
+            <span className="note-list-summary-label">Current range</span>
+            <strong className="note-list-summary-count">{scopeSummary}</strong>
+            <span className="note-list-summary-hint">{utilitySummary}</span>
+          </div>
+          <div className="note-list-summary-meta">
+            <span>총 {pageMeta.total}개 문서</span>
+            <span>{sort === 'updatedAt' ? '최근 수정 순' : order === 'desc' ? '최신순' : '오래된순'}</span>
+          </div>
         </div>
+        {activeFilterChips.length > 0 && (
+          <div className="note-list-active-filters">
+            {activeFilterChips.map((chip) => (
+              <span key={chip} className="note-list-filter-chip">{chip}</span>
+            ))}
+          </div>
+        )}
       </div>
 
       <button className="filter-toggle-btn" onClick={() => setFilterOpen((open) => !open)} aria-expanded={filterOpen}>
         <span className="filter-toggle-icon">{filterOpen ? '▾' : '▸'}</span>
-        필터
-        {(selectedTagIds.length > 0 || visibility || aiOnly || dateFrom || dateTo) && (
-          <span className="filter-toggle-badge">ON</span>
-        )}
+        세부 조건
+        {(visibility || aiOnly || dateFrom || dateTo) && <span className="filter-toggle-badge">ON</span>}
       </button>
 
       <div className={`filter-toolbar${filterOpen ? ' filter-toolbar--open' : ''}`} role="toolbar" aria-label="필터">
-        {selectedTagIds.length > 0 && (
-          <div className="filter-chips">
-            {selectedTagIds.map((tagId) => {
-              const tag = tags.find((item) => item.id === tagId)
-              if (!tag) return null
-
-              return (
-                <span key={tagId} className="filter-chip">
-                  #{tag.name}
-                  <button className="filter-chip-remove" onClick={() => removeTag(tagId)} aria-label={`태그 ${tag.name} 제거`}>
-                    ×
-                  </button>
-                </span>
-              )
-            })}
-            <div className="toolbar-vdivider" />
-          </div>
-        )}
-
-        <div className="toolbar-tag-input-wrap">
-          <input
-            ref={tagInputRef}
-            className="toolbar-tag-input"
-            value={tagQuery}
-            onChange={(event) => setTagQuery(event.target.value)}
-            onKeyDown={handleTagKeyDown}
-            placeholder="#태그 검색"
-            aria-label="태그 입력"
-          />
-          {tagSuggestions.length > 0 && (
-            <div className="tag-suggestions" role="listbox">
-              {tagSuggestions.map((tag) => (
-                <button
-                  key={tag.id}
-                  className="tag-suggestion-item"
-                  role="option"
-                  onMouseDown={(event) => {
-                    event.preventDefault()
-                    addTag(tag)
-                  }}
-                >
-                  #{tag.name}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="toolbar-vdivider" />
-
         <select
           className="toolbar-select"
           value={visibility}
@@ -277,8 +200,6 @@ const BlogListPage = () => {
           <option value="AI_COLLECTABLE">AI 수집</option>
         </select>
 
-        <div className="toolbar-vdivider" />
-
         <select
           className="toolbar-select"
           value={aiOnly}
@@ -292,8 +213,6 @@ const BlogListPage = () => {
           <option value="true">허용</option>
           <option value="false">미허용</option>
         </select>
-
-        <div className="toolbar-vdivider" />
 
         <input
           type="date"
@@ -317,8 +236,6 @@ const BlogListPage = () => {
           aria-label="종료일"
         />
 
-        <div className="toolbar-vdivider" />
-
         <select
           className="toolbar-select"
           value={`${sort}:${order}`}
@@ -337,15 +254,6 @@ const BlogListPage = () => {
           <option value="updatedAt:desc">최근 수정순</option>
         </select>
 
-        <div className="toolbar-vdivider" />
-
-        <button className="toolbar-reset-btn" onClick={handleReset}>
-          초기화
-        </button>
-      </div>
-
-      <div className="blog-list-toolbar">
-        <div className="blog-list-count">총 {pageMeta.total}개 노트</div>
         <select
           className="toolbar-select toolbar-select--compact"
           value={size}
@@ -361,6 +269,8 @@ const BlogListPage = () => {
             </option>
           ))}
         </select>
+
+        <button className="toolbar-reset-btn" onClick={handleReset}>초기화</button>
       </div>
 
       {error && <div className="blog-error">{error}</div>}
@@ -371,20 +281,18 @@ const BlogListPage = () => {
         <div className="empty-state">
           <div className="empty-state-icon">📝</div>
           <h2 className="empty-state-title">
-            {activeFilterChips.length > 0 ? '조건에 맞는 노트가 없습니다.' : '아직 작성된 노트가 없습니다.'}
+            {activeFilterChips.length > 0 ? '조건에 맞는 문서가 없습니다.' : '아직 작성된 문서가 없습니다.'}
           </h2>
           <p className="empty-state-sub">
             {activeFilterChips.length > 0
-              ? '필터를 조금 완화하거나 검색어를 바꿔보세요.'
-              : '첫 노트를 작성하면 이 공간에서 최근 작성한 흐름과 메타데이터를 바로 확인할 수 있습니다.'}
+              ? '검색어나 기간 조건을 조금 완화해보세요.'
+              : '첫 문서를 작성하면 이 라이브러리가 최근 작업 흐름과 함께 채워집니다.'}
           </p>
           <div className="empty-state-actions">
             <button type="button" className="empty-state-btn empty-state-btn--ghost" onClick={handleReset}>
-              필터 초기화
+              조건 초기화
             </button>
-            <Link to="/notes/write" className="empty-state-btn">
-              새 노트 작성
-            </Link>
+            <Link to="/notes/write" className="empty-state-btn">새 노트 작성</Link>
           </div>
         </div>
       ) : (
@@ -398,45 +306,28 @@ const BlogListPage = () => {
                 className="blog-card"
                 onClick={() => addRecentNote(post)}
               >
-                <div className="blog-card-head">
-                  <div className="blog-card-title-wrap">
-                    <h2 className="blog-card-title">{post.title}</h2>
-                    <span className={`blog-vis-badge blog-vis-badge--${visibilityMeta.cls}`}>
-                      {visibilityMeta.dot && <span className="blog-vis-dot" />}
-                      {visibilityMeta.label}
-                    </span>
+                <div className="blog-card-main">
+                  <div className="blog-card-head">
+                    <div className="blog-card-title-wrap">
+                      <h2 className="blog-card-title">{post.title}</h2>
+                      <span className={`blog-vis-badge blog-vis-badge--${visibilityMeta.cls}`}>
+                        {visibilityMeta.dot && <span className="blog-vis-dot" />}
+                        {visibilityMeta.label}
+                      </span>
+                    </div>
+                    <span className="blog-card-date">{formatDate(post.updatedAt || post.createdAt)}</span>
                   </div>
-                  <span className="blog-card-date">{formatDate(post.updatedAt || post.createdAt)}</span>
-                </div>
 
-                <div className="blog-card-meta">
-                  {post.category && <span className="blog-card-category">📂 {post.category.name}</span>}
-                  {post.aiCollectable && <span className="blog-card-ai">🤖 AI 수집 허용</span>}
-                </div>
+                  <p className="blog-card-preview">
+                    {(post.content || '').replace(/\s+/g, ' ').slice(0, 140) || '본문이 아직 없습니다.'}
+                  </p>
 
-                <p className="blog-card-preview">
-                  {(post.content || '').replace(/\s+/g, ' ').slice(0, 140) || '본문이 아직 없습니다.'}
-                </p>
-
-                {Array.isArray(post.tags) && post.tags.length > 0 && (
-                  <div className="blog-card-tags">
-                    {post.tags.map((tag) => (
-                      <button
-                        key={tag.id}
-                        type="button"
-                        className="blog-card-tag"
-                        onClick={(event) => {
-                          event.preventDefault()
-                          event.stopPropagation()
-                          toggleTag(tag.id)
-                          setPage(1)
-                        }}
-                      >
-                        #{tag.name}
-                      </button>
-                    ))}
+                  <div className="blog-card-meta">
+                    <span>{post.category?.name || '미분류'}</span>
+                    <span>{estimateReadTime(post.content)}분 읽기</span>
+                    {post.aiCollectable && <span className="blog-card-ai">AI 수집 허용</span>}
                   </div>
-                )}
+                </div>
               </Link>
             )
           })}
@@ -448,9 +339,7 @@ const BlogListPage = () => {
           <button disabled={!pageMeta.hasPrev} onClick={() => setPage((currentPage) => Math.max(1, currentPage - 1))}>
             ← 이전
           </button>
-          <span>
-            {page} / {pageMeta.totalPages}
-          </span>
+          <span>{page} / {pageMeta.totalPages}</span>
           <button disabled={!pageMeta.hasNext} onClick={() => setPage((currentPage) => currentPage + 1)}>
             다음 →
           </button>

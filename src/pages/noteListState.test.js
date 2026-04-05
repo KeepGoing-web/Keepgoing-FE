@@ -51,6 +51,7 @@ describe('buildNoteListParams', () => {
       size: 10,
       q: '',
       categoryId: undefined,
+      uncategorized: true,
       tagId: undefined,
       sort: 'title',
       order: 'asc',

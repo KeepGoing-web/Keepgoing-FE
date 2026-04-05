@@ -23,6 +23,7 @@ export function buildNoteListParams({
     size,
     q: query,
     categoryId: categoryId && categoryId !== '__uncategorized__' ? categoryId : undefined,
+    uncategorized: categoryId === '__uncategorized__' ? true : undefined,
     tagId: selectedTagIds.length > 0 ? selectedTagIds.join(',') : undefined,
     sort,
     order,

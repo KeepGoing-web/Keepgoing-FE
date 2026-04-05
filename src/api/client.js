@@ -8,7 +8,7 @@ export {
 } from './config'
 
 export { login, signup, fetchMe } from './auth'
-export { fetchNotes, fetchNote, createNote, updateNote, deleteNote } from './notes'
+export { fetchNotes, fetchNote, createNote, updateNote, moveNote, deleteNote } from './notes'
 export { fetchCategories, createCategory, fetchTags, createTag } from './taxonomy'
 export { fetchApplications, createApplicationFromUrl, updateApplication, deleteApplication } from './applications'
 export { fetchPublicProfile, fetchPublicNotes, fetchPublicNote, fetchUsers } from './public'

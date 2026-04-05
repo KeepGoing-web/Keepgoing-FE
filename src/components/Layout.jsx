@@ -3,6 +3,7 @@ import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import AIChatPanel from "./AIChatPanel";
 import CommandPalette from "./CommandPalette";
+import { OPEN_AI_PANEL_EVENT } from "../utils/ai";
 import "./Layout.css";
 
 const AI_PANEL_KEY = "kg-ai-panel-open";
@@ -33,9 +34,9 @@ const Layout = () => {
 
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [externalQuery, setExternalQuery] = useState(null);
+  const [externalScope, setExternalScope] = useState(null);
   const [navOpen, setNavOpen] = useState(false);
 
-  /* ── Sync theme to <html> and localStorage ── */
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     try { localStorage.setItem(THEME_KEY, theme); } catch { /* ignore */ }
@@ -51,7 +52,6 @@ const Layout = () => {
     }
   }, [aiPanelOpen]);
 
-  /* ── Global Cmd/Ctrl+K listener ── */
   useEffect(() => {
     const handleKeyDown = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
@@ -68,23 +68,32 @@ const Layout = () => {
     navigate("/login");
   };
 
-  /* Close mobile nav on route change */
   useEffect(() => { setNavOpen(false) }, [location.pathname]);
 
   const isActive = (path) => location.pathname.startsWith(path);
 
   const toggleAiPanel = () => setAiPanelOpen((prev) => !prev);
 
-  /* AI query handoff from CommandPalette */
-  const handleAIQuery = useCallback((query) => {
+  const handleAIQuery = useCallback((payload) => {
+    const nextPayload = typeof payload === "string" ? { query: payload } : payload;
     setAiPanelOpen(true);
-    setExternalQuery(query);
+    setExternalQuery(nextPayload?.query || null);
+    setExternalScope(nextPayload?.scope || null);
   }, []);
 
-  /* Clear external query after AIChatPanel processes it */
   const handleExternalQueryConsumed = useCallback(() => {
     setExternalQuery(null);
+    setExternalScope(null);
   }, []);
+
+  useEffect(() => {
+    const handleOpenAIPanel = (event) => {
+      handleAIQuery(event.detail || {});
+    };
+
+    window.addEventListener(OPEN_AI_PANEL_EVENT, handleOpenAIPanel);
+    return () => window.removeEventListener(OPEN_AI_PANEL_EVENT, handleOpenAIPanel);
+  }, [handleAIQuery]);
 
   return (
     <div className="layout">
@@ -165,11 +174,11 @@ const Layout = () => {
           isOpen={aiPanelOpen}
           onClose={() => setAiPanelOpen(false)}
           externalQuery={externalQuery}
+          externalScope={externalScope}
           onExternalQueryConsumed={handleExternalQueryConsumed}
         />
       </div>
 
-      {/* Command Palette overlay */}
       <CommandPalette
         isOpen={commandPaletteOpen}
         onClose={() => setCommandPaletteOpen(false)}

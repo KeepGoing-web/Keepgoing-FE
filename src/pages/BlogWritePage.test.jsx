@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { vi } from 'vitest'
 import BlogWritePage from './BlogWritePage'
@@ -6,10 +6,6 @@ import BlogWritePage from './BlogWritePage'
 const mockCreateNote = vi.fn()
 const mockUpdateNote = vi.fn()
 const mockFetchNote = vi.fn()
-const mockFetchCategories = vi.fn()
-const mockFetchTags = vi.fn()
-const mockCreateTag = vi.fn()
-const mockCreateCategory = vi.fn()
 const mockRefreshNotes = vi.fn()
 const mockToast = {
   success: vi.fn(),
@@ -28,10 +24,6 @@ vi.mock('../api/client', () => ({
   fetchNote: (...args) => mockFetchNote(...args),
   createNote: (...args) => mockCreateNote(...args),
   updateNote: (...args) => mockUpdateNote(...args),
-  fetchCategories: (...args) => mockFetchCategories(...args),
-  fetchTags: (...args) => mockFetchTags(...args),
-  createTag: (...args) => mockCreateTag(...args),
-  createCategory: (...args) => mockCreateCategory(...args),
 }))
 
 vi.mock('../contexts/ToastContext', () => ({
@@ -64,10 +56,6 @@ describe('BlogWritePage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     window.innerWidth = 1280
-    mockFetchCategories.mockResolvedValue({ categories: [] })
-    mockFetchTags.mockResolvedValue({ tags: [] })
-    mockCreateTag.mockResolvedValue({ id: 'tag-1', name: '새 태그' })
-    mockCreateCategory.mockResolvedValue({ id: 'cat-1', name: '새 카테고리' })
     mockRefreshNotes.mockResolvedValue()
     mockConfirm.mockResolvedValue(true)
   })
@@ -91,17 +79,15 @@ describe('BlogWritePage', () => {
     expect(mockToast.success).toHaveBeenCalled()
   })
 
-  it('starts with the settings panel closed on mobile and opens it on toggle', async () => {
+  it('starts with the inspector panel closed on mobile and opens it on toggle', async () => {
     window.innerWidth = 640
 
     const { container } = renderWritePage()
 
-    await waitFor(() => expect(mockFetchCategories).toHaveBeenCalled())
-
     const panel = container.querySelector('.bw-meta-panel')
     expect(panel).not.toHaveClass('open')
 
-    const [headerToggle] = screen.getAllByRole('button', { name: /설정/ })
+    const [headerToggle] = screen.getAllByRole('button', { name: /인스펙터|설정/ })
     fireEvent.click(headerToggle)
 
     expect(panel).toHaveClass('open')

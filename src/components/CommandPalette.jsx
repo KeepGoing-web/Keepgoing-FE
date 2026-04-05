@@ -1,17 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { fetchNotes } from '../api/client'
 import './CommandPalette.css'
 
 const CommandPalette = ({ isOpen, onClose, onAIQuery }) => {
   const navigate = useNavigate()
+  const location = useLocation()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(0)
   const inputRef = useRef(null)
 
-  /* Focus input when opened */
   useEffect(() => {
     if (isOpen) {
       setQuery('')
@@ -21,7 +21,6 @@ const CommandPalette = ({ isOpen, onClose, onAIQuery }) => {
     }
   }, [isOpen])
 
-  /* Search posts on query change */
   useEffect(() => {
     if (!isOpen || !query.trim()) {
       setResults([])
@@ -45,15 +44,17 @@ const CommandPalette = ({ isOpen, onClose, onAIQuery }) => {
     return () => clearTimeout(timer)
   }, [query, isOpen])
 
-  /* Total items: results + AI option (when query exists) */
   const hasAIOption = query.trim().length > 0
   const totalItems = results.length + (hasAIOption ? 1 : 0)
 
-  /* Navigate to selected result */
   const selectResult = useCallback((index) => {
     if (hasAIOption && index === results.length) {
-      /* AI query option */
-      onAIQuery?.(query.trim())
+      const noteMatch = location.pathname.match(/^\/notes\/([^/]+)$/)
+      const scope = noteMatch
+        ? { mode: 'current-note', currentNoteId: noteMatch[1], aiOnly: true }
+        : { mode: 'all', aiOnly: true }
+
+      onAIQuery?.({ query: query.trim(), scope })
       onClose()
       return
     }
@@ -62,9 +63,8 @@ const CommandPalette = ({ isOpen, onClose, onAIQuery }) => {
       navigate(`/notes/${post.id}`)
       onClose()
     }
-  }, [results, query, hasAIOption, navigate, onClose, onAIQuery])
+  }, [results, query, hasAIOption, location.pathname, navigate, onClose, onAIQuery])
 
-  /* Keyboard navigation */
   const handleKeyDown = (e) => {
     if (e.key === 'Escape') {
       e.preventDefault()
@@ -89,7 +89,6 @@ const CommandPalette = ({ isOpen, onClose, onAIQuery }) => {
       if (totalItems > 0) {
         selectResult(selectedIndex)
       }
-      return
     }
   }
 
@@ -98,8 +97,6 @@ const CommandPalette = ({ isOpen, onClose, onAIQuery }) => {
   return (
     <div className="cmd-overlay" onClick={onClose}>
       <div className="cmd-palette" onClick={(e) => e.stopPropagation()}>
-
-        {/* Search input */}
         <div className="cmd-input-wrap">
           <span className="cmd-input-icon">⌕</span>
           <input
@@ -116,7 +113,6 @@ const CommandPalette = ({ isOpen, onClose, onAIQuery }) => {
           <kbd className="cmd-kbd">ESC</kbd>
         </div>
 
-        {/* Results */}
         <div className="cmd-results" role="listbox">
           {loading && (
             <div className="cmd-loading">검색 중...</div>
@@ -154,7 +150,6 @@ const CommandPalette = ({ isOpen, onClose, onAIQuery }) => {
             </button>
           ))}
 
-          {/* AI query option */}
           {hasAIOption && (
             <>
               {results.length > 0 && <div className="cmd-divider" />}
@@ -176,7 +171,6 @@ const CommandPalette = ({ isOpen, onClose, onAIQuery }) => {
           )}
         </div>
 
-        {/* Footer hints */}
         <div className="cmd-footer">
           <span className="cmd-hint"><kbd>↑↓</kbd> 이동</span>
           <span className="cmd-hint"><kbd>↵</kbd> 선택</span>

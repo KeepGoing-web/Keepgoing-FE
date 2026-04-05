@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useToast } from '../contexts/ToastContext'
 import { useVaultOptional } from '../contexts/VaultContext'
@@ -6,16 +6,9 @@ import { useConfirm } from '../components/ConfirmModal'
 import LoadingDots from '../components/LoadingDots'
 import PageLoader from '../components/PageLoader'
 import { estimateReadTime, countChars } from '../utils/format'
-import {
-  fetchNote,
-  createNote,
-  updateNote,
-  fetchCategories,
-  fetchTags,
-  createTag,
-  createCategory as apiCreateCategory,
-} from '../api/client'
+import { fetchNote, createNote, updateNote } from '../api/client'
 import './BlogWritePage.css'
+import { dispatchOpenAIPanel } from '../utils/ai'
 
 const TiptapEditor = lazy(() => import('../components/TiptapEditor'))
 
@@ -36,23 +29,12 @@ const BlogWritePage = () => {
     content: '',
     visibility: 'PUBLIC',
     aiCollectable: false,
-    categoryId: '',
-    tagIds: [],
   })
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [isDirty, setIsDirty] = useState(false)
-  const [categories, setCategories] = useState([])
-  const [tags, setTags] = useState([])
   const [error, setError] = useState(null)
   const [metaOpen, setMetaOpen] = useState(() => window.innerWidth > MOBILE_BREAKPOINT)
-  const [newTagInput, setNewTagInput] = useState(false)
-  const [newTagName, setNewTagName] = useState('')
-  const [newCatInput, setNewCatInput] = useState(false)
-  const [newCatName, setNewCatName] = useState('')
-
-  const newTagRef = useRef(null)
-  const newCatRef = useRef(null)
   const showMetaPanel = !isMobileViewport || metaOpen
 
   useEffect(() => {
@@ -69,20 +51,6 @@ const BlogWritePage = () => {
   }, [])
 
   useEffect(() => {
-    const loadMeta = async () => {
-      try {
-        const [categoryResponse, tagResponse] = await Promise.all([fetchCategories(), fetchTags()])
-        setCategories(categoryResponse.categories || [])
-        setTags(tagResponse.tags || [])
-      } catch {
-        // ignore
-      }
-    }
-
-    void loadMeta()
-  }, [])
-
-  useEffect(() => {
     const loadPost = async () => {
       if (!isEdit) return
 
@@ -96,8 +64,6 @@ const BlogWritePage = () => {
           content: response.content || '',
           visibility: response.visibility || 'PUBLIC',
           aiCollectable: Boolean(response.aiCollectable),
-          categoryId: response.category?.id || '',
-          tagIds: Array.isArray(response.tags) ? response.tags.map((tag) => tag.id) : [],
         })
       } catch {
         setError('노트를 불러오지 못했습니다.')
@@ -126,104 +92,6 @@ const BlogWritePage = () => {
     setIsDirty(true)
   }
 
-  const handleNewTagOpen = () => {
-    setNewTagName('')
-    setNewTagInput(true)
-    setTimeout(() => newTagRef.current?.focus(), 0)
-  }
-
-  const handleNewTagCommit = async () => {
-    const name = newTagName.trim()
-    if (!name) {
-      setNewTagInput(false)
-      return
-    }
-
-    const existingTag = tags.find((tag) => tag.name.trim().toLowerCase() === name.toLowerCase())
-    if (existingTag) {
-      if (!formData.tagIds.includes(existingTag.id)) {
-        handleFormChange({ tagIds: [...formData.tagIds, existingTag.id] })
-      }
-      toast.info(`기존 태그 "${existingTag.name}"를 선택했습니다.`)
-      setNewTagInput(false)
-      setNewTagName('')
-      return
-    }
-
-    try {
-      const response = await createTag(name)
-      const createdTag = response.tag || response
-      setTags((prev) => [...prev, createdTag])
-      handleFormChange({ tagIds: [...formData.tagIds, createdTag.id] })
-      toast.success(`태그 "${createdTag.name}"를 추가했습니다.`)
-    } catch (commitError) {
-      toast.error(commitError?.message || '태그 생성에 실패했습니다.')
-    }
-
-    setNewTagInput(false)
-    setNewTagName('')
-  }
-
-  const handleNewTagKey = (event) => {
-    if (event.key === 'Enter') {
-      event.preventDefault()
-      void handleNewTagCommit()
-    }
-    if (event.key === 'Escape') {
-      setNewTagInput(false)
-      setNewTagName('')
-    }
-  }
-
-  const handleNewCatOpen = () => {
-    setNewCatName('')
-    setNewCatInput(true)
-    setTimeout(() => newCatRef.current?.focus(), 0)
-  }
-
-  const handleNewCatCommit = async () => {
-    const name = newCatName.trim()
-    if (!name) {
-      setNewCatInput(false)
-      return
-    }
-
-    const existingCategory = categories.find(
-      (category) => category.name.trim().toLowerCase() === name.toLowerCase(),
-    )
-    if (existingCategory) {
-      handleFormChange({ categoryId: existingCategory.id })
-      toast.info(`기존 카테고리 "${existingCategory.name}"를 선택했습니다.`)
-      setNewCatInput(false)
-      setNewCatName('')
-      return
-    }
-
-    try {
-      const response = await apiCreateCategory(name)
-      const createdCategory = response.category || response
-      setCategories((prev) => [...prev, createdCategory])
-      handleFormChange({ categoryId: createdCategory.id })
-      toast.success(`카테고리 "${createdCategory.name}"를 추가했습니다.`)
-    } catch (commitError) {
-      toast.error(commitError?.message || '카테고리 생성에 실패했습니다.')
-    }
-
-    setNewCatInput(false)
-    setNewCatName('')
-  }
-
-  const handleNewCatKey = (event) => {
-    if (event.key === 'Enter') {
-      event.preventDefault()
-      void handleNewCatCommit()
-    }
-    if (event.key === 'Escape') {
-      setNewCatInput(false)
-      setNewCatName('')
-    }
-  }
-
   const handleSubmit = async (event) => {
     if (event) event.preventDefault()
     if (!formData.title.trim()) return
@@ -236,8 +104,6 @@ const BlogWritePage = () => {
         content: formData.content,
         visibility: formData.visibility,
         aiCollectable: formData.aiCollectable,
-        categoryId: formData.categoryId || undefined,
-        tagIds: formData.tagIds || [],
       }
 
       const savedNote = isEdit
@@ -253,6 +119,16 @@ const BlogWritePage = () => {
     } finally {
       setSaving(false)
     }
+  }
+
+  const openRAGAssist = (prompt) => {
+    dispatchOpenAIPanel({
+      query: prompt,
+      scope: {
+        mode: 'notes',
+        aiOnly: true,
+      },
+    })
   }
 
   const handleBack = async () => {
@@ -337,9 +213,9 @@ const BlogWritePage = () => {
             className={`bw-btn bw-btn--ghost bw-meta-toggle ${metaOpen ? 'active' : ''}`}
             onClick={() => setMetaOpen((open) => !open)}
             aria-expanded={showMetaPanel}
-            title="메타데이터 패널"
+            title="문서 인스펙터"
           >
-            ⚙ 설정
+            ⚙ 인스펙터
           </button>
 
           <button type="button" className="bw-btn bw-btn--ghost" onClick={handleBack}>
@@ -369,75 +245,12 @@ const BlogWritePage = () => {
         </div>
 
         <aside className={`bw-meta-panel ${showMetaPanel ? 'open' : ''}`} aria-hidden={!showMetaPanel}>
-          <div className="bw-meta-group">
-            <label className="bw-meta-label">카테고리</label>
-            <div className="bw-meta-row">
-              <select
-                className="bw-meta-select"
-                value={formData.categoryId}
-                onChange={(event) => handleFormChange({ categoryId: event.target.value })}
-              >
-                <option value="">카테고리 선택</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-              <button type="button" className="bw-btn bw-btn--ghost" onClick={handleNewCatOpen}>
-                +
-              </button>
-            </div>
-            {newCatInput && (
-              <input
-                ref={newCatRef}
-                className="bw-inline-input"
-                value={newCatName}
-                onChange={(event) => setNewCatName(event.target.value)}
-                onBlur={() => void handleNewCatCommit()}
-                onKeyDown={handleNewCatKey}
-                placeholder="새 카테고리"
-              />
-            )}
-          </div>
-
-          <div className="bw-meta-group">
-            <label className="bw-meta-label">태그</label>
-            <div className="bw-tag-list">
-              {tags.map((tag) => {
-                const selected = formData.tagIds.includes(tag.id)
-                return (
-                  <button
-                    key={tag.id}
-                    type="button"
-                    className={`bw-tag ${selected ? 'active' : ''}`}
-                    onClick={() =>
-                      handleFormChange({
-                        tagIds: selected
-                          ? formData.tagIds.filter((tagId) => tagId !== tag.id)
-                          : [...formData.tagIds, tag.id],
-                      })
-                    }
-                  >
-                    #{tag.name}
-                  </button>
-                )
-              })}
-              <button type="button" className="bw-tag bw-tag--new" onClick={handleNewTagOpen}>
-                + 새 태그
-              </button>
-            </div>
-            {newTagInput && (
-              <input
-                ref={newTagRef}
-                className="bw-inline-input"
-                value={newTagName}
-                onChange={(event) => setNewTagName(event.target.value)}
-                onBlur={() => void handleNewTagCommit()}
-                onKeyDown={handleNewTagKey}
-                placeholder="새 태그"
-              />
-            )}
+          <div className="bw-inspector-overview">
+            <span className="bw-inspector-kicker">DOCUMENT INSPECTOR</span>
+            <strong className="bw-inspector-title">{formData.title.trim() || (isEdit ? '제목 없는 노트' : '새 노트')}</strong>
+            <p className="bw-inspector-copy">
+              {isEdit ? '기존 문서 편집 중' : '새 문서 작성 중'} · {formData.aiCollectable ? 'AI 수집 허용' : 'AI 수집 미허용'}
+            </p>
           </div>
 
           <div className="bw-meta-group bw-meta-group--stats">
@@ -449,6 +262,38 @@ const BlogWritePage = () => {
               <span>예상 읽기 시간</span>
               <strong>{estimateReadTime(formData.content)}분</strong>
             </div>
+            <div className="bw-meta-stat">
+              <span>공개 범위</span>
+              <strong>{visibilityOptions.find((option) => option.value === formData.visibility)?.label || '공개'}</strong>
+            </div>
+          </div>
+
+          <div className="bw-meta-group">
+            <label className="bw-meta-label">사용자 중심 작업</label>
+            <div className="bw-rag-actions">
+              <button
+                type="button"
+                className="bw-rag-action"
+                onClick={() => openRAGAssist(`${formData.title || '현재 초안'}과 연결되는 관련 문서를 찾아줘`)}
+              >
+                관련 문서 찾기
+              </button>
+              <button
+                type="button"
+                className="bw-rag-action"
+                onClick={() => openRAGAssist(`${formData.title || '현재 초안'}을 3줄로 요약해줘`)}
+              >
+                초안 요약
+              </button>
+              <button
+                type="button"
+                className="bw-rag-action"
+                onClick={() => openRAGAssist(`${formData.title || '현재 초안'}을 블로그 초안 구조로 바꿔줘`)}
+              >
+                블로그 톤 정리
+              </button>
+            </div>
+            <p className="bw-inspector-copy">왼쪽 패널에서 문서를 오가며, 이 화면에서는 작성과 AI 보조 흐름에 집중합니다.</p>
           </div>
         </aside>
       </div>
@@ -465,7 +310,7 @@ const BlogWritePage = () => {
             className="bw-status-meta-btn"
             onClick={() => setMetaOpen((open) => !open)}
           >
-            {showMetaPanel ? '설정 닫기' : '설정 열기'}
+            {showMetaPanel ? '인스펙터 닫기' : '인스펙터 열기'}
           </button>
         )}
       </div>

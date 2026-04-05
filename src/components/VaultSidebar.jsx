@@ -1,140 +1,151 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useVault } from '../contexts/VaultContext'
 import './VaultSidebar.css'
 
-/* ── Sidebar resize constants ────────────────────────── */
 const SIDEBAR_WIDTH_KEY = 'kg-sidebar-width'
-const MIN_SIDEBAR = 180
-const MAX_SIDEBAR = 420
-const DEFAULT_SIDEBAR = 240
-
-/* ── SidebarSection (collapsible) ────────────────────── */
+const MIN_SIDEBAR = 220
+const MAX_SIDEBAR = 360
+const DEFAULT_SIDEBAR = 248
 
 const SidebarSection = ({ title, children, defaultOpen = true }) => {
   const [open, setOpen] = useState(defaultOpen)
   return (
-    <div className="sidebar-section">
+    <section className="sidebar-section">
       <button
         className="sidebar-section-header"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen((current) => !current)}
         aria-expanded={open}
       >
-        <i className={`sidebar-section-chevron${open ? ' open' : ''}`}>▶</i>
-        {title}
+        <span className="sidebar-section-title-wrap">
+          <i className={`sidebar-section-chevron${open ? ' open' : ''}`}>▶</i>
+          <span>{title}</span>
+        </span>
       </button>
-      {open && children}
-    </div>
+      {open ? children : null}
+    </section>
   )
 }
 
-/* ── CategoryTree: folder/file tree (recursive) ────── */
+function matchesQuery(value, query) {
+  if (!query) return true
+  return String(value || '').toLowerCase().includes(query)
+}
 
-/* Single folder node (recursive) */
-const FolderNode = ({ cat, categories, allNotes, openFolders, toggleFolder, onPostClick, activeCategoryId, onCategoryClick, activePostId, onFolderContextMenu, newDir }) => {
-  const childCats = categories.filter((c) => c.parentId === cat.id)
-  const directNotes = allNotes.filter((p) => p.category && p.category.id === cat.id)
-  const isOpen = !!openFolders[cat.id]
-  const showNewDirInput = newDir.active && newDir.parentId === cat.id
+function noteMatchesQuery(note, query) {
+  if (!query) return true
+  const normalized = query.toLowerCase()
+  return matchesQuery(note.title, normalized) || matchesQuery(note.content, normalized)
+}
 
-  const handleFolderClick = () => {
-    toggleFolder(cat.id)
-    onCategoryClick(String(cat.id))
+function folderHasMatch(folder, categories, notes, query) {
+  if (!query) return true
+  if (matchesQuery(folder.name, query)) return true
+
+  const directNotes = notes.filter((note) => note.category && String(note.category.id) === String(folder.id))
+  if (directNotes.some((note) => noteMatchesQuery(note, query))) return true
+
+  const children = categories.filter((category) => String(category.parentId) === String(folder.id))
+  return children.some((child) => folderHasMatch(child, categories, notes, query))
+}
+
+const FolderNode = ({
+  folder,
+  categories,
+  notes,
+  openFolders,
+  toggleFolder,
+  onPostClick,
+  activeFolderId,
+  onFolderClick,
+  activePostId,
+  searchQuery,
+}) => {
+  const childFolders = categories.filter((category) => String(category.parentId) === String(folder.id))
+  const visibleChildFolders = childFolders.filter((child) => folderHasMatch(child, categories, notes, searchQuery))
+  const directNotes = notes
+    .filter((note) => note.category && String(note.category.id) === String(folder.id))
+    .filter((note) => noteMatchesQuery(note, searchQuery))
+  const isOpen = searchQuery ? true : Boolean(openFolders[folder.id])
+
+  if (!searchQuery && visibleChildFolders.length === 0 && directNotes.length === 0 && !folderHasMatch(folder, categories, notes, searchQuery)) {
+    return null
   }
 
   return (
     <li className="tree-folder">
-      <div
-        className="tree-folder-header"
-        onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onFolderContextMenu(e, cat.id) }}
-      >
+      <div className="tree-folder-header">
         <button
           className="tree-expand-btn"
-          onClick={() => toggleFolder(cat.id)}
+          onClick={() => toggleFolder(folder.id)}
           aria-label={isOpen ? '폴더 닫기' : '폴더 열기'}
         >
-          <span className="tree-folder-icon">
-            {isOpen ? '📂' : '📁'}
-          </span>
+          <span className="tree-folder-icon">{isOpen ? '📂' : '📁'}</span>
         </button>
         <button
-          className={`sidebar-item sidebar-folder-label${activeCategoryId === String(cat.id) ? ' active' : ''}`}
-          onClick={handleFolderClick}
+          className={`sidebar-item sidebar-folder-label${activeFolderId === String(folder.id) ? ' active' : ''}`}
+          onClick={() => onFolderClick(String(folder.id))}
         >
-          <span className="tree-label">{cat.name}</span>
+          <span className="tree-label">{folder.name}</span>
           <span className="sidebar-item-count">{directNotes.length}</span>
         </button>
       </div>
 
-      {(isOpen || showNewDirInput) && (
+      {isOpen && (visibleChildFolders.length > 0 || directNotes.length > 0) && (
         <ul className="tree-children">
-          {/* Child categories (recursive) */}
-          {childCats.map((child) => (
+          {visibleChildFolders.map((child) => (
             <FolderNode
               key={child.id}
-              cat={child}
+              folder={child}
               categories={categories}
-              allNotes={allNotes}
+              notes={notes}
               openFolders={openFolders}
               toggleFolder={toggleFolder}
               onPostClick={onPostClick}
-              activeCategoryId={activeCategoryId}
-              onCategoryClick={onCategoryClick}
+              activeFolderId={activeFolderId}
+              onFolderClick={onFolderClick}
               activePostId={activePostId}
-              onFolderContextMenu={onFolderContextMenu}
-              newDir={newDir}
+              searchQuery={searchQuery}
             />
           ))}
-          {/* Direct posts */}
-          {directNotes.map((post) => (
-            <li key={post.id}>
+
+          {directNotes.map((note) => (
+            <li key={note.id}>
               <button
-                className={`sidebar-item sidebar-file-item${activePostId === String(post.id) ? ' active' : ''}`}
-                onClick={() => onPostClick(post)}
-                title={post.title}
+                className={`sidebar-item sidebar-file-item${activePostId === String(note.id) ? ' active' : ''}`}
+                onClick={() => onPostClick(note)}
+                title={note.title}
               >
                 <span className="tree-file-icon">📄</span>
-                <span className="tree-file-label">{post.title}</span>
+                <span className="tree-file-label">{note.title}</span>
               </button>
             </li>
           ))}
-          {/* Inline new subdirectory input */}
-          {showNewDirInput && (
-            <li className="new-dir-input-row">
-              <span className="new-dir-icon">📁</span>
-              <input
-                ref={newDir.ref}
-                className="new-dir-input"
-                type="text"
-                value={newDir.name}
-                onChange={(e) => newDir.onChange(e.target.value)}
-                onKeyDown={newDir.onKeyDown}
-                onBlur={newDir.onCancel}
-                placeholder="디렉토리 이름"
-                autoFocus
-              />
-            </li>
-          )}
-          {childCats.length === 0 && directNotes.length === 0 && !showNewDirInput && (
-            <li className="tree-empty-hint">노트 없음</li>
-          )}
         </ul>
       )}
     </li>
   )
 }
 
-const CategoryTree = ({ categories, allNotes, onPostClick, activeCategoryId, onCategoryClick, activePostId, onFolderContextMenu, newDir }) => {
-  const [openFolders, setOpenFolders] = useState({ __uncategorized__: true })
+const CategoryTree = ({
+  categories,
+  notes,
+  onPostClick,
+  activeFolderId,
+  onFolderClick,
+  activePostId,
+  searchQuery,
+}) => {
+  const [openFolders, setOpenFolders] = useState({})
 
   useEffect(() => {
     if (categories.length === 0) return
     setOpenFolders((prev) => {
       const next = { ...prev }
       let changed = false
-      categories.forEach((c) => {
-        if (!(c.id in next)) {
-          next[c.id] = true
+      categories.forEach((category) => {
+        if (!(category.id in next)) {
+          next[category.id] = true
           changed = true
         }
       })
@@ -142,177 +153,117 @@ const CategoryTree = ({ categories, allNotes, onPostClick, activeCategoryId, onC
     })
   }, [categories])
 
-  /* Auto-open parent folder when creating a subdirectory */
-  useEffect(() => {
-    if (newDir.active && newDir.parentId != null) {
-      setOpenFolders((prev) => ({ ...prev, [newDir.parentId]: true }))
-    }
-  }, [newDir.active, newDir.parentId])
-
   const toggleFolder = (id) => {
+    if (searchQuery) return
     setOpenFolders((prev) => ({ ...prev, [id]: !prev[id] }))
   }
 
-  const uncategorized = allNotes.filter((p) => !p.category)
-  const topLevelCats = categories.filter((c) => !c.parentId)
-  const showRootNewDir = newDir.active && newDir.parentId == null
+  const topLevelFolders = categories.filter((category) => !category.parentId)
+  const visibleTopLevelFolders = topLevelFolders.filter((folder) => folderHasMatch(folder, categories, notes, searchQuery))
+  const uncategorizedNotes = notes
+    .filter((note) => !note.category)
+    .filter((note) => noteMatchesQuery(note, searchQuery))
 
   return (
     <ul className="sidebar-items tree-root">
-      {/* All posts shortcut */}
       <li>
         <button
-          className={`sidebar-item sidebar-folder-row${activeCategoryId === '' ? ' active' : ''}`}
-          onClick={() => onCategoryClick('')}
+          className={`sidebar-item sidebar-folder-row${activeFolderId === '' ? ' active' : ''}`}
+          onClick={() => onFolderClick('')}
         >
           <span className="tree-icon">◈</span>
-          <span className="tree-label">전체 노트</span>
-          <span className="sidebar-item-count">{allNotes.length}</span>
+          <span className="tree-label">전체 문서</span>
+          <span className="sidebar-item-count">{notes.length}</span>
         </button>
       </li>
 
-      {/* Top-level category folders (recursive) */}
-      {topLevelCats.map((cat) => (
+      {visibleTopLevelFolders.map((folder) => (
         <FolderNode
-          key={cat.id}
-          cat={cat}
+          key={folder.id}
+          folder={folder}
           categories={categories}
-          allNotes={allNotes}
+          notes={notes}
           openFolders={openFolders}
           toggleFolder={toggleFolder}
           onPostClick={onPostClick}
-          activeCategoryId={activeCategoryId}
-          onCategoryClick={onCategoryClick}
+          activeFolderId={activeFolderId}
+          onFolderClick={onFolderClick}
           activePostId={activePostId}
-          onFolderContextMenu={onFolderContextMenu}
-          newDir={newDir}
+          searchQuery={searchQuery}
         />
       ))}
 
-      {/* Root-level new directory input */}
-      {showRootNewDir && (
-        <li className="new-dir-input-row">
-          <span className="new-dir-icon">📁</span>
-          <input
-            ref={newDir.ref}
-            className="new-dir-input"
-            type="text"
-            value={newDir.name}
-            onChange={(e) => newDir.onChange(e.target.value)}
-            onKeyDown={newDir.onKeyDown}
-            onBlur={newDir.onCancel}
-            placeholder="디렉토리 이름"
-            autoFocus
-          />
+      {uncategorizedNotes.map((note) => (
+        <li key={note.id}>
+          <button
+            className={`sidebar-item sidebar-file-item sidebar-file-item--root${activePostId === String(note.id) ? ' active' : ''}`}
+            onClick={() => onPostClick(note)}
+            title={note.title}
+          >
+            <span className="tree-file-icon">📄</span>
+            <span className="tree-file-label">{note.title}</span>
+          </button>
         </li>
-      )}
+      ))}
 
-      {/* Uncategorized folder */}
-      {uncategorized.length > 0 && (
-        <li className="tree-folder">
-          <div className="tree-folder-header">
-            <button
-              className="tree-expand-btn"
-              onClick={() => toggleFolder('__uncategorized__')}
-              aria-label={openFolders['__uncategorized__'] ? '폴더 닫기' : '폴더 열기'}
-            >
-              <span className="tree-folder-icon">
-                {openFolders['__uncategorized__'] ? '📂' : '📁'}
-              </span>
-            </button>
-            <button
-              className="sidebar-item sidebar-folder-label"
-              onClick={() => { toggleFolder('__uncategorized__'); onCategoryClick('__uncategorized__') }}
-            >
-              <span className="tree-label">미분류</span>
-              <span className="sidebar-item-count">{uncategorized.length}</span>
-            </button>
-          </div>
-
-          {openFolders['__uncategorized__'] && (
-            <ul className="tree-children">
-              {uncategorized.map((post) => (
-                <li key={post.id}>
-                  <button
-                    className={`sidebar-item sidebar-file-item${activePostId === String(post.id) ? ' active' : ''}`}
-                    onClick={() => onPostClick(post)}
-                    title={post.title}
-                  >
-                    <span className="tree-file-icon">📄</span>
-                    <span className="tree-file-label">{post.title}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </li>
-      )}
+      {searchQuery && visibleTopLevelFolders.length === 0 && uncategorizedNotes.length === 0 ? (
+        <li className="tree-empty-hint">검색 결과가 없습니다</li>
+      ) : null}
     </ul>
   )
 }
 
-/* ── VaultSidebar main component ─────────────────────── */
-
 const VaultSidebar = () => {
   const navigate = useNavigate()
   const location = useLocation()
-  const activePostId = location.pathname.match(/^\/notes\/(\d+)$/)?.[1] || null
+  const activePostId = location.pathname.match(/^\/notes\/([^/]+)$/)?.[1] || null
   const {
-    allNotes, categories, tags, recentNotes, tagCounts,
-    categoryId, setCategoryId, selectedTagIds, toggleTag, navigateToNote, resetFilters,
-    createCategory,
+    allNotes,
+    categories,
+    recentNotes,
+    categoryId,
+    setCategoryId,
+    navigateToNote,
+    resetFilters,
   } = useVault()
-  const aiReadyCount = allNotes.filter((note) => note.visibility === 'AI_COLLECTABLE' || note.aiCollectable).length
-  const hasActiveFilters = Boolean(categoryId || selectedTagIds.length)
 
-  /* ── Context menu state ── */
-  const [ctxMenu, setCtxMenu] = useState(null) // { x, y, parentId }
-  const [newDirInput, setNewDirInput] = useState(false)
-  const [newDirName, setNewDirName] = useState('')
-  const [newDirParentId, setNewDirParentId] = useState(null)
-  const newDirRef = useRef(null)
-
-  /* Sidebar collapsed state */
+  const [explorerQuery, setExplorerQuery] = useState('')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    try { return localStorage.getItem('kg-sidebar-collapsed') === 'true' }
-    catch { return false }
+    try {
+      return localStorage.getItem('kg-sidebar-collapsed') === 'true'
+    } catch {
+      return false
+    }
   })
-
-  /* Sidebar resizable width */
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     try {
       const saved = parseInt(localStorage.getItem(SIDEBAR_WIDTH_KEY), 10)
       return saved >= MIN_SIDEBAR && saved <= MAX_SIDEBAR ? saved : DEFAULT_SIDEBAR
-    } catch { return DEFAULT_SIDEBAR }
+    } catch {
+      return DEFAULT_SIDEBAR
+    }
   })
   const [isSidebarResizing, setIsSidebarResizing] = useState(false)
 
-  /* Persist sidebar collapsed */
-  const toggleSidebar = () => {
-    setSidebarCollapsed((c) => {
-      const next = !c
-      try { localStorage.setItem('kg-sidebar-collapsed', String(next)) } catch { /* ignore */ }
-      return next
-    })
-  }
-
-  /* ── Resize handlers ── */
-  const handleSidebarResizeStart = useCallback((e) => {
-    e.preventDefault()
-    setIsSidebarResizing(true)
-  }, [])
+  const filteredRecentNotes = recentNotes
+    .filter((note) => matchesQuery(note.title, explorerQuery.trim().toLowerCase()))
+    .slice(0, 5)
 
   useEffect(() => {
-    if (!isSidebarResizing) return
+    if (!isSidebarResizing) return undefined
 
-    const handleMove = (e) => {
-      const clamped = Math.min(MAX_SIDEBAR, Math.max(MIN_SIDEBAR, e.clientX))
-      setSidebarWidth(clamped)
+    const handleMove = (event) => {
+      const clampedWidth = Math.min(MAX_SIDEBAR, Math.max(MIN_SIDEBAR, event.clientX))
+      setSidebarWidth(clampedWidth)
     }
 
     const handleEnd = () => {
       setIsSidebarResizing(false)
-      try { localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sidebarWidth)) } catch { /* ignore */ }
+      try {
+        localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sidebarWidth))
+      } catch {
+        // ignore
+      }
     }
 
     document.addEventListener('mousemove', handleMove)
@@ -328,86 +279,45 @@ const VaultSidebar = () => {
     }
   }, [isSidebarResizing, sidebarWidth])
 
-  /* ── Context menu handlers ── */
-  const handleFolderContextMenu = useCallback((e, folderId) => {
-    e.preventDefault()
-    setCtxMenu({ x: e.clientX, y: e.clientY, parentId: folderId })
-  }, [])
-
-  const handleContextMenu = useCallback((e) => {
-    e.preventDefault()
-    setCtxMenu({ x: e.clientX, y: e.clientY, parentId: null })
-  }, [])
-
-  const handleNewDir = useCallback(() => {
-    setNewDirParentId(ctxMenu?.parentId || null)
-    setCtxMenu(null)
-    setNewDirInput(true)
-    setNewDirName('')
-    setTimeout(() => newDirRef.current?.focus(), 50)
-  }, [ctxMenu])
-
-  const handleNewDirCancel = useCallback(() => {
-    setNewDirInput(false)
-    setNewDirName('')
-    setNewDirParentId(null)
-  }, [])
-
-  const handleNewDirKeyDown = useCallback(async (e) => {
-    if (e.key === 'Escape') {
-      e.preventDefault()
-      handleNewDirCancel()
-      return
-    }
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      const name = newDirName.trim()
-      if (!name) { handleNewDirCancel(); return }
+  const toggleSidebar = () => {
+    setSidebarCollapsed((current) => {
+      const next = !current
       try {
-        await createCategory(name, newDirParentId)
-      } catch { /* ignore */ }
-      handleNewDirCancel()
-    }
-  }, [newDirName, newDirParentId, createCategory, handleNewDirCancel])
+        localStorage.setItem('kg-sidebar-collapsed', String(next))
+      } catch {
+        // ignore
+      }
+      return next
+    })
+  }
 
-  /* Close context menu on outside click */
-  useEffect(() => {
-    if (!ctxMenu) return
-    const close = () => setCtxMenu(null)
-    document.addEventListener('click', close)
-    return () => document.removeEventListener('click', close)
-  }, [ctxMenu])
-
-  /* ── Handlers ── */
-  const handleCategoryClick = useCallback((catId) => {
-    setCategoryId(catId)
-  }, [setCategoryId])
-
-  const handleTagClick = useCallback((tag) => {
-    toggleTag(tag.id)
-  }, [toggleTag])
+  const handleFolderClick = (folderId) => {
+    setCategoryId(folderId)
+    navigate('/notes/list')
+  }
 
   return (
     <aside
       className={`sidebar${sidebarCollapsed ? ' collapsed' : ''}${isSidebarResizing ? ' sidebar--resizing' : ''}`}
       style={!sidebarCollapsed ? { width: sidebarWidth, minWidth: sidebarWidth } : undefined}
-      aria-label="Vault 탐색"
-      onContextMenu={handleContextMenu}
+      aria-label="문서 탐색기"
     >
       <button
         className="sidebar-toggle"
         onClick={toggleSidebar}
-        title={sidebarCollapsed ? '사이드바 열기' : '사이드바 닫기'}
-        aria-label={sidebarCollapsed ? '사이드바 열기' : '사이드바 닫기'}
+        title={sidebarCollapsed ? '탐색기 열기' : '탐색기 닫기'}
+        aria-label={sidebarCollapsed ? '탐색기 열기' : '탐색기 닫기'}
       >
         {sidebarCollapsed ? '›' : '‹'}
       </button>
 
-      {/* Resize handle */}
       {!sidebarCollapsed && (
         <div
           className="sidebar-resize-handle"
-          onMouseDown={handleSidebarResizeStart}
+          onMouseDown={(event) => {
+            event.preventDefault()
+            setIsSidebarResizing(true)
+          }}
           title="드래그하여 크기 조절"
           aria-label="사이드바 크기 조절"
         >
@@ -416,137 +326,67 @@ const VaultSidebar = () => {
       )}
 
       <div className="sidebar-inner">
-        <div className="sidebar-workspace-card">
-          <div className="sidebar-workspace-header">
-            <span className="sidebar-workspace-title">노트 작업공간</span>
-            {hasActiveFilters && <span className="sidebar-workspace-badge">필터 적용 중</span>}
+        <div className="sidebar-minimal-header">
+          <div>
+            <span className="sidebar-minimal-title">문서</span>
+            <p className="sidebar-minimal-copy">최근 문서와 폴더만 조용하게 정리합니다.</p>
           </div>
-          <div className="sidebar-workspace-stats">
-            <div>
-              <strong>{allNotes.length}</strong>
-              <span>노트</span>
-            </div>
-            <div>
-              <strong>{categories.length}</strong>
-              <span>카테고리</span>
-            </div>
-            <div>
-              <strong>{aiReadyCount}</strong>
-              <span>AI 수집</span>
-            </div>
-          </div>
-          <div className="sidebar-workspace-actions">
-            <button
-              type="button"
-              className={`sidebar-workspace-action ${!hasActiveFilters ? 'active' : ''}`}
-              onClick={() => {
-                resetFilters()
-                navigate('/notes/list')
-              }}
-            >
-              전체 보기
-            </button>
-            {hasActiveFilters && (
-              <button type="button" className="sidebar-workspace-action" onClick={resetFilters}>
-                필터 초기화
-              </button>
-            )}
-          </div>
+          <Link to="/notes/write" className="sidebar-new-note-btn">✦</Link>
         </div>
 
-        {/* Write button */}
-        <Link to="/notes/write" className="sidebar-write-btn">
-          <span>✦</span>
-          새 노트 작성
-        </Link>
+        <div className="sidebar-search-wrap">
+          <span className="sidebar-search-icon">⌕</span>
+          <input
+            className="sidebar-search-input"
+            value={explorerQuery}
+            onChange={(event) => setExplorerQuery(event.target.value)}
+            placeholder="문서 찾기"
+            aria-label="탐색기 검색"
+          />
+          {explorerQuery ? (
+            <button type="button" className="sidebar-search-clear" onClick={() => setExplorerQuery('')}>
+              ×
+            </button>
+          ) : null}
+        </div>
 
-        <div className="sidebar-divider" />
-
-        {/* Recent Files */}
-        {recentNotes.length > 0 && (
-          <>
-            <SidebarSection title="최근 파일" defaultOpen={true}>
-              <ul className="sidebar-items">
-                {recentNotes.map((p) => (
-                  <li key={p.id}>
-                    <button
-                      className="sidebar-item sidebar-file-item recent-file-item"
-                      onClick={() => navigate(`/notes/${p.id}`)}
-                      title={p.title}
-                    >
-                      <span className="sidebar-item-icon recent-file-dot">·</span>
-                      <span className="recent-file-label">{p.title}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </SidebarSection>
-            <div className="sidebar-divider" />
-          </>
+        {filteredRecentNotes.length > 0 && (
+          <SidebarSection title="최근 문서" defaultOpen>
+            <ul className="sidebar-items sidebar-list-plain">
+              {filteredRecentNotes.map((note) => (
+                <li key={note.id}>
+                  <button
+                    className={`sidebar-item sidebar-file-item recent-file-item${activePostId === String(note.id) ? ' active' : ''}`}
+                    onClick={() => navigate(`/notes/${note.id}`)}
+                    title={note.title}
+                  >
+                    <span className="recent-file-dot">·</span>
+                    <span className="recent-file-label">{note.title}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </SidebarSection>
         )}
 
-        {/* File Explorer (Categories as folders) */}
-        <SidebarSection title="파일 탐색기" defaultOpen={true}>
+        <SidebarSection title="폴더" defaultOpen>
           <CategoryTree
             categories={categories}
-            allNotes={allNotes}
+            notes={allNotes}
             onPostClick={navigateToNote}
-            activeCategoryId={categoryId}
-            onCategoryClick={handleCategoryClick}
+            activeFolderId={categoryId}
+            onFolderClick={handleFolderClick}
             activePostId={activePostId}
-            onFolderContextMenu={handleFolderContextMenu}
-            newDir={{
-              active: newDirInput,
-              parentId: newDirParentId,
-              name: newDirName,
-              ref: newDirRef,
-              onChange: setNewDirName,
-              onKeyDown: handleNewDirKeyDown,
-              onCancel: handleNewDirCancel,
-            }}
+            searchQuery={explorerQuery.trim().toLowerCase()}
           />
         </SidebarSection>
 
-        <div className="sidebar-divider" />
-
-        {/* Tags */}
-        <SidebarSection title="태그" defaultOpen={true}>
-          <ul className="sidebar-items">
-            {tags.map((t) => (
-              <li key={t.id}>
-                <button
-                  className={`sidebar-item sidebar-tag-item${selectedTagIds.includes(t.id) ? ' active' : ''}`}
-                  onClick={() => handleTagClick(t)}
-                >
-                  <span className="sidebar-tag-hash">#</span>
-                  <span className="sidebar-tag-name">{t.name}</span>
-                  {tagCounts[t.id] != null && (
-                    <span className="sidebar-item-count">{tagCounts[t.id]}</span>
-                  )}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </SidebarSection>
+        {categoryId ? (
+          <button type="button" className="sidebar-reset-btn" onClick={() => { resetFilters(); navigate('/notes/list') }}>
+            전체 문서 보기
+          </button>
+        ) : null}
       </div>
-
-      {/* Context menu */}
-      {ctxMenu && (
-        <div
-          className="sidebar-ctx-menu"
-          style={{ top: ctxMenu.y, left: ctxMenu.x }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button className="sidebar-ctx-item" onClick={handleNewDir}>
-            <span className="sidebar-ctx-icon">📁</span>
-            {ctxMenu.parentId ? '하위 디렉토리' : '새 디렉토리'}
-          </button>
-          <button className="sidebar-ctx-item" onClick={() => { setCtxMenu(null); navigate('/notes/write') }}>
-            <span className="sidebar-ctx-icon">📄</span>
-            새 노트
-          </button>
-        </div>
-      )}
     </aside>
   )
 }
