@@ -118,6 +118,50 @@ describe('VaultSidebar', () => {
     })
   })
 
+  it('focuses the actual nested target folder after a successful drop', async () => {
+    const dataTransfer = createDataTransfer()
+    const { vault } = renderSidebar({
+      categories: [
+        { id: 'folder_1', name: 'Top', parentId: null },
+        { id: 'folder_2', name: 'Middle', parentId: 'folder_1' },
+        { id: 'folder_3', name: 'Bottom', parentId: 'folder_2' },
+      ],
+      allNotes: [
+        { id: 'note_1', title: '미분류 노트', content: '미분류 메모', folderId: null, categoryId: null, category: null },
+      ],
+      moveNoteToFolder: vi.fn().mockResolvedValue(true),
+    })
+
+    fireEvent.dragStart(screen.getByRole('button', { name: /미분류 노트/i }), { dataTransfer })
+    fireEvent.dragOver(screen.getByRole('button', { name: /Bottom/i }), { dataTransfer })
+    fireEvent.drop(screen.getByRole('button', { name: /Bottom/i }), { dataTransfer })
+
+    await waitFor(() => {
+      expect(vault.moveNoteToFolder).toHaveBeenCalledWith('note_1', 'folder_3')
+      expect(screen.getByRole('button', { name: /Bottom/i })).toHaveFocus()
+    })
+  })
+
+  it('keeps the innermost nested folder as the visible drag target while dragging', async () => {
+    const dataTransfer = createDataTransfer()
+    renderSidebar({
+      categories: [
+        { id: 'folder_1', name: 'Top', parentId: null },
+        { id: 'folder_2', name: 'Middle', parentId: 'folder_1' },
+        { id: 'folder_3', name: 'Bottom', parentId: 'folder_2' },
+      ],
+      allNotes: [
+        { id: 'note_1', title: '미분류 노트', content: '미분류 메모', folderId: null, categoryId: null, category: null },
+      ],
+    })
+
+    fireEvent.dragStart(screen.getByRole('button', { name: /미분류 노트/i }), { dataTransfer })
+    fireEvent.dragOver(screen.getByRole('button', { name: /Bottom/i }), { dataTransfer })
+
+    expect(screen.getByRole('button', { name: /Bottom/i })).toHaveClass('drop-target')
+    expect(screen.getByRole('button', { name: /Top/i })).not.toHaveClass('drop-target')
+  })
+
   it('creates a child folder inline and submits on Enter', async () => {
     const user = userEvent.setup()
     const { vault } = renderSidebar()

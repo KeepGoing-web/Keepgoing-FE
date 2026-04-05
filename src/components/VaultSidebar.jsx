@@ -117,6 +117,7 @@ const FolderNode = ({
   onDraftSubmit,
   onDraftKeyDown,
   isCreatingFolder,
+  registerFolderButton,
 }) => {
   const childFolders = categories.filter((category) => String(category.parentId) === String(folder.id))
   const visibleChildFolders = childFolders.filter((child) => folderHasMatch(child, categories, notes, searchQuery))
@@ -146,6 +147,7 @@ const FolderNode = ({
           <span className="tree-folder-icon">{isOpen ? '📂' : '📁'}</span>
         </button>
         <button
+          ref={(node) => registerFolderButton(folder.id, node)}
           className={`sidebar-item sidebar-folder-label${activeFolderId === String(folder.id) ? ' active' : ''}${isDropTarget ? ' drop-target' : ''}`}
           onClick={() => onFolderClick(String(folder.id))}
           onContextMenu={(event) => {
@@ -203,6 +205,7 @@ const FolderNode = ({
               onDraftSubmit={onDraftSubmit}
               onDraftKeyDown={onDraftKeyDown}
               isCreatingFolder={isCreatingFolder}
+              registerFolderButton={registerFolderButton}
             />
           ))}
 
@@ -251,6 +254,8 @@ const CategoryTree = ({
   onDraftSubmit,
   onDraftKeyDown,
   isCreatingFolder,
+  registerFolderButton,
+  rootFolderButtonRef,
 }) => {
   const [openFolders, setOpenFolders] = useState({})
 
@@ -322,6 +327,7 @@ const CategoryTree = ({
 
         <li>
           <button
+            ref={rootFolderButtonRef}
             className={`sidebar-item sidebar-folder-row${activeFolderId === '' ? ' active' : ''}${dropTargetId === ROOT_DROP_TARGET ? ' drop-target' : ''}`}
             onClick={() => onFolderClick('')}
             onContextMenu={(event) => {
@@ -365,6 +371,7 @@ const CategoryTree = ({
             onDraftSubmit={onDraftSubmit}
             onDraftKeyDown={onDraftKeyDown}
             isCreatingFolder={isCreatingFolder}
+            registerFolderButton={registerFolderButton}
           />
         ))}
 
@@ -434,8 +441,11 @@ const VaultSidebar = () => {
   const [draggingNoteId, setDraggingNoteId] = useState(null)
   const [movingNoteId, setMovingNoteId] = useState(null)
   const [contextMenu, setContextMenu] = useState(null)
+  const [pendingFocusFolderId, setPendingFocusFolderId] = useState(null)
   const contextMenuRef = useRef(null)
   const creatingFolderRef = useRef(false)
+  const folderButtonRefs = useRef(new Map())
+  const rootFolderButtonRef = useRef(null)
 
   const filteredRecentNotes = recentNotes
     .map((note) => allNotes.find((candidate) => String(candidate.id) === String(note.id)) || note)
@@ -527,6 +537,34 @@ const VaultSidebar = () => {
     }
   }, [contextMenu])
 
+  useEffect(() => {
+    if (!pendingFocusFolderId) return undefined
+
+    let frameA = 0
+    let frameB = 0
+
+    frameA = requestAnimationFrame(() => {
+      frameB = requestAnimationFrame(() => {
+        if (pendingFocusFolderId === ROOT_DROP_TARGET) {
+          rootFolderButtonRef.current?.focus()
+          setPendingFocusFolderId(null)
+          return
+        }
+
+        const targetButton = folderButtonRefs.current.get(String(pendingFocusFolderId))
+        if (targetButton) {
+          targetButton.focus()
+          setPendingFocusFolderId(null)
+        }
+      })
+    })
+
+    return () => {
+      cancelAnimationFrame(frameA)
+      cancelAnimationFrame(frameB)
+    }
+  }, [pendingFocusFolderId, categories, categoryId])
+
   const toggleSidebar = () => {
     setSidebarCollapsed((current) => {
       const next = !current
@@ -542,6 +580,15 @@ const VaultSidebar = () => {
   const handleFolderClick = (folderId) => {
     setCategoryId(folderId)
     navigate('/notes/list')
+  }
+
+  const registerFolderButton = (folderId, node) => {
+    const key = String(folderId)
+    if (node) {
+      folderButtonRefs.current.set(key, node)
+      return
+    }
+    folderButtonRefs.current.delete(key)
   }
 
   const openFolderDraft = (parentFolder = null) => {
@@ -602,6 +649,7 @@ const VaultSidebar = () => {
   const handleFolderDragOver = (event, folderId) => {
     if (!getDraggedNote(event)) return
     event.preventDefault()
+    event.stopPropagation()
     event.dataTransfer.dropEffect = 'move'
     setDropTargetId(folderId == null ? ROOT_DROP_TARGET : String(folderId))
   }
@@ -626,6 +674,7 @@ const VaultSidebar = () => {
     try {
       await moveNoteToFolder(draggedNote.id, nextFolderId)
       setCategoryId(nextFolderId == null ? '' : String(nextFolderId))
+      setPendingFocusFolderId(nextFolderId == null ? ROOT_DROP_TARGET : String(nextFolderId))
       toast.success(`"${draggedNote.title}" 문서를 ${folderName}로 이동했습니다.`)
     } catch {
       toast.error('문서 이동에 실패했습니다.')
@@ -769,6 +818,8 @@ const VaultSidebar = () => {
               onDraftSubmit={handleCreateFolder}
               onDraftKeyDown={handleDraftKeyDown}
               isCreatingFolder={isCreatingFolder}
+              registerFolderButton={registerFolderButton}
+              rootFolderButtonRef={rootFolderButtonRef}
             />
           </div>
         </SidebarSection>
