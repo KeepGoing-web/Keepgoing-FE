@@ -1,6 +1,13 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { fetchNotes, fetchCategories, createCategory as apiCreateCategory, moveNote as apiMoveNote } from '../api/client'
+import {
+  fetchNotes,
+  fetchCategories,
+  createCategory as apiCreateCategory,
+  moveNote as apiMoveNote,
+  updateNote as apiUpdateNote,
+  deleteNote as apiDeleteNote,
+} from '../api/client'
 
 const RECENT_KEY = 'kg-recent-notes'
 const LEGACY_RECENT_KEY = 'kg-recent-posts'
@@ -42,6 +49,30 @@ function addRecentNoteToStorage(post) {
   try {
     const previousNotes = getRecentNotes().filter((recentPost) => String(recentPost.id) !== String(post.id))
     const nextNotes = [{ id: post.id, title: post.title }, ...previousNotes].slice(0, RECENT_MAX)
+    localStorage.setItem(RECENT_KEY, JSON.stringify(nextNotes))
+    return nextNotes
+  } catch {
+    return getRecentNotes()
+  }
+}
+
+function updateRecentNoteInStorage(post) {
+  try {
+    const nextNotes = getRecentNotes().map((recentPost) => (
+      String(recentPost.id) === String(post.id)
+        ? { ...recentPost, title: post.title }
+        : recentPost
+    ))
+    localStorage.setItem(RECENT_KEY, JSON.stringify(nextNotes))
+    return nextNotes
+  } catch {
+    return getRecentNotes()
+  }
+}
+
+function removeRecentNoteFromStorage(noteId) {
+  try {
+    const nextNotes = getRecentNotes().filter((recentPost) => String(recentPost.id) !== String(noteId))
     localStorage.setItem(RECENT_KEY, JSON.stringify(nextNotes))
     return nextNotes
   } catch {
@@ -191,6 +222,54 @@ export function VaultProvider({ children }) {
     return movedNote
   }, [categories])
 
+  const updateNote = useCallback(async (noteId, payload) => {
+    const updatedNote = await apiUpdateNote(noteId, payload)
+    const nextFolderId = updatedNote.folderId ?? updatedNote.categoryId ?? updatedNote.category?.id ?? payload.folderId ?? payload.categoryId ?? null
+
+    setAllNotes((prev) => attachCategoryMeta(
+      prev.map((note) => (
+        String(note.id) === String(noteId)
+          ? { ...note, ...updatedNote, folderId: nextFolderId, categoryId: nextFolderId }
+          : note
+      )),
+      categories,
+    ))
+    setRecentNotes(updateRecentNoteInStorage({ id: noteId, title: updatedNote.title ?? payload.title ?? '' }))
+
+    try {
+      const data = await fetchVaultData()
+      setAllNotes(data.posts)
+      setCategories(data.categories)
+      setTags(data.tags)
+    } catch {
+      // keep optimistic state if refresh fails
+    } finally {
+      setNotesRevision((prev) => prev + 1)
+    }
+
+    return updatedNote
+  }, [categories])
+
+  const deleteNote = useCallback(async (noteId) => {
+    await apiDeleteNote(noteId)
+
+    setAllNotes((prev) => prev.filter((note) => String(note.id) !== String(noteId)))
+    setRecentNotes(removeRecentNoteFromStorage(noteId))
+
+    try {
+      const data = await fetchVaultData()
+      setAllNotes(data.posts)
+      setCategories(data.categories)
+      setTags(data.tags)
+    } catch {
+      // keep optimistic state if refresh fails
+    } finally {
+      setNotesRevision((prev) => prev + 1)
+    }
+
+    return true
+  }, [])
+
   const value = {
     allNotes,
     categories,
@@ -212,6 +291,8 @@ export function VaultProvider({ children }) {
     refreshNotes,
     createCategory,
     moveNoteToFolder,
+    updateNote,
+    deleteNote,
   }
 
   return <VaultContext.Provider value={value}>{children}</VaultContext.Provider>

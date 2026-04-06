@@ -15,6 +15,64 @@
   background: var(--bg-secondary);
 }
 
+
+.tiptap-smartbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.95rem 1rem;
+  background: linear-gradient(180deg, rgba(137, 180, 250, 0.08), rgba(137, 180, 250, 0.02));
+  border-bottom: 1px solid var(--border);
+}
+
+.tiptap-smartbar-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.tiptap-smartbar-copy strong {
+  color: var(--text-primary);
+  font-size: 0.88rem;
+}
+
+.tiptap-smartbar-copy span {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.tiptap-smartbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.tiptap-smartbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(17, 17, 27, 0.55);
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.tiptap-smartbar-btn:hover,
+.tiptap-smartbar-btn.is-active {
+  color: var(--accent);
+  border-color: var(--accent-dim);
+  background: var(--accent-glow);
+}
+
 /* ── Toolbar ────────────────────────────────────────────────── */
 
 .tiptap-toolbar {
@@ -616,6 +674,15 @@
 /* ── Responsive ─────────────────────────────────────────────── */
 
 @media (max-width: 768px) {
+  .tiptap-smartbar {
+    flex-direction: column;
+    padding: 0.85rem 0.85rem 0.75rem;
+  }
+
+  .tiptap-smartbar-actions {
+    justify-content: flex-start;
+  }
+
   .tiptap-toolbar {
     padding: 0 0.4rem;
   }

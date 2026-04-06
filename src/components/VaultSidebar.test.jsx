@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
@@ -6,6 +7,7 @@ import VaultSidebar from './VaultSidebar'
 import { clearDraggedNote } from '../utils/noteDrag'
 
 const mockUseVault = vi.fn()
+const mockConfirm = vi.fn()
 const mockToast = {
   success: vi.fn(),
   error: vi.fn(),
@@ -17,6 +19,10 @@ vi.mock('../contexts/VaultContext', () => ({
 
 vi.mock('../contexts/ToastContext', () => ({
   useToast: () => mockToast,
+}))
+
+vi.mock('./ConfirmModal', () => ({
+  useConfirm: () => mockConfirm,
 }))
 
 function createDataTransfer() {
@@ -32,8 +38,8 @@ function createDataTransfer() {
   }
 }
 
-function renderSidebar(overrides = {}, initialEntry = '/notes/list') {
-  const baseVault = {
+function createBaseVault(overrides = {}) {
+  return {
     allNotes: [
       { id: 'note_1', title: '미분류 노트', content: '미분류 메모', folderId: null, categoryId: null, category: null },
       { id: 'note_2', title: '인박스 문서', content: '폴더 안 문서', folderId: 'folder_1', categoryId: 'folder_1', category: { id: 'folder_1', name: 'Inbox' } },
@@ -49,9 +55,14 @@ function renderSidebar(overrides = {}, initialEntry = '/notes/list') {
     resetFilters: vi.fn(),
     createCategory: vi.fn().mockResolvedValue({ id: 'folder_3', name: '회의록', parentId: 'folder_1' }),
     moveNoteToFolder: vi.fn().mockResolvedValue(true),
+    updateNote: vi.fn().mockResolvedValue(true),
+    deleteNote: vi.fn().mockResolvedValue(true),
+    ...overrides,
   }
+}
 
-  const vault = { ...baseVault, ...overrides }
+function renderSidebar(overrides = {}, initialEntry = '/notes/list') {
+  const vault = createBaseVault(overrides)
   mockUseVault.mockReturnValue(vault)
 
   const view = render(
@@ -65,9 +76,45 @@ function renderSidebar(overrides = {}, initialEntry = '/notes/list') {
   return { vault, ...view }
 }
 
+function renderSidebarWithLiveCategoryId(overrides = {}, initialEntry = '/notes/list') {
+  const sharedVault = createBaseVault(overrides)
+  let latestVault = sharedVault
+
+  function Harness() {
+    const [categoryId, setCategoryIdState] = useState(sharedVault.categoryId)
+    const setCategoryId = useMemo(() => vi.fn((nextCategoryId) => setCategoryIdState(nextCategoryId)), [])
+    const vault = useMemo(() => ({
+      ...sharedVault,
+      categoryId,
+      setCategoryId,
+    }), [categoryId, setCategoryId])
+
+    latestVault = vault
+    mockUseVault.mockReturnValue(vault)
+
+    return (
+      <MemoryRouter initialEntries={[initialEntry]}>
+        <Routes>
+          <Route path="/notes/*" element={<VaultSidebar />} />
+        </Routes>
+      </MemoryRouter>
+    )
+  }
+
+  const view = render(<Harness />)
+  return {
+    get vault() {
+      return latestVault
+    },
+    ...view,
+  }
+}
+
 describe('VaultSidebar', () => {
   beforeEach(() => {
     mockUseVault.mockReset()
+    mockConfirm.mockReset()
+    mockConfirm.mockResolvedValue(true)
     mockToast.success.mockReset()
     mockToast.error.mockReset()
     clearDraggedNote()
@@ -176,4 +223,89 @@ describe('VaultSidebar', () => {
       expect(vault.createCategory).toHaveBeenCalledTimes(1)
     })
   })
+
+  it('opens note actions on right click and renames the selected note inline', async () => {
+    const user = userEvent.setup()
+    const { vault } = renderSidebar()
+
+    fireEvent.contextMenu(screen.getByRole('button', { name: /인박스 문서/i }))
+
+    await user.click(screen.getByRole('menuitem', { name: '이름 변경' }))
+
+    const renameInput = screen.getByLabelText('노트 이름 변경')
+    expect(renameInput).toBeInTheDocument()
+    expect(renameInput).toHaveAttribute('placeholder', '인박스 문서')
+
+    await user.type(renameInput, '회의록 초안{Enter}')
+
+    await waitFor(() => {
+      expect(vault.updateNote).toHaveBeenCalledWith('note_2', expect.objectContaining({
+        title: '회의록 초안',
+        content: '폴더 안 문서',
+        folderId: 'folder_1',
+      }))
+    })
+
+    expect(mockToast.success).toHaveBeenCalledWith('노트 이름을 변경했습니다.')
+  })
+
+  it('deletes the selected note from the note context menu after confirmation', async () => {
+    const user = userEvent.setup()
+    const { vault } = renderSidebar()
+
+    fireEvent.contextMenu(screen.getByRole('button', { name: /인박스 문서/i }))
+
+    await user.click(screen.getByRole('menuitem', { name: '삭제' }))
+
+    expect(mockConfirm).toHaveBeenCalledWith('"인박스 문서" 노트를 삭제하시겠습니까?', expect.objectContaining({
+      title: '노트 삭제',
+      confirmLabel: '삭제',
+    }))
+
+    await waitFor(() => {
+      expect(vault.deleteNote).toHaveBeenCalledWith('note_2')
+    })
+
+    expect(mockToast.success).toHaveBeenCalledWith('노트를 삭제했습니다.')
+  })
+
+  it('keeps the folder collapsed on the first click even after that folder becomes active', async () => {
+    const user = userEvent.setup()
+    renderSidebarWithLiveCategoryId()
+
+    expect(screen.getByRole('button', { name: /인박스 문서/i })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Inbox/i }))
+
+    expect(screen.queryByRole('button', { name: /인박스 문서/i })).not.toBeInTheDocument()
+  })
+
+  it('does not keep folder or recent-note active styling when a note page is open', () => {
+    const { container } = renderSidebar({
+      categoryId: 'folder_1',
+      recentNotes: [{ id: 'note_2', title: '인박스 문서' }],
+    }, '/notes/note_2')
+
+    expect(screen.getByRole('button', { name: /Inbox/i })).not.toHaveClass('active')
+
+    const recentNoteButton = container.querySelector('.recent-file-item')
+    expect(recentNoteButton).not.toHaveClass('active')
+
+    const treeNoteButton = container.querySelector('.sidebar-tree-surface .sidebar-file-item:not(.recent-file-item)')
+    expect(treeNoteButton).toHaveClass('active')
+  })
+
+  it('toggles the clicked folder level when the folder label is clicked', async () => {
+    const user = userEvent.setup()
+    renderSidebar()
+
+    expect(screen.getByRole('button', { name: /인박스 문서/i })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Inbox/i }))
+    expect(screen.queryByRole('button', { name: /인박스 문서/i })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Inbox/i }))
+    expect(screen.getByRole('button', { name: /인박스 문서/i })).toBeInTheDocument()
+  })
+
 })

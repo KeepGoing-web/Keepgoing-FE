@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useVault } from '../contexts/VaultContext'
 import { useToast } from '../contexts/ToastContext'
+import { useConfirm } from './ConfirmModal'
 import { clearDraggedNote, getDraggedNote, setDraggedNote } from '../utils/noteDrag'
 import './VaultSidebar.css'
 
@@ -92,18 +93,45 @@ const DraftFolderRow = ({
   </li>
 )
 
+const DraftNoteRow = ({
+  draftName,
+  placeholder,
+  onDraftNameChange,
+  onDraftSubmit,
+  onDraftKeyDown,
+  disabled = false,
+}) => (
+  <li className="tree-folder tree-folder--draft">
+    <form className="tree-folder-draft-form" onSubmit={onDraftSubmit}>
+      <span className="tree-folder-draft-icon" aria-hidden="true">📄</span>
+      <input
+        className="tree-folder-draft-input"
+        value={draftName}
+        onChange={(event) => onDraftNameChange(event.target.value)}
+        onKeyDown={onDraftKeyDown}
+        placeholder={placeholder || '노트 제목'}
+        aria-label="노트 이름 변경"
+        disabled={disabled}
+        autoFocus
+      />
+    </form>
+  </li>
+)
+
 const FolderNode = ({
   folder,
   categories,
   notes,
   openFolders,
   toggleFolder,
+  markFolderSelectionToggle,
   onPostClick,
   activeFolderId,
   onFolderClick,
   activePostId,
   searchQuery,
   onFolderContextMenu,
+  onNoteContextMenu,
   onFolderDragOver,
   onFolderDrop,
   onNoteDragStart,
@@ -111,6 +139,12 @@ const FolderNode = ({
   dropTargetId,
   draggingNoteId,
   movingNoteId,
+  draftNote,
+  draftNoteTitle,
+  onDraftNoteTitleChange,
+  onDraftNoteSubmit,
+  onDraftNoteKeyDown,
+  isRenamingNote,
   draftFolder,
   draftName,
   onDraftNameChange,
@@ -149,7 +183,13 @@ const FolderNode = ({
         <button
           ref={(node) => registerFolderButton(folder.id, node)}
           className={`sidebar-item sidebar-folder-label${activeFolderId === String(folder.id) ? ' active' : ''}${isDropTarget ? ' drop-target' : ''}`}
-          onClick={() => onFolderClick(String(folder.id))}
+          onClick={() => {
+            if (activeFolderId !== String(folder.id)) {
+              markFolderSelectionToggle(folder.id)
+            }
+            onFolderClick(String(folder.id))
+            toggleFolder(folder.id)
+          }}
           onContextMenu={(event) => {
             event.preventDefault()
             event.stopPropagation()
@@ -186,12 +226,14 @@ const FolderNode = ({
               notes={notes}
               openFolders={openFolders}
               toggleFolder={toggleFolder}
+              markFolderSelectionToggle={markFolderSelectionToggle}
               onPostClick={onPostClick}
               activeFolderId={activeFolderId}
               onFolderClick={onFolderClick}
               activePostId={activePostId}
               searchQuery={searchQuery}
               onFolderContextMenu={onFolderContextMenu}
+              onNoteContextMenu={onNoteContextMenu}
               onFolderDragOver={onFolderDragOver}
               onFolderDrop={onFolderDrop}
               onNoteDragStart={onNoteDragStart}
@@ -199,6 +241,12 @@ const FolderNode = ({
               dropTargetId={dropTargetId}
               draggingNoteId={draggingNoteId}
               movingNoteId={movingNoteId}
+              draftNote={draftNote}
+              draftNoteTitle={draftNoteTitle}
+              onDraftNoteTitleChange={onDraftNoteTitleChange}
+              onDraftNoteSubmit={onDraftNoteSubmit}
+              onDraftNoteKeyDown={onDraftNoteKeyDown}
+              isRenamingNote={isRenamingNote}
               draftFolder={draftFolder}
               draftName={draftName}
               onDraftNameChange={onDraftNameChange}
@@ -210,20 +258,32 @@ const FolderNode = ({
           ))}
 
           {directNotes.map((note) => (
-            <li key={note.id}>
-              <button
-                draggable={String(movingNoteId) !== String(note.id)}
-                className={`sidebar-item sidebar-file-item${activePostId === String(note.id) ? ' active' : ''}${draggingNoteId === String(note.id) ? ' is-dragging' : ''}`}
-                onClick={() => onPostClick(note)}
-                onContextMenu={(event) => event.stopPropagation()}
-                onDragStart={(event) => onNoteDragStart(event, note)}
-                onDragEnd={onNoteDragEnd}
-                title={note.title}
-              >
-                <span className="tree-file-icon">📄</span>
-                <span className="tree-file-label">{note.title}</span>
-              </button>
-            </li>
+            draftNote?.surface === 'tree' && String(draftNote.noteId) === String(note.id) ? (
+              <DraftNoteRow
+                key={note.id}
+                draftName={draftNoteTitle}
+                placeholder={draftNote.placeholder}
+                onDraftNameChange={onDraftNoteTitleChange}
+                onDraftSubmit={onDraftNoteSubmit}
+                onDraftKeyDown={onDraftNoteKeyDown}
+                disabled={isRenamingNote}
+              />
+            ) : (
+              <li key={note.id}>
+                <button
+                  draggable={String(movingNoteId) !== String(note.id)}
+                  className={`sidebar-item sidebar-file-item${activePostId === String(note.id) ? ' active' : ''}${draggingNoteId === String(note.id) ? ' is-dragging' : ''}`}
+                  onClick={() => onPostClick(note)}
+                  onContextMenu={(event) => onNoteContextMenu(note, event, 'tree')}
+                  onDragStart={(event) => onNoteDragStart(event, note)}
+                  onDragEnd={onNoteDragEnd}
+                  title={note.title}
+                >
+                  <span className="tree-file-icon">📄</span>
+                  <span className="tree-file-label">{note.title}</span>
+                </button>
+              </li>
+            )
           ))}
         </ul>
       )}
@@ -241,6 +301,7 @@ const CategoryTree = ({
   searchQuery,
   onTreeContextMenu,
   onFolderContextMenu,
+  onNoteContextMenu,
   onFolderDragOver,
   onFolderDrop,
   onNoteDragStart,
@@ -248,6 +309,12 @@ const CategoryTree = ({
   dropTargetId,
   draggingNoteId,
   movingNoteId,
+  draftNote,
+  draftNoteTitle,
+  onDraftNoteTitleChange,
+  onDraftNoteSubmit,
+  onDraftNoteKeyDown,
+  isRenamingNote,
   draftFolder,
   draftName,
   onDraftNameChange,
@@ -258,6 +325,7 @@ const CategoryTree = ({
   rootFolderButtonRef,
 }) => {
   const [openFolders, setOpenFolders] = useState({})
+  const skipAutoOpenFolderRef = useRef(null)
 
   useEffect(() => {
     if (categories.length === 0) return
@@ -280,29 +348,44 @@ const CategoryTree = ({
   }, [draftFolder])
 
   useEffect(() => {
-    if (!activeFolderId) return
+    if (!activeFolderId) {
+      skipAutoOpenFolderRef.current = null
+      return
+    }
 
+    const shouldSkipAutoOpen = skipAutoOpenFolderRef.current === String(activeFolderId)
     const ancestry = getFolderAncestry(activeFolderId, categories)
-    if (ancestry.length === 0) return
+    if (ancestry.length === 0) {
+      skipAutoOpenFolderRef.current = null
+      return
+    }
 
-    setOpenFolders((prev) => {
-      const next = { ...prev }
-      let changed = false
+    if (!shouldSkipAutoOpen) {
+      setOpenFolders((prev) => {
+        const next = { ...prev }
+        let changed = false
 
-      ancestry.forEach((folderId) => {
-        if (!next[folderId]) {
-          next[folderId] = true
-          changed = true
-        }
+        ancestry.forEach((folderId) => {
+          if (!next[folderId]) {
+            next[folderId] = true
+            changed = true
+          }
+        })
+
+        return changed ? next : prev
       })
+    }
 
-      return changed ? next : prev
-    })
+    skipAutoOpenFolderRef.current = null
   }, [activeFolderId, categories])
 
   const toggleFolder = (id) => {
     if (searchQuery) return
     setOpenFolders((prev) => ({ ...prev, [id]: !prev[id] }))
+  }
+
+  const markFolderSelectionToggle = (id) => {
+    skipAutoOpenFolderRef.current = String(id)
   }
 
   const topLevelFolders = categories.filter((category) => !category.parentId)
@@ -352,12 +435,14 @@ const CategoryTree = ({
             notes={notes}
             openFolders={openFolders}
             toggleFolder={toggleFolder}
+            markFolderSelectionToggle={markFolderSelectionToggle}
             onPostClick={onPostClick}
             activeFolderId={activeFolderId}
             onFolderClick={onFolderClick}
             activePostId={activePostId}
             searchQuery={searchQuery}
             onFolderContextMenu={onFolderContextMenu}
+            onNoteContextMenu={onNoteContextMenu}
             onFolderDragOver={onFolderDragOver}
             onFolderDrop={onFolderDrop}
             onNoteDragStart={onNoteDragStart}
@@ -365,6 +450,12 @@ const CategoryTree = ({
             dropTargetId={dropTargetId}
             draggingNoteId={draggingNoteId}
             movingNoteId={movingNoteId}
+            draftNote={draftNote}
+            draftNoteTitle={draftNoteTitle}
+            onDraftNoteTitleChange={onDraftNoteTitleChange}
+            onDraftNoteSubmit={onDraftNoteSubmit}
+            onDraftNoteKeyDown={onDraftNoteKeyDown}
+            isRenamingNote={isRenamingNote}
             draftFolder={draftFolder}
             draftName={draftName}
             onDraftNameChange={onDraftNameChange}
@@ -376,20 +467,32 @@ const CategoryTree = ({
         ))}
 
         {uncategorizedNotes.map((note) => (
-          <li key={note.id}>
-            <button
-              draggable={String(movingNoteId) !== String(note.id)}
-              className={`sidebar-item sidebar-file-item sidebar-file-item--root${activePostId === String(note.id) ? ' active' : ''}${draggingNoteId === String(note.id) ? ' is-dragging' : ''}`}
-              onClick={() => onPostClick(note)}
-              onContextMenu={(event) => event.stopPropagation()}
-              onDragStart={(event) => onNoteDragStart(event, note)}
-              onDragEnd={onNoteDragEnd}
-              title={note.title}
-            >
-              <span className="tree-file-icon">📄</span>
-              <span className="tree-file-label">{note.title}</span>
-            </button>
-          </li>
+          draftNote?.surface === 'tree' && String(draftNote.noteId) === String(note.id) ? (
+            <DraftNoteRow
+              key={note.id}
+              draftName={draftNoteTitle}
+              placeholder={draftNote.placeholder}
+              onDraftNameChange={onDraftNoteTitleChange}
+              onDraftSubmit={onDraftNoteSubmit}
+              onDraftKeyDown={onDraftNoteKeyDown}
+              disabled={isRenamingNote}
+            />
+          ) : (
+            <li key={note.id}>
+              <button
+                draggable={String(movingNoteId) !== String(note.id)}
+                className={`sidebar-item sidebar-file-item sidebar-file-item--root${activePostId === String(note.id) ? ' active' : ''}${draggingNoteId === String(note.id) ? ' is-dragging' : ''}`}
+                onClick={() => onPostClick(note)}
+                onContextMenu={(event) => onNoteContextMenu(note, event, 'tree')}
+                onDragStart={(event) => onNoteDragStart(event, note)}
+                onDragEnd={onNoteDragEnd}
+                title={note.title}
+              >
+                <span className="tree-file-icon">📄</span>
+                <span className="tree-file-label">{note.title}</span>
+              </button>
+            </li>
+          )
         ))}
 
         {searchQuery && visibleTopLevelFolders.length === 0 && uncategorizedNotes.length === 0 ? (
@@ -404,6 +507,7 @@ const VaultSidebar = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const toast = useToast()
+  const confirm = useConfirm()
   const activePostId = location.pathname.match(/^\/notes\/([^/]+)$/)?.[1] || null
   const {
     allNotes,
@@ -415,6 +519,8 @@ const VaultSidebar = () => {
     resetFilters,
     createCategory,
     moveNoteToFolder,
+    updateNote: updateNoteInVault,
+    deleteNote: deleteNoteInVault,
   } = useVault()
 
   const [explorerQuery, setExplorerQuery] = useState('')
@@ -437,6 +543,9 @@ const VaultSidebar = () => {
   const [draftFolder, setDraftFolder] = useState(null)
   const [draftFolderName, setDraftFolderName] = useState('')
   const [isCreatingFolder, setIsCreatingFolder] = useState(false)
+  const [draftNote, setDraftNote] = useState(null)
+  const [draftNoteTitle, setDraftNoteTitle] = useState('')
+  const [isRenamingNote, setIsRenamingNote] = useState(false)
   const [dropTargetId, setDropTargetId] = useState(null)
   const [draggingNoteId, setDraggingNoteId] = useState(null)
   const [movingNoteId, setMovingNoteId] = useState(null)
@@ -444,6 +553,7 @@ const VaultSidebar = () => {
   const [pendingFocusFolderId, setPendingFocusFolderId] = useState(null)
   const contextMenuRef = useRef(null)
   const creatingFolderRef = useRef(false)
+  const renamingNoteRef = useRef(false)
   const folderButtonRefs = useRef(new Map())
   const rootFolderButtonRef = useRef(null)
 
@@ -451,6 +561,7 @@ const VaultSidebar = () => {
     .map((note) => allNotes.find((candidate) => String(candidate.id) === String(note.id)) || note)
     .filter((note) => matchesQuery(note.title, explorerQuery.trim().toLowerCase()))
     .slice(0, 5)
+  const showFolderSelection = !activePostId
 
   useEffect(() => {
     if (!isSidebarResizing) return undefined
@@ -499,18 +610,20 @@ const VaultSidebar = () => {
   }, [])
 
   useEffect(() => {
-    if (!draftFolder) return undefined
+    if (!draftFolder && !draftNote) return undefined
 
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
         setDraftFolder(null)
         setDraftFolderName('')
+        setDraftNote(null)
+        setDraftNoteTitle('')
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [draftFolder])
+  }, [draftFolder, draftNote])
 
   useEffect(() => {
     if (!contextMenu) return undefined
@@ -599,13 +712,28 @@ const VaultSidebar = () => {
     setDraftFolderName('')
   }
 
-  const openContextMenu = (event, parentFolder = null) => {
+  const openFolderContextMenu = (event, parentFolder = null) => {
     event.preventDefault()
     event.stopPropagation()
     setContextMenu({
       x: event.clientX,
       y: event.clientY,
+      kind: 'folder',
       parentFolder,
+      note: null,
+    })
+  }
+
+  const openNoteContextMenu = (note, event, surface = 'tree') => {
+    event.preventDefault()
+    event.stopPropagation()
+    setContextMenu({
+      x: event.clientX,
+      y: event.clientY,
+      kind: 'note',
+      parentFolder: null,
+      note,
+      surface,
     })
   }
 
@@ -694,6 +822,93 @@ const VaultSidebar = () => {
     clearDraggedNote()
   }
 
+  const handleRenameNote = (note, surface) => {
+    setContextMenu(null)
+    setDraftNote({
+      noteId: String(note.id),
+      surface,
+      placeholder: note.title || '노트 제목',
+    })
+    setDraftNoteTitle('')
+  }
+
+  const handleDraftNoteSubmit = async (event) => {
+    event.preventDefault()
+    if (renamingNoteRef.current || isRenamingNote || !draftNote) return
+
+    const trimmedTitle = draftNoteTitle.trim()
+    if (!trimmedTitle) {
+      toast.error('노트 이름을 입력해주세요.')
+      return
+    }
+
+    const noteSnapshot = allNotes.find((candidate) => String(candidate.id) === String(draftNote.noteId))
+    if (!noteSnapshot) {
+      toast.error('노트 정보를 다시 불러온 뒤 시도해주세요.')
+      return
+    }
+
+    if (trimmedTitle === String(noteSnapshot.title || '').trim()) {
+      setDraftNote(null)
+      setDraftNoteTitle('')
+      return
+    }
+
+    const pendingDraftNote = draftNote
+    renamingNoteRef.current = true
+    setIsRenamingNote(true)
+    setDraftNote(null)
+    setDraftNoteTitle('')
+
+    try {
+      await updateNoteInVault(noteSnapshot.id, {
+        title: trimmedTitle,
+        content: noteSnapshot.content ?? '',
+        visibility: noteSnapshot.visibility ?? 'PRIVATE',
+        aiCollectable: noteSnapshot.aiCollectable ?? true,
+        folderId: noteSnapshot.folderId ?? noteSnapshot.categoryId ?? noteSnapshot.category?.id ?? null,
+      })
+      toast.success('노트 이름을 변경했습니다.')
+    } catch {
+      setDraftNote(pendingDraftNote)
+      setDraftNoteTitle(trimmedTitle)
+      toast.error('이름 변경에 실패했습니다.')
+    } finally {
+      renamingNoteRef.current = false
+      setIsRenamingNote(false)
+    }
+  }
+
+  const handleDraftNoteKeyDown = (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      setDraftNote(null)
+      setDraftNoteTitle('')
+    }
+  }
+
+  const handleDeleteNote = async (note) => {
+    setContextMenu(null)
+
+    const ok = await confirm(`"${note.title}" 노트를 삭제하시겠습니까?`, {
+      title: '노트 삭제',
+      confirmLabel: '삭제',
+      cancelLabel: '취소',
+    })
+
+    if (!ok) return
+
+    try {
+      await deleteNoteInVault(note.id)
+      if (activePostId === String(note.id)) {
+        navigate('/notes/list')
+      }
+      toast.success('노트를 삭제했습니다.')
+    } catch {
+      toast.error('삭제에 실패했습니다.')
+    }
+  }
+
   return (
     <aside
       className={`sidebar${sidebarCollapsed ? ' collapsed' : ''}${isSidebarResizing ? ' sidebar--resizing' : ''}`}
@@ -730,19 +945,40 @@ const VaultSidebar = () => {
             className="sidebar-context-menu"
             style={{ left: contextMenu.x, top: contextMenu.y }}
             role="menu"
-            aria-label="폴더 메뉴"
+            aria-label={contextMenu.kind === 'note' ? '노트 메뉴' : '폴더 메뉴'}
           >
-            <button
-              type="button"
-              className="sidebar-context-menu-item"
-              onClick={() => {
-                openFolderDraft(contextMenu.parentFolder)
-                setContextMenu(null)
-              }}
-              role="menuitem"
-            >
-              새 폴더
-            </button>
+            {contextMenu.kind === 'note' ? (
+              <>
+                <button
+                  type="button"
+                  className="sidebar-context-menu-item"
+                  onClick={() => handleRenameNote(contextMenu.note, contextMenu.surface)}
+                  role="menuitem"
+                >
+                  이름 변경
+                </button>
+                <button
+                  type="button"
+                  className="sidebar-context-menu-item"
+                  onClick={() => handleDeleteNote(contextMenu.note)}
+                  role="menuitem"
+                >
+                  삭제
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                className="sidebar-context-menu-item"
+                onClick={() => {
+                  openFolderDraft(contextMenu.parentFolder)
+                  setContextMenu(null)
+                }}
+                role="menuitem"
+              >
+                새 폴더
+              </button>
+            )}
           </div>
         ) : null}
 
@@ -774,37 +1010,50 @@ const VaultSidebar = () => {
           <SidebarSection title="최근 문서" defaultOpen>
             <ul className="sidebar-items sidebar-list-plain">
               {filteredRecentNotes.map((note) => (
-                <li key={note.id}>
-                  <button
-                    draggable={String(movingNoteId) !== String(note.id)}
-                    className={`sidebar-item sidebar-file-item recent-file-item${activePostId === String(note.id) ? ' active' : ''}${draggingNoteId === String(note.id) ? ' is-dragging' : ''}`}
-                    onClick={() => navigate(`/notes/${note.id}`)}
-                    onContextMenu={(event) => event.stopPropagation()}
-                    onDragStart={(event) => handleNoteDragStart(event, note)}
-                    onDragEnd={handleNoteDragEnd}
-                    title={note.title}
-                  >
-                    <span className="recent-file-dot">·</span>
-                    <span className="recent-file-label">{note.title}</span>
-                  </button>
-                </li>
+                draftNote?.surface === 'recent' && String(draftNote.noteId) === String(note.id) ? (
+                  <DraftNoteRow
+                    key={note.id}
+                    draftName={draftNoteTitle}
+                    placeholder={draftNote.placeholder}
+                    onDraftNameChange={setDraftNoteTitle}
+                    onDraftSubmit={handleDraftNoteSubmit}
+                    onDraftKeyDown={handleDraftNoteKeyDown}
+                    disabled={isRenamingNote}
+                  />
+                ) : (
+                  <li key={note.id}>
+                    <button
+                      draggable={String(movingNoteId) !== String(note.id)}
+                      className={`sidebar-item sidebar-file-item recent-file-item${draggingNoteId === String(note.id) ? ' is-dragging' : ''}`}
+                      onClick={() => navigate(`/notes/${note.id}`)}
+                      onContextMenu={(event) => openNoteContextMenu(note, event, 'recent')}
+                      onDragStart={(event) => handleNoteDragStart(event, note)}
+                      onDragEnd={handleNoteDragEnd}
+                      title={note.title}
+                    >
+                      <span className="recent-file-dot">·</span>
+                      <span className="recent-file-label">{note.title}</span>
+                    </button>
+                  </li>
+                )
               ))}
             </ul>
           </SidebarSection>
         )}
 
         <SidebarSection title="폴더" defaultOpen aside="우클릭 +" className="sidebar-section--folders" contentClassName="sidebar-section-content--fill">
-          <div className="sidebar-folder-surface" onContextMenu={(event) => openContextMenu(event, null)}>
+          <div className="sidebar-folder-surface" onContextMenu={(event) => openFolderContextMenu(event, null)}>
             <CategoryTree
               categories={categories}
               notes={allNotes}
               onPostClick={navigateToNote}
-              activeFolderId={categoryId}
+              activeFolderId={showFolderSelection ? categoryId : ''}
               onFolderClick={handleFolderClick}
               activePostId={activePostId}
               searchQuery={explorerQuery.trim().toLowerCase()}
-              onTreeContextMenu={(event) => openContextMenu(event, null)}
-              onFolderContextMenu={(folder, event) => openContextMenu(event, folder)}
+              onTreeContextMenu={(event) => openFolderContextMenu(event, null)}
+              onFolderContextMenu={(folder, event) => openFolderContextMenu(event, folder)}
+              onNoteContextMenu={openNoteContextMenu}
               onFolderDragOver={handleFolderDragOver}
               onFolderDrop={handleFolderDrop}
               onNoteDragStart={handleNoteDragStart}
@@ -812,6 +1061,12 @@ const VaultSidebar = () => {
               dropTargetId={dropTargetId}
               draggingNoteId={draggingNoteId}
               movingNoteId={movingNoteId}
+              draftNote={draftNote}
+              draftNoteTitle={draftNoteTitle}
+              onDraftNoteTitleChange={setDraftNoteTitle}
+              onDraftNoteSubmit={handleDraftNoteSubmit}
+              onDraftNoteKeyDown={handleDraftNoteKeyDown}
+              isRenamingNote={isRenamingNote}
               draftFolder={draftFolder}
               draftName={draftFolderName}
               onDraftNameChange={setDraftFolderName}
