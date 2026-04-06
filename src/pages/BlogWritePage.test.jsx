@@ -79,29 +79,34 @@ describe('BlogWritePage', () => {
     expect(mockToast.success).toHaveBeenCalled()
   })
 
-  it('shows a published preview that updates with the current draft', () => {
+  it('opens preview only on demand and renders the current draft inside it', () => {
     renderWritePage()
 
     fireEvent.change(screen.getByLabelText('노트 제목'), { target: { value: '주간 회고' } })
     fireEvent.change(screen.getByLabelText('본문 입력'), { target: { value: '## 이번 주 배운 점\n- 실험을 자주 하기' } })
 
+    expect(screen.queryByLabelText('실제 게시 미리보기')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: '미리보기' }))
+
+    expect(screen.getByLabelText('실제 게시 미리보기')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '주간 회고' })).toBeInTheDocument()
     expect(screen.getByText('이번 주 배운 점')).toBeInTheDocument()
     expect(screen.getByText('실험을 자주 하기')).toBeInTheDocument()
-    expect(screen.getByText('실제 게시 화면과 같은 미리보기')).toBeInTheDocument()
   })
 
-  it('starts with the inspector panel closed on mobile and switches to preview on tab click', () => {
+  it('starts with the inspector panel closed on mobile and opens the preview panel from the toggle button', () => {
     window.innerWidth = 640
 
     const { container } = renderWritePage()
 
     const panel = container.querySelector('.bw-meta-panel')
     expect(panel).not.toHaveClass('open')
+    expect(screen.queryByLabelText('실제 게시 미리보기')).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('tab', { name: '실제 미리보기' }))
+    fireEvent.click(screen.getByRole('button', { name: '미리보기' }))
 
-    expect(screen.getByText('여기에 실제 포스트처럼 미리보기가 나타납니다.')).toBeInTheDocument()
+    expect(screen.getByLabelText('실제 게시 미리보기')).toBeInTheDocument()
 
     const [headerToggle] = screen.getAllByRole('button', { name: /인스펙터|설정/ })
     fireEvent.click(headerToggle)

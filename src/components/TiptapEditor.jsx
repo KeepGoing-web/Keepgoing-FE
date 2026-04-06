@@ -192,10 +192,6 @@ const TiptapEditor = ({ value = '', onChange, placeholder = '내용을 입력하
   return (
     <div className="tiptap-editor">
       <div className="tiptap-smartbar" aria-label="빠른 서식">
-        <div className="tiptap-smartbar-copy">
-          <strong>마크다운 몰라도 괜찮아요.</strong>
-          <span>버튼만 눌러도 실제 포스트에 보이는 제목, 목록, 체크리스트, 링크를 만들 수 있습니다.</span>
-        </div>
         <div className="tiptap-smartbar-actions">
           <SmartActionBtn onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive('heading', { level: 2 })} label="섹션 제목" />
           <SmartActionBtn onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive('bulletList')} label="목록" />

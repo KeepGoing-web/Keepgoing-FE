@@ -19,35 +19,16 @@
 .tiptap-smartbar {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 1rem;
   padding: 0.95rem 1rem;
-  background: linear-gradient(180deg, rgba(137, 180, 250, 0.08), rgba(137, 180, 250, 0.02));
+  background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
 }
-
-.tiptap-smartbar-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  min-width: 0;
-}
-
-.tiptap-smartbar-copy strong {
-  color: var(--text-primary);
-  font-size: 0.88rem;
-}
-
-.tiptap-smartbar-copy span {
-  color: var(--text-muted);
-  font-size: 0.78rem;
-  line-height: 1.5;
-}
-
 .tiptap-smartbar-actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 0.45rem;
 }
 
@@ -58,7 +39,7 @@
   padding: 0.4rem 0.7rem;
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: rgba(17, 17, 27, 0.55);
+  background: var(--bg-primary);
   color: var(--text-secondary);
   font-size: 0.76rem;
   font-weight: 500;
@@ -191,7 +172,7 @@
 
 .tiptap-insert-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 0.5rem;
 }
 

@@ -41,7 +41,7 @@ const BlogWritePage = () => {
   const [isDirty, setIsDirty] = useState(false)
   const [error, setError] = useState(null)
   const [metaOpen, setMetaOpen] = useState(() => window.innerWidth > MOBILE_BREAKPOINT)
-  const [composerView, setComposerView] = useState('write')
+  const [previewOpen, setPreviewOpen] = useState(false)
   const showMetaPanel = !isMobileViewport || metaOpen
 
   useEffect(() => {
@@ -50,7 +50,6 @@ const BlogWritePage = () => {
       setIsMobileViewport(nextIsMobile)
       if (!nextIsMobile) {
         setMetaOpen(true)
-        setComposerView('write')
       }
     }
 
@@ -159,12 +158,6 @@ const BlogWritePage = () => {
 
   const visibilityLabel = visibilityOptions.find((option) => option.value === formData.visibility)?.label || '공개'
 
-  const guideChips = [
-    '툴바 버튼으로 제목·목록·체크리스트 작성',
-    '실제 게시 화면과 같은 미리보기',
-    '마크다운 몰라도 바로 사용 가능',
-  ]
-
   if (loading) {
     return (
       <div className="bw-loading">
@@ -185,6 +178,15 @@ const BlogWritePage = () => {
           className="bw-meta-backdrop"
           aria-label="설정 패널 닫기"
           onClick={() => setMetaOpen(false)}
+        />
+      )}
+
+      {previewOpen && isMobileViewport && (
+        <button
+          type="button"
+          className="bw-preview-backdrop"
+          aria-label="미리보기 닫기"
+          onClick={() => setPreviewOpen(false)}
         />
       )}
 
@@ -226,6 +228,16 @@ const BlogWritePage = () => {
 
           <button
             type="button"
+            className={`bw-btn bw-btn--ghost bw-preview-toggle ${previewOpen ? 'active' : ''}`}
+            onClick={() => setPreviewOpen((open) => !open)}
+            aria-expanded={previewOpen}
+            aria-controls="note-preview-panel"
+          >
+            미리보기
+          </button>
+
+          <button
+            type="button"
             className={`bw-btn bw-btn--ghost bw-meta-toggle ${metaOpen ? 'active' : ''}`}
             onClick={() => setMetaOpen((open) => !open)}
             aria-expanded={showMetaPanel}
@@ -245,50 +257,8 @@ const BlogWritePage = () => {
 
       <div className="bw-body">
         <div className="bw-main">
-          <section className="bw-compose-guide" aria-label="작성 가이드">
-            <div className="bw-compose-copy">
-              <span className="bw-compose-kicker">WRITE LIKE IT WILL PUBLISH</span>
-              <h2 className="bw-compose-title">실제 포스트와 최대한 같은 결과를 보며 작성하세요.</h2>
-              <p className="bw-compose-description">
-                게시 화면에서 그대로 보이는 서식만 남기고, 우측에는 실제 노트 화면 기준 미리보기를 붙였습니다.
-                마크다운 문법을 몰라도 툴바만으로 문서를 정리할 수 있습니다.
-              </p>
-            </div>
-
-            <div className="bw-compose-side">
-              <div className="bw-guide-chip-list" aria-label="작성 포인트">
-                {guideChips.map((chip) => (
-                  <span key={chip} className="bw-guide-chip">{chip}</span>
-                ))}
-              </div>
-
-              {isMobileViewport && (
-                <div className="bw-compose-tabs" role="tablist" aria-label="작성 화면 보기 전환">
-                  <button
-                    type="button"
-                    role="tab"
-                    className={`bw-compose-tab ${composerView === 'write' ? 'active' : ''}`}
-                    aria-selected={composerView === 'write'}
-                    onClick={() => setComposerView('write')}
-                  >
-                    작성
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    className={`bw-compose-tab ${composerView === 'preview' ? 'active' : ''}`}
-                    aria-selected={composerView === 'preview'}
-                    onClick={() => setComposerView('preview')}
-                  >
-                    실제 미리보기
-                  </button>
-                </div>
-              )}
-            </div>
-          </section>
-
           <div className="bw-workspace">
-            <section className={`bw-editor-pane${isMobileViewport && composerView !== 'write' ? ' bw-pane-hidden' : ''}`} aria-label="노트 작성 영역">
+            <section className="bw-editor-pane" aria-label="노트 작성 영역">
               <input
                 className="bw-title-input"
                 value={formData.title}
@@ -304,45 +274,42 @@ const BlogWritePage = () => {
               </div>
             </section>
 
-            <section className={`bw-preview-pane${isMobileViewport && composerView !== 'preview' ? ' bw-pane-hidden' : ''}`} aria-label="실제 게시 미리보기">
-              <div className="bw-preview-scroll">
-                <div className="bw-preview-headline">
-                  <span className="bw-preview-kicker">PUBLISHED PREVIEW</span>
-                  <p className="bw-preview-caption">공개된 노트 화면과 같은 마크다운 결과를 바로 확인합니다.</p>
+            {previewOpen && (
+              <aside id="note-preview-panel" className={`bw-preview-panel${isMobileViewport ? ' bw-preview-panel--mobile' : ''}`} aria-label="실제 게시 미리보기">
+                <div className="bw-preview-header">
+                  <strong>미리보기</strong>
+                  <button type="button" className="bw-btn bw-btn--ghost bw-preview-close" onClick={() => setPreviewOpen(false)}>
+                    닫기
+                  </button>
                 </div>
 
-                <article className="bw-preview-article">
-                  <header className="bw-preview-article-header">
-                    <h1>{formData.title.trim() || '제목 없는 노트'}</h1>
-                    <div className="bw-preview-meta">
-                      <span className="bw-preview-badge">{visibilityLabel}</span>
-                      {formData.aiCollectable && <span className="bw-preview-badge bw-preview-badge--ai">AI 수집 허용</span>}
-                      <span className="bw-preview-meta-text">{countChars(formData.content)}자</span>
-                      <span className="bw-preview-meta-text">· {estimateReadTime(formData.content)}분 읽기</span>
-                    </div>
-                  </header>
+                <div className="bw-preview-scroll">
+                  <article className="bw-preview-article">
+                    <header className="bw-preview-article-header">
+                      <h1>{formData.title.trim() || '제목 없는 노트'}</h1>
+                      <div className="bw-preview-meta">
+                        <span className="bw-preview-badge">{visibilityLabel}</span>
+                        {formData.aiCollectable && <span className="bw-preview-badge bw-preview-badge--ai">AI 수집 허용</span>}
+                        <span className="bw-preview-meta-text">{countChars(formData.content)}자</span>
+                        <span className="bw-preview-meta-text">· {estimateReadTime(formData.content)}분 읽기</span>
+                      </div>
+                    </header>
 
-                  <div className="bw-preview-divider" role="separator" />
+                    <div className="bw-preview-divider" role="separator" />
 
-                  <div className="bw-preview-body markdown-body">
-                    {formData.content.trim() ? (
+                    <div className="bw-preview-body markdown-body">
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         rehypePlugins={[rehypeHighlight]}
                         components={{ code: MermaidCodeBlock }}
                       >
-                        {formData.content}
+                        {formData.content || ' '}
                       </ReactMarkdown>
-                    ) : (
-                      <div className="bw-preview-empty">
-                        <strong>여기에 실제 포스트처럼 미리보기가 나타납니다.</strong>
-                        <p>본문을 입력하면 제목, 목록, 체크리스트, 인용, 코드 블록이 바로 게시 화면처럼 보입니다.</p>
-                      </div>
-                    )}
-                  </div>
-                </article>
-              </div>
-            </section>
+                    </div>
+                  </article>
+                </div>
+              </aside>
+            )}
           </div>
         </div>
 
@@ -350,9 +317,6 @@ const BlogWritePage = () => {
           <div className="bw-inspector-overview">
             <span className="bw-inspector-kicker">DOCUMENT INSPECTOR</span>
             <strong className="bw-inspector-title">{formData.title.trim() || (isEdit ? '제목 없는 노트' : '새 노트')}</strong>
-            <p className="bw-inspector-copy">
-              {isEdit ? '기존 문서 편집 중' : '새 문서 작성 중'} · {formData.aiCollectable ? 'AI 수집 허용' : 'AI 수집 미허용'}
-            </p>
           </div>
 
           <div className="bw-meta-group bw-meta-group--stats">
@@ -367,20 +331,6 @@ const BlogWritePage = () => {
             <div className="bw-meta-stat">
               <span>공개 범위</span>
               <strong>{visibilityLabel}</strong>
-            </div>
-          </div>
-
-          <div className="bw-meta-group">
-            <label className="bw-meta-label">작성 안내</label>
-            <div className="bw-inspector-note-list">
-              <div className="bw-inspector-note-item">
-                <strong>실제 결과 우선</strong>
-                <span>색상처럼 게시 화면과 달라질 수 있는 기능은 빼고, 미리보기와 일치하는 서식만 남겼습니다.</span>
-              </div>
-              <div className="bw-inspector-note-item">
-                <strong>마크다운 몰라도 가능</strong>
-                <span>상단 툴바와 빠른 서식 버튼만 눌러도 제목, 목록, 체크리스트, 링크를 만들 수 있습니다.</span>
-              </div>
             </div>
           </div>
 
@@ -409,7 +359,6 @@ const BlogWritePage = () => {
                 블로그 톤 정리
               </button>
             </div>
-            <p className="bw-inspector-copy">왼쪽 패널에서 문서를 오가며, 이 화면에서는 작성과 AI 보조 흐름에 집중합니다.</p>
           </div>
         </aside>
       </div>
@@ -420,7 +369,6 @@ const BlogWritePage = () => {
         </span>
         <span>{countChars(formData.content)}자</span>
         <span>{estimateReadTime(formData.content)}분 읽기</span>
-        {isMobileViewport && <span>{composerView === 'write' ? '작성 화면' : '실제 미리보기'}</span>}
         {isMobileViewport && (
           <button
             type="button"
