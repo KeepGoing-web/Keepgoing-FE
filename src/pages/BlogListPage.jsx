@@ -14,6 +14,13 @@ const VISIBILITY_META = {
   AI_COLLECTABLE: { label: 'AI 수집', cls: 'ai', dot: true },
 }
 
+const QUICK_FILTERS = [
+  { key: 'all', label: '전체' },
+  { key: 'public', label: '공개' },
+  { key: 'ai', label: 'AI 활용 가능' },
+  { key: 'private', label: '비공개' },
+]
+
 const getVisMeta = (visibility) => VISIBILITY_META[visibility] ?? { label: visibility, cls: 'public', dot: false }
 
 function attachCategoryMeta(posts, categories) {
@@ -107,9 +114,7 @@ const BlogListPage = () => {
     void load()
   }, [aiOnly, categories, categoryId, dateFrom, dateTo, debouncedQuery, notesRevision, order, page, size, sort, visibility])
 
-  const handleReset = () => {
-    setQuery('')
-    setCategoryId('')
+  const handleResetFilters = () => {
     setVisibility('')
     setAiOnly('')
     setDateFrom('')
@@ -120,33 +125,74 @@ const BlogListPage = () => {
     setPage(1)
   }
 
+  const handleResetAll = () => {
+    setQuery('')
+    setCategoryId('')
+    handleResetFilters()
+  }
+
+  const applyQuickFilter = (filterKey) => {
+    setPage(1)
+
+    if (filterKey === 'all') {
+      setVisibility('')
+      setAiOnly('')
+      return
+    }
+
+    if (filterKey === 'public') {
+      setVisibility('PUBLIC')
+      setAiOnly('')
+      return
+    }
+
+    if (filterKey === 'private') {
+      setVisibility('PRIVATE')
+      setAiOnly('')
+      return
+    }
+
+    setVisibility('')
+    setAiOnly('true')
+  }
+
   const activeFolder = categories.find((category) => String(category.id) === String(categoryId))
   const activeFilterChips = [
     debouncedQuery ? `검색: ${debouncedQuery}` : null,
     activeFolder ? `폴더: ${activeFolder.name}` : null,
-    visibility ? `공개: ${getVisMeta(visibility).label}` : null,
+    visibility ? `공개 범위: ${getVisMeta(visibility).label}` : null,
     aiOnly === 'true' ? 'AI 수집 허용' : null,
     aiOnly === 'false' ? 'AI 수집 미허용' : null,
     dateFrom ? `${dateFrom}부터` : null,
     dateTo ? `${dateTo}까지` : null,
   ].filter(Boolean)
 
-  const scopeSummary = activeFilterChips.length > 0
-    ? `${activeFilterChips.length}개 조건이 적용된 문서 범위`
-    : '전체 문서 범위'
-
-  const utilitySummary = activeFolder
-    ? `${activeFolder.name} 폴더를 기준으로 문서를 보고 있습니다.`
-    : '왼쪽 패널과 검색을 함께 써서 필요한 문서를 빠르게 이어볼 수 있습니다.'
+  const advancedFilterCount = [
+    dateFrom,
+    dateTo,
+    sort !== 'createdAt' || order !== 'desc' ? 'sort' : '',
+    size !== 10 ? 'size' : '',
+  ].filter(Boolean).length
+  const activeQuickFilter = aiOnly === 'true'
+    ? 'ai'
+    : visibility === 'PUBLIC'
+      ? 'public'
+      : visibility === 'PRIVATE'
+        ? 'private'
+        : 'all'
+  const scopeTitle = activeFolder ? `${activeFolder.name} 폴더 문서` : (activeFilterChips.length > 0 ? `${activeFilterChips.length}개 조건 적용 중` : '전체 문서를 보는 중')
+  const scopeHint = activeFolder
+    ? `${activeFolder.name} 폴더 안의 문서를 중심으로 보고 있습니다.`
+    : '검색을 먼저 쓰고, 날짜나 정렬이 필요할 때만 고급 필터를 열어보세요.'
 
   return (
     <div className="blog-main">
       <div className="note-shell-header">
         <div className="note-shell-header-copy">
-          <p className="note-shell-kicker">NOTE LIBRARY</p>
-          <h1 className="note-shell-title">문서 라이브러리</h1>
+          <p className="note-shell-kicker">문서 라이브러리</p>
+          <h1 className="note-shell-title">노트 보관함</h1>
           <p className="note-shell-subtitle">
-            왼쪽 패널에서 위치를 잡고, 여기서는 검색과 조건으로 문서를 빠르게 좁혀갈 수 있게 정리했습니다.
+            제목과 본문을 먼저 검색하고, 필요할 때만 고급 필터를 열어 문서를 좁혀보세요.
           </p>
         </div>
         <div className="note-shell-header-actions">
@@ -164,7 +210,7 @@ const BlogListPage = () => {
               setPage(1)
               setQuery(event.target.value)
             }}
-            placeholder="제목 또는 본문으로 문서 찾기"
+            placeholder="제목이나 본문으로 문서를 검색하세요"
             aria-label="노트 검색"
           />
           {query && (
@@ -172,20 +218,33 @@ const BlogListPage = () => {
               ×
             </button>
           )}
-          <span className="search-kbd">Ctrl K</span>
         </div>
+      </div>
+
+      <div className="note-list-quick-actions" aria-label="빠른 필터">
+        {QUICK_FILTERS.map((filter) => (
+          <button
+            key={filter.key}
+            type="button"
+            className={`quick-filter-btn${activeQuickFilter === filter.key ? ' active' : ''}`}
+            onClick={() => applyQuickFilter(filter.key)}
+          >
+            {filter.label}
+          </button>
+        ))}
       </div>
 
       <div className="note-list-summary">
         <div className="note-list-summary-main">
           <div>
-            <span className="note-list-summary-label">Current range</span>
-            <strong className="note-list-summary-count">{scopeSummary}</strong>
-            <span className="note-list-summary-hint">{utilitySummary}</span>
+            <span className="note-list-summary-label">현재 보기</span>
+            <strong className="note-list-summary-count">{scopeTitle}</strong>
+            <span className="note-list-summary-hint">{scopeHint}</span>
           </div>
           <div className="note-list-summary-meta">
             <span>총 {pageMeta.total}개 문서</span>
-            <span>{sort === 'updatedAt' ? '최근 수정 순' : order === 'desc' ? '최신순' : '오래된순'}</span>
+            <span>{sort === 'updatedAt' ? '최근 수정 순' : order === 'desc' ? '최신 생성 순' : '오래된 생성 순'}</span>
+            <span>{size}개씩 보기</span>
           </div>
         </div>
         {activeFilterChips.length > 0 && (
@@ -193,46 +252,20 @@ const BlogListPage = () => {
             {activeFilterChips.map((chip) => (
               <span key={chip} className="note-list-filter-chip">{chip}</span>
             ))}
+            <button type="button" className="note-list-reset-inline" onClick={handleResetAll}>
+              전체 초기화
+            </button>
           </div>
         )}
       </div>
 
       <button className="filter-toggle-btn" onClick={() => setFilterOpen((open) => !open)} aria-expanded={filterOpen}>
         <span className="filter-toggle-icon">{filterOpen ? '▾' : '▸'}</span>
-        세부 조건
-        {(visibility || aiOnly || dateFrom || dateTo) && <span className="filter-toggle-badge">ON</span>}
+        고급 필터
+        {advancedFilterCount > 0 && <span className="filter-toggle-badge">{advancedFilterCount}</span>}
       </button>
 
       <div className={`filter-toolbar${filterOpen ? ' filter-toolbar--open' : ''}`} role="toolbar" aria-label="필터">
-        <select
-          className="toolbar-select"
-          value={visibility}
-          onChange={(event) => {
-            setPage(1)
-            setVisibility(event.target.value)
-          }}
-          aria-label="공개 설정"
-        >
-          <option value="">공개 설정</option>
-          <option value="PUBLIC">공개</option>
-          <option value="PRIVATE">비공개</option>
-          <option value="AI_COLLECTABLE">AI 수집</option>
-        </select>
-
-        <select
-          className="toolbar-select"
-          value={aiOnly}
-          onChange={(event) => {
-            setPage(1)
-            setAiOnly(event.target.value)
-          }}
-          aria-label="AI 수집 여부"
-        >
-          <option value="">AI 수집 여부</option>
-          <option value="true">허용</option>
-          <option value="false">미허용</option>
-        </select>
-
         <input
           type="date"
           className="toolbar-date"
@@ -289,13 +322,13 @@ const BlogListPage = () => {
           ))}
         </select>
 
-        <button className="toolbar-reset-btn" onClick={handleReset}>초기화</button>
+        <button className="toolbar-reset-btn" onClick={handleResetAll}>전체 초기화</button>
       </div>
 
       {error && <div className="blog-error">{error}</div>}
 
       {loading ? (
-        <div className="blog-empty">불러오는 중...</div>
+        <div className="blog-empty">문서를 불러오는 중입니다...</div>
       ) : posts.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon">📝</div>
@@ -304,12 +337,12 @@ const BlogListPage = () => {
           </h2>
           <p className="empty-state-sub">
             {activeFilterChips.length > 0
-              ? '검색어나 기간 조건을 조금 완화해보세요.'
-              : '첫 문서를 작성하면 이 라이브러리가 최근 작업 흐름과 함께 채워집니다.'}
+              ? '검색어나 날짜 조건을 조금 완화하면 더 많은 문서를 볼 수 있습니다.'
+              : '첫 문서를 작성하면 이곳에서 최근 작업과 함께 빠르게 다시 찾을 수 있습니다.'}
           </p>
           <div className="empty-state-actions">
-            <button type="button" className="empty-state-btn empty-state-btn--ghost" onClick={handleReset}>
-              조건 초기화
+            <button type="button" className="empty-state-btn empty-state-btn--ghost" onClick={handleResetAll}>
+              전체 초기화
             </button>
             <Link to="/notes/write" className="empty-state-btn">새 노트 작성</Link>
           </div>
@@ -331,10 +364,6 @@ const BlogListPage = () => {
                   <div className="blog-card-head">
                     <div className="blog-card-title-wrap">
                       <h2 className="blog-card-title">{post.title}</h2>
-                      <span className={`blog-vis-badge blog-vis-badge--${visibilityMeta.cls}`}>
-                        {visibilityMeta.dot && <span className="blog-vis-dot" />}
-                        {visibilityMeta.label}
-                      </span>
                     </div>
                     <span className="blog-card-date">{formatDate(post.updatedAt || post.createdAt)}</span>
                   </div>
@@ -346,6 +375,10 @@ const BlogListPage = () => {
                   <div className="blog-card-meta">
                     <span>{post.category?.name || '미분류'}</span>
                     <span>{estimateReadTime(post.content)}분 읽기</span>
+                    <span className={`blog-vis-badge blog-vis-badge--${visibilityMeta.cls}`}>
+                      {visibilityMeta.dot && <span className="blog-vis-dot" />}
+                      {visibilityMeta.label}
+                    </span>
                     {post.aiCollectable && <span className="blog-card-ai">AI 수집 허용</span>}
                   </div>
                 </div>

@@ -46,8 +46,23 @@ function createAssistantMessage(result, question, scope) {
   }
 }
 
-const AIChatPanel = ({ isOpen, onClose, externalQuery, externalScope, onExternalQueryConsumed }) => {
+const PANEL_SUGGESTIONS = [
+  { label: '현재 문서 핵심 3줄 요약', prompt: '현재 문서의 핵심 개념 3개를 정리해줘' },
+  { label: '관련 노트 찾아줘', prompt: '이 내용과 연결되는 관련 노트를 찾아줘' },
+  { label: '블로그 초안으로 바꿔줘', prompt: '이 내용을 블로그 초안 구조로 바꿔줘' },
+]
+
+const AIChatPanel = ({
+  isOpen,
+  onClose,
+  externalQuery,
+  externalScope,
+  onExternalQueryConsumed,
+  variant = 'panel',
+  embeddedDescription = '',
+}) => {
   const navigate = useNavigate()
+  const isEmbedded = variant === 'embedded'
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -193,84 +208,92 @@ const AIChatPanel = ({ isOpen, onClose, externalQuery, externalScope, onExternal
 
   return (
     <aside
-      className={`ai-chat-panel${isOpen ? ' ai-chat-panel--open' : ''}${isResizing ? ' ai-chat-panel--resizing' : ''}`}
-      style={isOpen ? { width: panelWidth, minWidth: panelWidth } : undefined}
+      className={`ai-chat-panel${isOpen ? ' ai-chat-panel--open' : ''}${isResizing ? ' ai-chat-panel--resizing' : ''}${isEmbedded ? ' ai-chat-panel--embedded' : ''}`}
+      style={!isEmbedded && isOpen ? { width: panelWidth, minWidth: panelWidth } : undefined}
     >
-      <div
-        className="ai-resize-handle"
-        onMouseDown={handleResizeStart}
-        title="드래그하여 크기 조절"
-        aria-label="패널 크기 조절"
-      >
-        <div className="ai-resize-handle-bar" />
-      </div>
-
-      <div className="ai-panel-header">
-        <div className="ai-panel-title">
-          <span className="ai-panel-icon">⬡</span>
-          <span>AI 어시스턴트</span>
-          {AI_DEMO_MODE && <span className="cmd-ai-badge">DEMO</span>}
+      {!isEmbedded && (
+        <div
+          className="ai-resize-handle"
+          onMouseDown={handleResizeStart}
+          title="드래그하여 크기 조절"
+          aria-label="패널 크기 조절"
+        >
+          <div className="ai-resize-handle-bar" />
         </div>
-        <div className="ai-panel-actions">
-          {messages.length > 0 && (
-            <button
-              className="ai-panel-clear"
-              onClick={handleClear}
-              title="대화 초기화"
-              aria-label="대화 초기화"
-            >
-              초기화
-            </button>
-          )}
-          <button
-            className="ai-panel-close"
-            onClick={onClose}
-            title="패널 닫기"
-            aria-label="AI 패널 닫기"
-          >
-            ✕
-          </button>
-        </div>
-      </div>
+      )}
 
-      <div className="ai-scope-bar">
-        <label className="ai-scope-label">
-          <span>Scope</span>
-          <select
-            className="ai-scope-select"
-            value={scope.mode}
-            onChange={(event) => setScope((prev) => ({ ...prev, mode: event.target.value }))}
-          >
-            {SCOPE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <span className="ai-scope-chip">
-          {scopeLabel}
-          {scopeContextLabel ? ` · ${scopeContextLabel}` : ''}
-        </span>
-      </div>
+      {!isEmbedded && (
+        <>
+          <div className="ai-panel-header">
+            <div className="ai-panel-title">
+              <span className="ai-panel-icon">⬡</span>
+              <span>AI 어시스턴트</span>
+              {AI_DEMO_MODE && <span className="cmd-ai-badge">DEMO</span>}
+            </div>
+            <div className="ai-panel-actions">
+              {messages.length > 0 && (
+                <button
+                  className="ai-panel-clear"
+                  onClick={handleClear}
+                  title="대화 초기화"
+                  aria-label="대화 초기화"
+                >
+                  초기화
+                </button>
+              )}
+              <button
+                className="ai-panel-close"
+                onClick={onClose}
+                title="패널 닫기"
+                aria-label="AI 패널 닫기"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          <div className="ai-scope-bar">
+            <label className="ai-scope-label">
+              <span>Scope</span>
+              <select
+                className="ai-scope-select"
+                value={scope.mode}
+                onChange={(event) => setScope((prev) => ({ ...prev, mode: event.target.value }))}
+              >
+                {SCOPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <span className="ai-scope-chip">
+              {scopeLabel}
+              {scopeContextLabel ? ` · ${scopeContextLabel}` : ''}
+            </span>
+          </div>
+        </>
+      )}
 
       <div className="ai-messages" role="log" aria-live="polite">
         {messages.length === 0 && !loading ? (
           <div className="ai-empty-state">
-            <div className="ai-empty-icon">⬡</div>
-            <p className="ai-empty-title">무엇이든 물어보세요</p>
-            <p className="ai-empty-desc">짧은 응답은 여기서, 근거 확인은 전체 RAG 작업실에서 이어갈 수 있습니다.</p>
-            {AI_DEMO_MODE && <p className="ai-empty-desc">현재 데모 응답 모드로 동작 중입니다.</p>}
+            {!isEmbedded && <div className="ai-empty-icon">⬡</div>}
+            <p className="ai-empty-title">{isEmbedded ? '내 지식에 무엇이든 물어보세요' : '무엇이든 물어보세요'}</p>
+            {(!isEmbedded || embeddedDescription) && (
+              <p className="ai-empty-desc">
+                {isEmbedded
+                  ? embeddedDescription
+                  : '짧은 응답은 여기서, 근거 확인은 전체 RAG 작업실에서 이어갈 수 있습니다.'}
+              </p>
+            )}
+            {!isEmbedded && AI_DEMO_MODE && <p className="ai-empty-desc">현재 데모 응답 모드로 동작 중입니다.</p>}
             <ul className="ai-empty-suggestions">
-              <li className="ai-suggestion" onClick={() => setInput('현재 문서의 핵심 개념 3개를 정리해줘')}>
-                현재 문서 핵심 3줄 요약
-              </li>
-              <li className="ai-suggestion" onClick={() => setInput('이 내용과 연결되는 관련 노트를 찾아줘')}>
-                관련 노트 찾아줘
-              </li>
-              <li className="ai-suggestion" onClick={() => setInput('이 내용을 블로그 초안 구조로 바꿔줘')}>
-                블로그 초안으로 바꿔줘
-              </li>
+              {PANEL_SUGGESTIONS.map((suggestion) => (
+                <li key={suggestion.label} className="ai-suggestion" onClick={() => setInput(suggestion.prompt)}>
+                  {suggestion.label}
+                </li>
+              ))}
             </ul>
           </div>
         ) : (
@@ -313,6 +336,15 @@ const AIChatPanel = ({ isOpen, onClose, externalQuery, externalScope, onExternal
         )}
         <div ref={messagesEndRef} />
       </div>
+
+      {isEmbedded && (
+        <div className="ai-home-toolbar">
+          <span className="ai-home-toolbar__scope">{scopeLabel}</span>
+          <button type="button" className="ai-home-toolbar__link" onClick={() => navigate('/query')}>
+            전체 작업실에서 범위 조정
+          </button>
+        </div>
+      )}
 
       <form className="ai-input-form" onSubmit={handleSubmit}>
         <textarea

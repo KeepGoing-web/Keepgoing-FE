@@ -11,6 +11,12 @@ const MIN_SIDEBAR = 220
 const MAX_SIDEBAR = 360
 const DEFAULT_SIDEBAR = 248
 const ROOT_DROP_TARGET = '__root__'
+const MOBILE_SIDEBAR_MEDIA = '(max-width: 680px)'
+
+function isMobileSidebarViewport() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
+  return window.matchMedia(MOBILE_SIDEBAR_MEDIA).matches
+}
 
 const SidebarSection = ({ title, children, defaultOpen = true, aside, className = '', contentClassName = '' }) => {
   const [open, setOpen] = useState(defaultOpen)
@@ -525,6 +531,10 @@ const VaultSidebar = () => {
 
   const [explorerQuery, setExplorerQuery] = useState('')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (isMobileSidebarViewport()) {
+      return true
+    }
+
     try {
       return localStorage.getItem('kg-sidebar-collapsed') === 'true'
     } catch {
@@ -592,6 +602,11 @@ const VaultSidebar = () => {
       document.body.style.userSelect = ''
     }
   }, [isSidebarResizing, sidebarWidth])
+
+  useEffect(() => {
+    if (!isMobileSidebarViewport()) return
+    setSidebarCollapsed(true)
+  }, [location.pathname])
 
   useEffect(() => {
     const clearDragState = () => {

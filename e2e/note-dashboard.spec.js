@@ -13,12 +13,6 @@ const mockCategories = [
   { id: 'cat-3', name: 'Ideas', parentId: null },
 ]
 
-const mockTags = [
-  { id: 'tag-1', name: 'React' },
-  { id: 'tag-2', name: 'UX' },
-  { id: 'tag-3', name: 'Infra' },
-  { id: 'tag-4', name: 'AI' },
-]
 
 const mockNotes = [
   {
@@ -76,9 +70,17 @@ function pagedNotes(request) {
 }
 
 async function mockNoteApi(page) {
-  await page.route('**/api/auth/me', (route) => route.fulfill({ json: { data: mockUser } }))
-  await page.route('**/api/categories**', (route) => route.fulfill({ json: { categories: mockCategories } }))
-  await page.route('**/api/tags**', (route) => route.fulfill({ json: { tags: mockTags } }))
+  await page.route('**/api/users/me', (route) => route.fulfill({ json: { data: mockUser } }))
+  await page.route('**/api/folders/tree', (route) => route.fulfill({
+    json: {
+      data: mockCategories.map((category) => ({
+        folderId: category.id,
+        name: category.name,
+        parentId: category.parentId,
+        children: [],
+      })),
+    },
+  }))
   await page.route('**/api/notes/me/search**', (route) => route.fulfill({ json: pagedNotes(route.request()) }))
   await page.route('**/api/notes/me**', (route) => route.fulfill({ json: pagedNotes(route.request()) }))
 
@@ -91,21 +93,38 @@ test('dashboard and note area flows render and respond', async ({ page }) => {
   await mockNoteApi(page)
 
   await page.goto('/notes')
-  await expect(page.getByRole('heading', { name: '노트 대시보드' })).toBeVisible()
-  await expect(page.locator('.dash-overview-card').first()).toContainText('보관 중인 노트')
-  await expect(page.locator('.dash-recent-title').filter({ hasText: '대시보드 개선 아이디어' })).toBeVisible()
+  const embeddedAssistant = page.locator('.ai-chat-panel--embedded')
+  await expect(embeddedAssistant.getByText('내 지식에 무엇이든 물어보세요')).toBeVisible()
+  await expect(embeddedAssistant.locator('.ai-suggestion')).toHaveCount(3)
+
+  await embeddedAssistant.getByPlaceholder('질문을 입력하세요...').fill('최근 메모를 바탕으로 핵심 개념을 정리해줘')
+  await embeddedAssistant.getByRole('button', { name: '전송' }).click()
+  await expect(embeddedAssistant.locator('.ai-message--user')).toContainText('최근 메모를 바탕으로 핵심 개념을 정리해줘')
+  await expect(embeddedAssistant.locator('.ai-message--assistant')).toContainText('가장 가까운 문서는')
+
+  await page.goto('/notes')
+  await embeddedAssistant.locator('.ai-suggestion').first().click()
+  await expect(embeddedAssistant.getByPlaceholder('질문을 입력하세요...')).toHaveValue('현재 문서의 핵심 개념 3개를 정리해줘')
 
   await page.goto('/notes/list')
-  await expect(page.getByRole('heading', { name: '노트 보관함' })).toBeVisible()
-  await expect(page.locator('.note-list-summary-count')).toHaveText('총 3개 노트')
+  await expect(page.locator('.note-shell-title')).toBeVisible()
+  await expect(page.locator('.note-shell-title')).toContainText('노트')
+  await expect(page.locator('.note-list-summary-meta')).toContainText('총 3개 문서')
   await expect(page.locator('.blog-card-title').filter({ hasText: 'API note 스펙 전환 메모' })).toBeVisible()
+  await expect(page.locator('.quick-filter-btn')).toHaveCount(4)
 
   await page.getByLabel('노트 검색').fill('대시보드')
   await page.waitForTimeout(400)
   await expect(page.locator('.note-list-filter-chip').filter({ hasText: '검색: 대시보드' })).toBeVisible()
 
-  await page.locator('.blog-card').first().click()
-  await expect(page.getByRole('heading', { name: '대시보드 개선 아이디어' })).toBeVisible()
+  await page.locator('.quick-filter-btn').filter({ hasText: 'AI' }).first().click()
+  await expect(page.locator('.note-list-filter-chip').filter({ hasText: 'AI 수집 허용' })).toBeVisible()
+
+  const firstResult = page.locator('.blog-card').first()
+  await expect(firstResult).toBeVisible()
+  await firstResult.click()
+  await expect(page).toHaveURL(/\/notes\/\d+$/)
+  await expect(page.locator('.blog-header h1')).toHaveText(/대시보드 개선 아이디어|API note 스펙 전환 메모|짧은 메모/)
 
   await page.goto('/notes/write')
   await expect(page.getByLabel('노트 제목')).toBeVisible()
@@ -120,21 +139,23 @@ test('dashboard overview cards respect the light theme palette', async ({ page }
 
   await page.goto('/notes')
 
-  const computed = await page.locator('.dash-overview-card').first().evaluate((element) => {
+  const computed = await page.locator('.ai-chat-panel--embedded').evaluate((element) => {
     const styles = window.getComputedStyle(element)
 
     return {
       theme: document.documentElement.getAttribute('data-theme'),
-      backgroundImage: styles.backgroundImage,
+      backgroundColor: styles.backgroundColor,
+      borderColor: styles.borderColor,
       color: styles.color,
     }
   })
 
   expect(computed.theme).toBe('light')
-  expect(computed.backgroundImage).not.toContain('17, 17, 27')
-  expect(computed.backgroundImage).not.toContain('30, 30, 46')
+  expect(computed.backgroundColor).not.toContain('17, 17, 27')
+  expect(computed.backgroundColor).not.toContain('30, 30, 46')
+  expect(computed.borderColor).not.toContain('17, 17, 27')
 
-  const sidebarCard = await page.locator('.sidebar-workspace-card').evaluate((element) => {
+  const sidebarCard = await page.locator('.sidebar').evaluate((element) => {
     const styles = window.getComputedStyle(element)
     return styles.backgroundImage
   })
@@ -142,10 +163,14 @@ test('dashboard overview cards respect the light theme palette', async ({ page }
   expect(sidebarCard).not.toContain('30, 30, 46')
 
   await page.goto('/notes/list')
-  const summaryCard = await page.locator('.note-list-summary-main').evaluate((element) => {
+  const searchBar = await page.locator('.search-bar').evaluate((element) => {
     const styles = window.getComputedStyle(element)
-    return styles.backgroundImage
+    return {
+      backgroundColor: styles.backgroundColor,
+      borderColor: styles.borderColor,
+    }
   })
-  expect(summaryCard).not.toContain('17, 17, 27')
-  expect(summaryCard).not.toContain('30, 30, 46')
+  expect(searchBar.backgroundColor).not.toContain('17, 17, 27')
+  expect(searchBar.backgroundColor).not.toContain('30, 30, 46')
+  expect(searchBar.borderColor).not.toContain('17, 17, 27')
 })
