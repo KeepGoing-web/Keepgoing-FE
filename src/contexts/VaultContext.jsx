@@ -4,6 +4,9 @@ import {
   fetchNotes,
   fetchCategories,
   createCategory as apiCreateCategory,
+  renameCategory as apiRenameCategory,
+  deleteCategory as apiDeleteCategory,
+  moveCategory as apiMoveCategory,
   moveNote as apiMoveNote,
   updateNote as apiUpdateNote,
   deleteNote as apiDeleteNote,
@@ -183,6 +186,76 @@ export function VaultProvider({ children }) {
     return nextCategory
   }, [])
 
+  const renameCategory = useCallback(async (categoryId, name) => {
+    const updatedCategory = await apiRenameCategory(categoryId, name)
+
+    setCategories((prev) => prev.map((category) => (
+      String(category.id) === String(categoryId)
+        ? { ...category, ...updatedCategory }
+        : category
+    )))
+
+    try {
+      const data = await fetchVaultData()
+      setAllNotes(data.posts)
+      setCategories(data.categories)
+      setTags(data.tags)
+      setNotesRevision((prev) => prev + 1)
+    } catch {
+      setCategories((prev) => prev.map((category) => (
+        String(category.id) === String(categoryId)
+          ? { ...category, ...updatedCategory }
+          : category
+      )))
+    }
+
+    return updatedCategory
+  }, [])
+
+  const deleteCategory = useCallback(async (categoryId) => {
+    await apiDeleteCategory(categoryId)
+
+    setCategories((prev) => prev.filter((category) => String(category.id) !== String(categoryId)))
+
+    try {
+      const data = await fetchVaultData()
+      setAllNotes(data.posts)
+      setCategories(data.categories)
+      setTags(data.tags)
+      setNotesRevision((prev) => prev + 1)
+    } catch {
+      setCategories((prev) => prev.filter((category) => String(category.id) !== String(categoryId)))
+    }
+
+    return true
+  }, [])
+
+  const moveCategory = useCallback(async (categoryId, parentId = null) => {
+    const updatedCategory = await apiMoveCategory(categoryId, parentId)
+
+    setCategories((prev) => prev.map((category) => (
+      String(category.id) === String(categoryId)
+        ? { ...category, ...updatedCategory }
+        : category
+    )))
+
+    try {
+      const data = await fetchVaultData()
+      setAllNotes(data.posts)
+      setCategories(data.categories)
+      setTags(data.tags)
+      setNotesRevision((prev) => prev + 1)
+    } catch {
+      setCategories((prev) => prev.map((category) => (
+        String(category.id) === String(categoryId)
+          ? { ...category, ...updatedCategory }
+          : category
+      )))
+    }
+
+    return updatedCategory
+  }, [])
+
   const refreshNotes = useCallback(async () => {
     try {
       const data = await fetchVaultData()
@@ -290,6 +363,9 @@ export function VaultProvider({ children }) {
     resetFilters,
     refreshNotes,
     createCategory,
+    renameCategory,
+    deleteCategory,
+    moveCategory,
     moveNoteToFolder,
     updateNote,
     deleteNote,

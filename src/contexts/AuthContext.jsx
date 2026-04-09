@@ -1,5 +1,12 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react'
-import { AUTH_SESSION_EXPIRED_EVENT, login as apiLogin, signup as apiSignup, fetchMe } from '../api/client'
+import {
+  AUTH_SESSION_EXPIRED_EVENT,
+  login as apiLogin,
+  signup as apiSignup,
+  fetchMe,
+  updateMyProfile as apiUpdateMyProfile,
+  changeMyPassword as apiChangeMyPassword,
+} from '../api/client'
 
 const AuthContext = createContext(undefined)
 const LEGACY_AUTH_STORAGE_KEYS = ['token', 'refreshToken', 'user']
@@ -143,6 +150,16 @@ export const AuthProvider = ({ children }) => {
     return response
   }
 
+  const updateProfile = useCallback(async (name) => {
+    const response = await apiUpdateMyProfile(name)
+    applyUser(response)
+    return response
+  }, [applyUser])
+
+  const changePassword = useCallback(async (currentPassword, newPassword) => {
+    return apiChangeMyPassword(currentPassword, newPassword)
+  }, [])
+
   const logout = useCallback(() => {
     clearSessionUserCache()
     clearLegacyAuthStorage()
@@ -156,6 +173,8 @@ export const AuthProvider = ({ children }) => {
         login,
         oauthLogin,
         signup,
+        updateProfile,
+        changePassword,
         logout,
         isAuthenticated: !!user,
         loading,

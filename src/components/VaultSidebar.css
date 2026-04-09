@@ -351,10 +351,6 @@
   min-width: 0;
 }
 
-.sidebar-folder-row {
-  padding-left: 0.55rem;
-}
-
 .tree-icon {
   font-size: 10px;
 }
@@ -401,6 +397,7 @@
 }
 
 .sidebar-file-item.is-dragging,
+.sidebar-folder-label.is-dragging,
 .recent-file-item.is-dragging {
   opacity: 0.45;
 }
@@ -429,6 +426,28 @@
   color: var(--text-faint);
   font-size: 0.72rem;
   font-style: italic;
+}
+
+.sidebar-root-drop-zone {
+  margin: 0.35rem 0 0.05rem;
+  padding: 0.55rem 0.7rem;
+  border-top: 1px dashed var(--border);
+  color: var(--text-faint);
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  text-align: center;
+}
+
+.sidebar-root-drop-zone span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar-root-drop-zone.drop-target {
+  color: var(--accent);
+  border-top-color: var(--accent-dim);
+  background: color-mix(in srgb, var(--accent-glow) 45%, transparent);
 }
 
 .tree-folder--draft {

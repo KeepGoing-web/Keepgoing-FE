@@ -5,6 +5,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import VaultSidebar from './VaultSidebar'
 import { clearDraggedNote } from '../utils/noteDrag'
+import { clearDraggedFolder } from '../utils/folderDrag'
 
 const mockUseVault = vi.fn()
 const mockConfirm = vi.fn()
@@ -54,6 +55,9 @@ function createBaseVault(overrides = {}) {
     navigateToNote: vi.fn(),
     resetFilters: vi.fn(),
     createCategory: vi.fn().mockResolvedValue({ id: 'folder_3', name: '회의록', parentId: 'folder_1' }),
+    renameCategory: vi.fn().mockResolvedValue({ id: 'folder_1', name: 'Inbox 정리', parentId: null }),
+    deleteCategory: vi.fn().mockResolvedValue(true),
+    moveCategory: vi.fn().mockResolvedValue({ id: 'folder_2', name: 'Archive', parentId: 'folder_1' }),
     moveNoteToFolder: vi.fn().mockResolvedValue(true),
     updateNote: vi.fn().mockResolvedValue(true),
     deleteNote: vi.fn().mockResolvedValue(true),
@@ -118,6 +122,7 @@ describe('VaultSidebar', () => {
     mockToast.success.mockReset()
     mockToast.error.mockReset()
     clearDraggedNote()
+    clearDraggedFolder()
   })
 
   it('opens the same context menu from blank folder-area space and creates a top-level folder inline', async () => {
@@ -209,6 +214,46 @@ describe('VaultSidebar', () => {
     expect(screen.getByRole('button', { name: /Top/i })).not.toHaveClass('drop-target')
   })
 
+  it('moves a folder into another folder via drag and drop', async () => {
+    const dataTransfer = createDataTransfer()
+    const { vault } = renderSidebar({
+      categories: [
+        { id: 'folder_1', name: 'Top', parentId: null },
+        { id: 'folder_2', name: 'Middle', parentId: null },
+      ],
+      allNotes: [],
+      moveCategory: vi.fn().mockResolvedValue({ id: 'folder_2', name: 'Middle', parentId: 'folder_1' }),
+    })
+
+    fireEvent.dragStart(screen.getByRole('button', { name: /Middle/i }), { dataTransfer })
+    fireEvent.dragOver(screen.getByRole('button', { name: /Top/i }), { dataTransfer })
+    fireEvent.drop(screen.getByRole('button', { name: /Top/i }), { dataTransfer })
+
+    await waitFor(() => {
+      expect(vault.moveCategory).toHaveBeenCalledWith('folder_2', 'folder_1')
+    })
+  })
+
+  it('moves a folder to root via drag and drop', async () => {
+    const dataTransfer = createDataTransfer()
+    const { vault } = renderSidebar({
+      categories: [
+        { id: 'folder_1', name: 'Top', parentId: null },
+        { id: 'folder_2', name: 'Middle', parentId: 'folder_1' },
+      ],
+      allNotes: [],
+      moveCategory: vi.fn().mockResolvedValue({ id: 'folder_2', name: 'Middle', parentId: null }),
+    })
+
+    fireEvent.dragStart(screen.getByRole('button', { name: /Middle/i }), { dataTransfer })
+    fireEvent.dragOver(screen.getByText('여기에 놓으면 최상위로 이동'), { dataTransfer })
+    fireEvent.drop(screen.getByText('여기에 놓으면 최상위로 이동'), { dataTransfer })
+
+    await waitFor(() => {
+      expect(vault.moveCategory).toHaveBeenCalledWith('folder_2', null)
+    })
+  })
+
   it('creates a child folder inline and submits on Enter', async () => {
     const user = userEvent.setup()
     const { vault } = renderSidebar()
@@ -222,6 +267,50 @@ describe('VaultSidebar', () => {
       expect(vault.createCategory).toHaveBeenCalledWith('회의록', 'folder_1')
       expect(vault.createCategory).toHaveBeenCalledTimes(1)
     })
+  })
+
+  it('opens folder actions on right click and renames the selected folder inline', async () => {
+    const user = userEvent.setup()
+    const { vault } = renderSidebar()
+
+    fireEvent.contextMenu(screen.getByRole('button', { name: /Inbox/i }))
+
+    await user.click(screen.getByRole('menuitem', { name: '이름 변경' }))
+
+    const renameInput = screen.getByLabelText('폴더 이름 변경')
+    expect(renameInput).toBeInTheDocument()
+    expect(renameInput).toHaveAttribute('placeholder', 'Inbox')
+
+    await user.type(renameInput, 'Inbox 정리{Enter}')
+
+    await waitFor(() => {
+      expect(vault.renameCategory).toHaveBeenCalledWith('folder_1', 'Inbox 정리')
+    })
+
+    expect(mockToast.success).toHaveBeenCalledWith('폴더 이름을 변경했습니다.')
+  })
+
+  it('deletes the selected folder from the folder context menu after confirmation', async () => {
+    const user = userEvent.setup()
+    const { vault } = renderSidebar()
+
+    fireEvent.contextMenu(screen.getByRole('button', { name: /Inbox/i }))
+
+    await user.click(screen.getByRole('menuitem', { name: '삭제' }))
+
+    expect(mockConfirm).toHaveBeenCalledWith(
+      '"Inbox" 폴더를 삭제하시겠습니까?\n하위 폴더나 노트가 남아 있으면 삭제할 수 없습니다.',
+      expect.objectContaining({
+        title: '폴더 삭제',
+        confirmLabel: '삭제',
+      }),
+    )
+
+    await waitFor(() => {
+      expect(vault.deleteCategory).toHaveBeenCalledWith('folder_1')
+    })
+
+    expect(mockToast.success).toHaveBeenCalledWith('폴더를 삭제했습니다.')
   })
 
   it('opens note actions on right click and renames the selected note inline', async () => {

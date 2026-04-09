@@ -3,7 +3,7 @@ import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import AIChatPanel from "./AIChatPanel";
 import CommandPalette from "./CommandPalette";
-import { OPEN_AI_PANEL_EVENT } from "../utils/ai";
+import { OPEN_AI_PANEL_EVENT, buildRAGWorkspaceHref } from "../utils/ai";
 import "./Layout.css";
 
 const AI_PANEL_KEY = "kg-ai-panel-open";
@@ -71,20 +71,33 @@ const Layout = () => {
   useEffect(() => { setNavOpen(false) }, [location.pathname]);
 
   const isActive = (path) => location.pathname.startsWith(path);
+  const isNotesHome = location.pathname === "/notes";
 
   const toggleAiPanel = () => setAiPanelOpen((prev) => !prev);
 
   const handleAIQuery = useCallback((payload) => {
     const nextPayload = typeof payload === "string" ? { query: payload } : payload;
+
+    if (isNotesHome) {
+      navigate(buildRAGWorkspaceHref({ query: nextPayload?.query || "", scope: nextPayload?.scope || {} }));
+      return;
+    }
+
     setAiPanelOpen(true);
     setExternalQuery(nextPayload?.query || null);
     setExternalScope(nextPayload?.scope || null);
-  }, []);
+  }, [isNotesHome, navigate]);
 
   const handleExternalQueryConsumed = useCallback(() => {
     setExternalQuery(null);
     setExternalScope(null);
   }, []);
+
+  useEffect(() => {
+    if (isNotesHome && aiPanelOpen) {
+      setAiPanelOpen(false);
+    }
+  }, [aiPanelOpen, isNotesHome]);
 
   useEffect(() => {
     const handleOpenAIPanel = (event) => {
@@ -142,15 +155,17 @@ const Layout = () => {
             >
               ⌕ <kbd className="cmd-trigger-kbd">⌘K</kbd>
             </button>
-            <button
-              className={`ai-toggle-btn${aiPanelOpen ? " ai-toggle-btn--active" : ""}`}
-              onClick={toggleAiPanel}
-              title={aiPanelOpen ? "AI 패널 닫기" : "AI 패널 열기"}
-              aria-label={aiPanelOpen ? "AI 패널 닫기" : "AI 패널 열기"}
-              aria-pressed={aiPanelOpen}
-            >
-              ⬡
-            </button>
+            {!isNotesHome && (
+              <button
+                className={`ai-toggle-btn${aiPanelOpen ? " ai-toggle-btn--active" : ""}`}
+                onClick={toggleAiPanel}
+                title={aiPanelOpen ? "AI 패널 닫기" : "AI 패널 열기"}
+                aria-label={aiPanelOpen ? "AI 패널 닫기" : "AI 패널 열기"}
+                aria-pressed={aiPanelOpen}
+              >
+                ⬡
+              </button>
+            )}
             <button
               className="theme-toggle-btn"
               onClick={toggleTheme}
@@ -159,6 +174,9 @@ const Layout = () => {
             >
               {theme === "dark" ? "☀" : "☾"}
             </button>
+            <Link to="/settings/account" className="user-settings-link">
+              설정
+            </Link>
             <span className="user-name">{user?.name}</span>
             <button onClick={handleLogout} className="logout-btn">
               로그아웃
@@ -167,16 +185,18 @@ const Layout = () => {
         </div>
       </header>
       <div className="layout-body">
-        <main id="main-content" className={`main-content${aiPanelOpen ? " main-content--panel-open" : ""}`}>
+        <main id="main-content" className={`main-content${aiPanelOpen && !isNotesHome ? " main-content--panel-open" : ""}`}>
           <Outlet />
         </main>
-        <AIChatPanel
-          isOpen={aiPanelOpen}
-          onClose={() => setAiPanelOpen(false)}
-          externalQuery={externalQuery}
-          externalScope={externalScope}
-          onExternalQueryConsumed={handleExternalQueryConsumed}
-        />
+        {!isNotesHome && (
+          <AIChatPanel
+            isOpen={aiPanelOpen}
+            onClose={() => setAiPanelOpen(false)}
+            externalQuery={externalQuery}
+            externalScope={externalScope}
+            onExternalQueryConsumed={handleExternalQueryConsumed}
+          />
+        )}
       </div>
 
       <CommandPalette

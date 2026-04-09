@@ -79,6 +79,86 @@ export async function createCategory(name, parentId = null) {
   }
 }
 
+export async function renameCategory(id, name) {
+  if (shouldUseMockTaxonomy) {
+    const category = MOCK_CATEGORIES.find((item) => String(item.id) === String(id))
+
+    if (!category) {
+      throw new Error('폴더를 찾을 수 없습니다.')
+    }
+
+    category.name = name
+    await delay(100)
+    return { ...category }
+  }
+
+  const res = await apiFetch(`${BASE_URL}/folders/${id}`, {
+    method: 'PATCH',
+    headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  })
+  const data = await handleResponse(res)
+
+  return {
+    id: String(data.folderId),
+    name: data.name,
+    parentId: data.parentId != null ? String(data.parentId) : null,
+  }
+}
+
+export async function deleteCategory(id) {
+  if (shouldUseMockTaxonomy) {
+    const index = MOCK_CATEGORIES.findIndex((item) => String(item.id) === String(id))
+
+    if (index === -1) {
+      throw new Error('폴더를 찾을 수 없습니다.')
+    }
+
+    MOCK_CATEGORIES.splice(index, 1)
+    await delay(100)
+    return true
+  }
+
+  const res = await apiFetch(`${BASE_URL}/folders/${id}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  })
+
+  if (res.status === 204) {
+    return true
+  }
+
+  await handleResponse(res)
+  return true
+}
+
+export async function moveCategory(id, parentId) {
+  if (shouldUseMockTaxonomy) {
+    const category = MOCK_CATEGORIES.find((item) => String(item.id) === String(id))
+
+    if (!category) {
+      throw new Error('폴더를 찾을 수 없습니다.')
+    }
+
+    category.parentId = parentId != null ? String(parentId) : null
+    await delay(100)
+    return { ...category }
+  }
+
+  const res = await apiFetch(`${BASE_URL}/folders/${id}/parent`, {
+    method: 'PATCH',
+    headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ parentId }),
+  })
+  const data = await handleResponse(res)
+
+  return {
+    id: String(data.folderId),
+    name: data.name,
+    parentId: data.parentId != null ? String(data.parentId) : null,
+  }
+}
+
 export async function fetchTags(params = {}) {
   if (shouldUseMockTaxonomy) {
     const { q = '' } = params

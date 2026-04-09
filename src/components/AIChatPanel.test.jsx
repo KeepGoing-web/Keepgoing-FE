@@ -25,24 +25,24 @@ describe('AIChatPanel', () => {
   it('submits an external query automatically after the panel opens', async () => {
     vi.useFakeTimers()
 
-    const onExternalQueryConsumed = vi.fn()
+    const onExternalRequestConsumed = vi.fn()
 
     render(
       <MemoryRouter>
         <AIChatPanel
           isOpen
           onClose={() => {}}
-          externalQuery="최근 노트 요약해줘"
-          onExternalQueryConsumed={onExternalQueryConsumed}
+          externalRequest={{ id: 1, query: '최근 노트 요약해줘' }}
+          onExternalRequestConsumed={onExternalRequestConsumed}
         />
       </MemoryRouter>,
     )
 
-    expect(onExternalQueryConsumed).toHaveBeenCalledTimes(1)
-
     await act(async () => {
       vi.advanceTimersByTime(500)
     })
+
+    expect(onExternalRequestConsumed).toHaveBeenCalledTimes(1)
 
     expect(screen.getByText('최근 노트 요약해줘')).toBeInTheDocument()
     expect(screen.getByText(/백엔드 연동 전 단계입니다/)).toBeInTheDocument()

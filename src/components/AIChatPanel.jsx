@@ -55,14 +55,14 @@ const PANEL_SUGGESTIONS = [
 const AIChatPanel = ({
   isOpen,
   onClose,
-  externalQuery,
-  externalScope,
-  onExternalQueryConsumed,
+  externalRequest,
+  onExternalRequestConsumed,
   variant = 'panel',
-  embeddedDescription = '',
+  title = 'AI 어시스턴트',
+  showScopeControls = true,
 }) => {
   const navigate = useNavigate()
-  const isEmbedded = variant === 'embedded'
+  const isInline = variant === 'inline'
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -90,14 +90,14 @@ const AIChatPanel = ({
 
   useEffect(() => {
     if (!isOpen || !inputRef.current) return
-    const focusTimer = setTimeout(() => inputRef.current?.focus(), 350)
+    const focusTimer = setTimeout(() => inputRef.current?.focus(), isInline ? 120 : 350)
     return () => clearTimeout(focusTimer)
-  }, [isOpen])
+  }, [isInline, isOpen])
 
   useEffect(() => {
-    if (!externalScope) return
-    setScope((prev) => ({ ...prev, ...externalScope }))
-  }, [externalScope])
+    if (!externalRequest?.scope) return
+    setScope((prev) => ({ ...prev, ...externalRequest.scope }))
+  }, [externalRequest])
 
   useEffect(() => {
     const loadScopeContext = async () => {
@@ -118,7 +118,7 @@ const AIChatPanel = ({
   }, [scope.currentNoteId, scope.mode])
 
   const sendMessage = useCallback(async (rawQuestion, targetScope = scope) => {
-    const question = rawQuestion.trim()
+    const question = String(rawQuestion || '').trim()
     if (!question || loading) return false
 
     setInput('')
@@ -138,17 +138,17 @@ const AIChatPanel = ({
   }, [loading, scope])
 
   useEffect(() => {
-    if (!externalQuery || !isOpen) return
+    if (!externalRequest?.query || !isOpen) return
 
-    setInput(externalQuery)
-    onExternalQueryConsumed?.()
+    setInput(externalRequest.query)
 
     const submitTimer = setTimeout(() => {
-      void sendMessage(externalQuery, externalScope || scope)
-    }, 400)
+      void sendMessage(externalRequest.query, externalRequest.scope || scope)
+      onExternalRequestConsumed?.()
+    }, isInline ? 120 : 400)
 
     return () => clearTimeout(submitTimer)
-  }, [externalQuery, externalScope, isOpen, onExternalQueryConsumed, scope, sendMessage])
+  }, [externalRequest, isInline, isOpen, onExternalRequestConsumed, scope, sendMessage])
 
   const handleResizeStart = useCallback((event) => {
     event.preventDefault()
@@ -156,7 +156,7 @@ const AIChatPanel = ({
   }, [])
 
   useEffect(() => {
-    if (!isResizing) return undefined
+    if (!isResizing || isInline) return undefined
 
     const handleResizeMove = (event) => {
       const nextWidth = window.innerWidth - event.clientX
@@ -184,7 +184,7 @@ const AIChatPanel = ({
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
     }
-  }, [isResizing, panelWidth])
+  }, [isInline, isResizing, panelWidth])
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -208,10 +208,10 @@ const AIChatPanel = ({
 
   return (
     <aside
-      className={`ai-chat-panel${isOpen ? ' ai-chat-panel--open' : ''}${isResizing ? ' ai-chat-panel--resizing' : ''}${isEmbedded ? ' ai-chat-panel--embedded' : ''}`}
-      style={!isEmbedded && isOpen ? { width: panelWidth, minWidth: panelWidth } : undefined}
+      className={`ai-chat-panel${isOpen ? ' ai-chat-panel--open' : ''}${isResizing ? ' ai-chat-panel--resizing' : ''}${isInline ? ' ai-chat-panel--inline' : ''}`}
+      style={!isInline && isOpen ? { width: panelWidth, minWidth: panelWidth } : undefined}
     >
-      {!isEmbedded && (
+      {!isInline && (
         <div
           className="ai-resize-handle"
           onMouseDown={handleResizeStart}
@@ -222,79 +222,82 @@ const AIChatPanel = ({
         </div>
       )}
 
-      {!isEmbedded && (
-        <>
-          <div className="ai-panel-header">
-            <div className="ai-panel-title">
-              <span className="ai-panel-icon">⬡</span>
-              <span>AI 어시스턴트</span>
-              {AI_DEMO_MODE && <span className="cmd-ai-badge">DEMO</span>}
-            </div>
-            <div className="ai-panel-actions">
-              {messages.length > 0 && (
-                <button
-                  className="ai-panel-clear"
-                  onClick={handleClear}
-                  title="대화 초기화"
-                  aria-label="대화 초기화"
-                >
-                  초기화
-                </button>
-              )}
-              <button
-                className="ai-panel-close"
-                onClick={onClose}
-                title="패널 닫기"
-                aria-label="AI 패널 닫기"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
+      <div className="ai-panel-header">
+        <div className="ai-panel-title">
+          <span className="ai-panel-icon">⬡</span>
+          <span>{title}</span>
+          {AI_DEMO_MODE && <span className="cmd-ai-badge">DEMO</span>}
+        </div>
+        <div className="ai-panel-actions">
+          {messages.length > 0 && (
+            <button
+              className="ai-panel-clear"
+              onClick={handleClear}
+              title="대화 초기화"
+              aria-label="대화 초기화"
+            >
+              초기화
+            </button>
+          )}
+          <button
+            className="ai-panel-close"
+            onClick={onClose}
+            title={isInline ? '대화 닫기' : '패널 닫기'}
+            aria-label={isInline ? '대화 닫기' : 'AI 패널 닫기'}
+          >
+            ✕
+          </button>
+        </div>
+      </div>
 
-          <div className="ai-scope-bar">
-            <label className="ai-scope-label">
-              <span>Scope</span>
-              <select
-                className="ai-scope-select"
-                value={scope.mode}
-                onChange={(event) => setScope((prev) => ({ ...prev, mode: event.target.value }))}
-              >
-                {SCOPE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <span className="ai-scope-chip">
-              {scopeLabel}
-              {scopeContextLabel ? ` · ${scopeContextLabel}` : ''}
-            </span>
-          </div>
-        </>
+      {showScopeControls ? (
+        <div className="ai-scope-bar">
+          <label className="ai-scope-label">
+            <span>Scope</span>
+            <select
+              className="ai-scope-select"
+              value={scope.mode}
+              onChange={(event) => setScope((prev) => ({ ...prev, mode: event.target.value }))}
+            >
+              {SCOPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <span className="ai-scope-chip">
+            {scopeLabel}
+            {scopeContextLabel ? ` · ${scopeContextLabel}` : ''}
+          </span>
+        </div>
+      ) : (
+        <div className="ai-inline-meta">
+          <span className="ai-scope-chip">
+            {scopeLabel}
+            {scopeContextLabel ? ` · ${scopeContextLabel}` : ''}
+          </span>
+          <button type="button" className="ai-inline-link" onClick={() => navigate(buildRAGWorkspaceHref({ scope }))}>
+            작업실에서 보기
+          </button>
+        </div>
       )}
 
       <div className="ai-messages" role="log" aria-live="polite">
         {messages.length === 0 && !loading ? (
           <div className="ai-empty-state">
-            {!isEmbedded && <div className="ai-empty-icon">⬡</div>}
-            <p className="ai-empty-title">{isEmbedded ? '내 지식에 무엇이든 물어보세요' : '무엇이든 물어보세요'}</p>
-            {(!isEmbedded || embeddedDescription) && (
-              <p className="ai-empty-desc">
-                {isEmbedded
-                  ? embeddedDescription
-                  : '짧은 응답은 여기서, 근거 확인은 전체 RAG 작업실에서 이어갈 수 있습니다.'}
-              </p>
+            <div className="ai-empty-icon">⬡</div>
+            <p className="ai-empty-title">질문을 입력하면 여기에서 바로 확인할 수 있습니다.</p>
+            <p className="ai-empty-desc">필요할 때만 작업실로 이동해 더 자세히 이어갑니다.</p>
+            {!isInline && (
+              <ul className="ai-empty-suggestions">
+                {PANEL_SUGGESTIONS.map((suggestion) => (
+                  <li key={suggestion.label} className="ai-suggestion" onClick={() => setInput(suggestion.prompt)}>
+                    {suggestion.label}
+                  </li>
+                ))}
+              </ul>
             )}
-            {!isEmbedded && AI_DEMO_MODE && <p className="ai-empty-desc">현재 데모 응답 모드로 동작 중입니다.</p>}
-            <ul className="ai-empty-suggestions">
-              {PANEL_SUGGESTIONS.map((suggestion) => (
-                <li key={suggestion.label} className="ai-suggestion" onClick={() => setInput(suggestion.prompt)}>
-                  {suggestion.label}
-                </li>
-              ))}
-            </ul>
           </div>
         ) : (
           messages.map((message) => (
@@ -336,15 +339,6 @@ const AIChatPanel = ({
         )}
         <div ref={messagesEndRef} />
       </div>
-
-      {isEmbedded && (
-        <div className="ai-home-toolbar">
-          <span className="ai-home-toolbar__scope">{scopeLabel}</span>
-          <button type="button" className="ai-home-toolbar__link" onClick={() => navigate('/query')}>
-            전체 작업실에서 범위 조정
-          </button>
-        </div>
-      )}
 
       <form className="ai-input-form" onSubmit={handleSubmit}>
         <textarea

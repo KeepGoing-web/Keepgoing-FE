@@ -20,6 +20,7 @@ const RAGQueryPage = lazy(() => import('./pages/RAGQueryPage'))
 const ResumePage = lazy(() => import('./pages/ResumePage'))
 const ApplicationsPage = lazy(() => import('./pages/ApplicationsPage'))
 const ExplorePage = lazy(() => import('./pages/ExplorePage'))
+const AccountSettingsPage = lazy(() => import('./pages/AccountSettingsPage'))
 const PublicProfilePage = lazy(() => import('./pages/PublicProfilePage'))
 const PublicPostPage = lazy(() => import('./pages/PublicPostPage'))
 const OAuthCallbackPage = lazy(() => import('./pages/OAuthCallbackPage'))
@@ -77,6 +78,7 @@ function App() {
                 <Route path="resume" element={renderLazyPage(ResumePage)} />
                 <Route path="applications" element={renderLazyPage(ApplicationsPage)} />
                 <Route path="explore" element={renderLazyPage(ExplorePage)} />
+                <Route path="settings/account" element={renderLazyPage(AccountSettingsPage)} />
                 <Route path="users/:username" element={renderLazyPage(PublicProfilePage)} />
                 <Route path="users/:username/:noteId" element={renderLazyPage(PublicPostPage)} />
               </Route>
