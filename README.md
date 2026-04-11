@@ -32,6 +32,7 @@ npm run build
 ## 환경 변수
 
 - 로컬 개발: `.env.development` 사용
+- 로컬에서 운영 빌드 테스트가 필요하면 `.env.production.example`을 복사해 `.env.production`으로 사용
 - 운영 배포(Vercel): Project Settings → Environment Variables 에서 `VITE_API_BASE_URL` 과 `VITE_USE_MOCK_API=false` 설정
 - 운영용 `.env.production` 파일은 저장소에 커밋하지 않음
 
