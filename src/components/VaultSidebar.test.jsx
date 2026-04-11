@@ -236,7 +236,7 @@ describe('VaultSidebar', () => {
 
   it('moves a folder to root via drag and drop', async () => {
     const dataTransfer = createDataTransfer()
-    const { vault } = renderSidebar({
+    const { vault, container } = renderSidebar({
       categories: [
         { id: 'folder_1', name: 'Top', parentId: null },
         { id: 'folder_2', name: 'Middle', parentId: 'folder_1' },
@@ -246,8 +246,11 @@ describe('VaultSidebar', () => {
     })
 
     fireEvent.dragStart(screen.getByRole('button', { name: /Middle/i }), { dataTransfer })
-    fireEvent.dragOver(screen.getByText('여기에 놓으면 최상위로 이동'), { dataTransfer })
-    fireEvent.drop(screen.getByText('여기에 놓으면 최상위로 이동'), { dataTransfer })
+    const rootDropZone = container.querySelector('.sidebar-root-drop-zone')
+    expect(rootDropZone).toBeInTheDocument()
+
+    fireEvent.dragOver(rootDropZone, { dataTransfer })
+    fireEvent.drop(rootDropZone, { dataTransfer })
 
     await waitFor(() => {
       expect(vault.moveCategory).toHaveBeenCalledWith('folder_2', null)

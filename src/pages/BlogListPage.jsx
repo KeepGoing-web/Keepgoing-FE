@@ -88,7 +88,6 @@ const BlogListPage = () => {
           size,
           query: debouncedQuery,
           categoryId,
-          selectedTagIds: [],
           sort,
           order,
           visibility,

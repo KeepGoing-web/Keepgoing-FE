@@ -193,7 +193,7 @@ const BlogWritePage = () => {
       <header className="bw-header">
         <div className="bw-header-left">
           <button type="button" className="bw-btn bw-btn--ghost" onClick={handleBack} aria-label="목록으로 돌아가기">
-            ← 돌아가기
+            목록
           </button>
           <span className="bw-header-title">{isEdit ? '노트 수정' : '새 노트'}</span>
         </div>
@@ -222,7 +222,6 @@ const BlogWritePage = () => {
             title={formData.aiCollectable ? 'AI 수집 허용됨' : 'AI 수집 미허용'}
             aria-pressed={formData.aiCollectable}
           >
-            <span className="bw-vis-icon">🤖</span>
             <span className="bw-vis-label">AI 수집</span>
           </button>
 
@@ -243,7 +242,7 @@ const BlogWritePage = () => {
             aria-expanded={showMetaPanel}
             title="문서 인스펙터"
           >
-            ⚙ 인스펙터
+설정
           </button>
 
           <button type="button" className="bw-btn bw-btn--ghost" onClick={handleBack}>
@@ -275,9 +274,9 @@ const BlogWritePage = () => {
             </section>
 
             {previewOpen && (
-              <aside id="note-preview-panel" className={`bw-preview-panel${isMobileViewport ? ' bw-preview-panel--mobile' : ''}`} aria-label="실제 게시 미리보기">
+              <aside id="note-preview-panel" className={`bw-preview-panel${isMobileViewport ? ' bw-preview-panel--mobile' : ''}`} aria-label="노트 미리보기">
                 <div className="bw-preview-header">
-                  <strong>미리보기</strong>
+                  <strong>노트 미리보기</strong>
                   <button type="button" className="bw-btn bw-btn--ghost bw-preview-close" onClick={() => setPreviewOpen(false)}>
                     닫기
                   </button>
@@ -315,7 +314,7 @@ const BlogWritePage = () => {
 
         <aside className={`bw-meta-panel ${showMetaPanel ? 'open' : ''}`} aria-hidden={!showMetaPanel}>
           <div className="bw-inspector-overview">
-            <span className="bw-inspector-kicker">DOCUMENT INSPECTOR</span>
+            <span className="bw-inspector-kicker">노트 정보</span>
             <strong className="bw-inspector-title">{formData.title.trim() || (isEdit ? '제목 없는 노트' : '새 노트')}</strong>
           </div>
 
@@ -335,28 +334,28 @@ const BlogWritePage = () => {
           </div>
 
           <div className="bw-meta-group">
-            <label className="bw-meta-label">사용자 중심 작업</label>
+            <label className="bw-meta-label">빠른 도움</label>
             <div className="bw-rag-actions">
               <button
                 type="button"
                 className="bw-rag-action"
                 onClick={() => openRAGAssist(`${formData.title || '현재 초안'}과 연결되는 관련 문서를 찾아줘`)}
               >
-                관련 문서 찾기
+                관련 내용
               </button>
               <button
                 type="button"
                 className="bw-rag-action"
                 onClick={() => openRAGAssist(`${formData.title || '현재 초안'}을 3줄로 요약해줘`)}
               >
-                초안 요약
+                짧게 정리
               </button>
               <button
                 type="button"
                 className="bw-rag-action"
                 onClick={() => openRAGAssist(`${formData.title || '현재 초안'}을 블로그 초안 구조로 바꿔줘`)}
               >
-                블로그 톤 정리
+                문장 다듬기
               </button>
             </div>
           </div>

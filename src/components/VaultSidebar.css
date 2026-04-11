@@ -307,8 +307,15 @@
   gap: 0.12rem;
 }
 
+.tree-root {
+  flex: 1;
+  min-height: 100%;
+}
+
 .sidebar-tree-surface {
+  flex: 1;
   min-height: 1.5rem;
+  display: flex;
 }
 
 .sidebar-folder-surface {
@@ -429,24 +436,14 @@
 }
 
 .sidebar-root-drop-zone {
-  margin: 0.35rem 0 0.05rem;
-  padding: 0.55rem 0.7rem;
-  border-top: 1px dashed var(--border);
-  color: var(--text-faint);
-  font-size: 0.7rem;
-  font-family: var(--font-mono);
-  text-align: center;
-}
-
-.sidebar-root-drop-zone span {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  flex: 1 1 auto;
+  min-height: 4.5rem;
+  margin-top: 0.15rem;
+  border-radius: 10px;
 }
 
 .sidebar-root-drop-zone.drop-target {
-  color: var(--accent);
-  border-top-color: var(--accent-dim);
+  border: 1px dashed var(--accent-dim);
   background: color-mix(in srgb, var(--accent-glow) 45%, transparent);
 }
 

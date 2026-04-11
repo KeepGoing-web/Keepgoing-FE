@@ -136,9 +136,6 @@ const Layout = () => {
             <Link to="/query" className={isActive("/query") ? "active" : ""}>
               AI 질의
             </Link>
-            <Link to="/resume" className={isActive("/resume") ? "active" : ""}>
-              이력서
-            </Link>
             <Link
               to="/applications"
               className={isActive("/applications") ? "active" : ""}

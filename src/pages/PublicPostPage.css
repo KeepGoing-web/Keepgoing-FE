@@ -134,16 +134,6 @@
   color: var(--text-secondary);
 }
 
-.pub-article-tags {
-  display: flex;
-  gap: 0.35rem;
-  flex-wrap: wrap;
-}
-
-.pub-article-tag {
-  color: var(--tag-text);
-}
-
 .pub-meta-sep {
   color: var(--text-faint);
   font-size: 0.75rem;

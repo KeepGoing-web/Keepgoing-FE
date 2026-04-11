@@ -115,11 +115,9 @@ export function VaultProvider({ children }) {
   const navigate = useNavigate()
   const [allNotes, setAllNotes] = useState([])
   const [categories, setCategories] = useState([])
-  const [tags, setTags] = useState([])
   const [recentNotes, setRecentNotes] = useState(() => getRecentNotes())
   const [loading, setLoading] = useState(true)
   const [categoryId, setCategoryId] = useState('')
-  const [selectedTagIds, setSelectedTagIds] = useState([])
   const [notesRevision, setNotesRevision] = useState(0)
 
   const hydrateVault = useCallback(async () => {
@@ -128,7 +126,6 @@ export function VaultProvider({ children }) {
       const data = await fetchVaultData()
       setAllNotes(data.posts)
       setCategories(data.categories)
-      setTags(data.tags)
     } catch {
       // non-blocking fetch failure; consumers render empty states
     } finally {
@@ -139,11 +136,6 @@ export function VaultProvider({ children }) {
   useEffect(() => {
     void hydrateVault()
   }, [hydrateVault])
-
-  const tagCounts = useMemo(
-    () => ({}),
-    [],
-  )
 
   const categoryStats = useMemo(
     () =>
@@ -164,12 +156,8 @@ export function VaultProvider({ children }) {
     navigate(`/notes/${post.id}`)
   }, [addRecentNote, navigate])
 
-  const toggleTag = useCallback(() => {}, [])
-  const removeTag = useCallback(() => {}, [])
-
   const resetFilters = useCallback(() => {
     setCategoryId('')
-    setSelectedTagIds([])
   }, [])
 
   const createCategory = useCallback(async (name, parentId = null) => {
@@ -178,7 +166,6 @@ export function VaultProvider({ children }) {
       const data = await fetchVaultData()
       setAllNotes(data.posts)
       setCategories(data.categories)
-      setTags(data.tags)
       setNotesRevision((prev) => prev + 1)
     } catch {
       setCategories((prev) => [...prev, nextCategory])
@@ -199,7 +186,6 @@ export function VaultProvider({ children }) {
       const data = await fetchVaultData()
       setAllNotes(data.posts)
       setCategories(data.categories)
-      setTags(data.tags)
       setNotesRevision((prev) => prev + 1)
     } catch {
       setCategories((prev) => prev.map((category) => (
@@ -221,7 +207,6 @@ export function VaultProvider({ children }) {
       const data = await fetchVaultData()
       setAllNotes(data.posts)
       setCategories(data.categories)
-      setTags(data.tags)
       setNotesRevision((prev) => prev + 1)
     } catch {
       setCategories((prev) => prev.filter((category) => String(category.id) !== String(categoryId)))
@@ -243,7 +228,6 @@ export function VaultProvider({ children }) {
       const data = await fetchVaultData()
       setAllNotes(data.posts)
       setCategories(data.categories)
-      setTags(data.tags)
       setNotesRevision((prev) => prev + 1)
     } catch {
       setCategories((prev) => prev.map((category) => (
@@ -261,7 +245,6 @@ export function VaultProvider({ children }) {
       const data = await fetchVaultData()
       setAllNotes(data.posts)
       setCategories(data.categories)
-      setTags(data.tags)
       setNotesRevision((prev) => prev + 1)
     } catch {
       // non-blocking refresh failure
@@ -285,7 +268,6 @@ export function VaultProvider({ children }) {
       const data = await fetchVaultData()
       setAllNotes(data.posts)
       setCategories(data.categories)
-      setTags(data.tags)
     } catch {
       // keep optimistic state if refresh fails
     } finally {
@@ -313,7 +295,6 @@ export function VaultProvider({ children }) {
       const data = await fetchVaultData()
       setAllNotes(data.posts)
       setCategories(data.categories)
-      setTags(data.tags)
     } catch {
       // keep optimistic state if refresh fails
     } finally {
@@ -333,7 +314,6 @@ export function VaultProvider({ children }) {
       const data = await fetchVaultData()
       setAllNotes(data.posts)
       setCategories(data.categories)
-      setTags(data.tags)
     } catch {
       // keep optimistic state if refresh fails
     } finally {
@@ -347,19 +327,13 @@ export function VaultProvider({ children }) {
     allNotes,
     categories,
     categoryStats,
-    tags,
     recentNotes,
-    tagCounts,
     loading,
     notesRevision,
     categoryId,
     setCategoryId,
-    selectedTagIds,
-    setSelectedTagIds,
     addRecentNote,
     navigateToNote,
-    toggleTag,
-    removeTag,
     resetFilters,
     refreshNotes,
     createCategory,

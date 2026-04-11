@@ -172,14 +172,6 @@ const PublicProfilePage = () => {
                       </p>
                     )}
                     <div className="pub-post-meta">
-                      {Array.isArray(note.tags) && note.tags.length > 0 && (
-                        <span className="pub-post-tags">
-                          {note.tags.map((t) => (
-                            <span key={t.id} className="pub-post-tag">#{t.name}</span>
-                          ))}
-                        </span>
-                      )}
-                      <span className="pub-post-meta-sep">·</span>
                       <time className="pub-post-date" dateTime={note.createdAt}>
                         {formatDate(note.createdAt)}
                       </time>

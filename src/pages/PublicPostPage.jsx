@@ -120,17 +120,6 @@ const PublicPostPage = () => {
                 </>
               )}
 
-              {Array.isArray(note.tags) && note.tags.length > 0 && (
-                <>
-                  <span className="pub-meta-sep">·</span>
-                  <span className="pub-article-tags">
-                    {note.tags.map((t) => (
-                      <span key={t.id} className="pub-article-tag">#{t.name}</span>
-                    ))}
-                  </span>
-                </>
-              )}
-
               <span className="pub-meta-sep">·</span>
               <span className="pub-article-readtime">{estimateReadTime(note.content)}</span>
             </div>

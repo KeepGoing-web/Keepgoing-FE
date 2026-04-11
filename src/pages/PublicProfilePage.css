@@ -275,17 +275,6 @@
   font-family: var(--font-mono);
 }
 
-.pub-post-tags {
-  display: flex;
-  gap: 0.35rem;
-  flex-wrap: wrap;
-}
-
-.pub-post-tag {
-  color: var(--tag-text);
-  font-size: 0.78rem;
-}
-
 .pub-post-meta-sep {
   color: var(--text-faint);
   font-size: 0.75rem;

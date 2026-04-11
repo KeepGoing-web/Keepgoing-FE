@@ -540,12 +540,11 @@ const CategoryTree = ({
         <li
           ref={rootFolderButtonRef}
           tabIndex={-1}
+          aria-label="최상위 드롭 영역"
           className={`sidebar-root-drop-zone${dropTargetId === ROOT_DROP_TARGET ? ' drop-target' : ''}`}
           onDragOver={(event) => onFolderDragOver(event, null)}
           onDrop={(event) => onFolderDrop(event, null, '최상위')}
-        >
-          <span>여기에 놓으면 최상위로 이동</span>
-        </li>
+        />
       </ul>
     </div>
   )

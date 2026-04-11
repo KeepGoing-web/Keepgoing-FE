@@ -10,7 +10,7 @@ export function buildNoteListParams({
   size,
   query,
   categoryId,
-  selectedTagIds,
+  selectedTagIds = [],
   sort,
   order,
   visibility,

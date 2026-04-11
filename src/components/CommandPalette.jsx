@@ -140,13 +140,6 @@ const CommandPalette = ({ isOpen, onClose, onAIQuery }) => {
                   <span className="cmd-result-cat">{post.category.name || post.category}</span>
                 )}
               </div>
-              {Array.isArray(post.tags) && post.tags.length > 0 && (
-                <div className="cmd-result-tags">
-                  {post.tags.slice(0, 3).map((t) => (
-                    <span key={t.id} className="cmd-result-tag">#{t.name}</span>
-                  ))}
-                </div>
-              )}
             </button>
           ))}
 

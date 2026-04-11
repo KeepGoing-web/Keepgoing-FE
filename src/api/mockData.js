@@ -219,7 +219,6 @@ const posts = await Post.findAll({
     visibility: 'PRIVATE',
     aiCollectable: false,
     categoryId: 'cat_2',
-    tagIds: ['tag_2'],
   },
 ]
 

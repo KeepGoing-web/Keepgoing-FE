@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -15,7 +15,6 @@ import { useConfirm } from '../components/ConfirmModal'
 import { useToast } from '../contexts/ToastContext'
 import { dispatchOpenAIPanel } from '../utils/ai'
 
-const EMPTY_NOTES = []
 const EMPTY_FOLDERS = []
 
 const BlogDetailPage = () => {
@@ -30,7 +29,6 @@ const BlogDetailPage = () => {
 
   const vault = useVaultOptional()
   const addRecentNote = vault?.addRecentNote ?? null
-  const allNotes = vault?.allNotes ?? EMPTY_NOTES
   const categories = vault?.categories ?? EMPTY_FOLDERS
   const notesRevision = vault?.notesRevision ?? 0
 
@@ -96,22 +94,7 @@ const BlogDetailPage = () => {
     })
   }
 
-  const relatedNotes = useMemo(() => {
-    if (!post) return []
 
-    const currentFolderId = post.folderId ?? post.categoryId ?? post.category?.id ?? '__root__'
-    const sameFolder = allNotes.filter((note) => (
-      String(note.id) !== String(post.id)
-      && String(note.folderId ?? note.categoryId ?? note.category?.id ?? '__root__') === String(currentFolderId)
-    ))
-
-    if (sameFolder.length > 0) return sameFolder.slice(0, 3)
-
-    return [...allNotes]
-      .filter((note) => String(note.id) !== String(post.id))
-      .sort((left, right) => new Date(right.updatedAt || right.createdAt) - new Date(left.updatedAt || left.createdAt))
-      .slice(0, 3)
-  }, [allNotes, post])
 
   if (loading) {
     return <div className="loading">로딩 중...</div>
@@ -171,23 +154,6 @@ const BlogDetailPage = () => {
           </ReactMarkdown>
         </div>
       </article>
-
-      {relatedNotes.length > 0 && (
-        <section className="related-posts">
-          <h2 className="related-posts-title">같은 흐름에서 이어볼 문서</h2>
-          <div className="related-posts-list">
-            {relatedNotes.map((note) => (
-              <Link key={note.id} to={`/notes/${note.id}`} className="related-post-item">
-                <span className="related-post-title">{note.title}</span>
-                <div className="related-post-meta">
-                  <span className="related-post-folder">{note.category?.name || '미분류'}</span>
-                  <span className="related-post-date">{formatDate(note.createdAt)}</span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
     </div>
   )
 }

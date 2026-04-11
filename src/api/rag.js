@@ -227,7 +227,6 @@ export async function queryRAG(payload) {
     mode: 'all',
     currentNoteId: null,
     categoryId: '',
-    tagIds: [],
     aiOnly: true,
     dateFrom: '',
     dateTo: '',

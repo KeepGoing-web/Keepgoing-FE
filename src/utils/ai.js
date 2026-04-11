@@ -12,9 +12,6 @@ export function buildRAGWorkspaceHref({ query = '', scope = {} }) {
   if (scope.currentNoteId) params.set('noteId', scope.currentNoteId)
   if (scope.categoryId) params.set('categoryId', scope.categoryId)
   if (scope.aiOnly === false) params.set('aiOnly', 'false')
-  if (Array.isArray(scope.tagIds)) {
-    scope.tagIds.forEach((tagId) => params.append('tagId', tagId))
-  }
 
   const search = params.toString()
   return `/query${search ? `?${search}` : ''}`

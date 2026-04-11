@@ -135,7 +135,7 @@ const DashboardPage = () => {
           <div className="dash-panel-head">
             <div>
               <p className="dash-panel-kicker">최근 업데이트</p>
-              <h2 className="dash-panel-title">바로 이어서 볼 노트</h2>
+              <h2 className="dash-panel-title">노트 목록</h2>
             </div>
           </div>
 

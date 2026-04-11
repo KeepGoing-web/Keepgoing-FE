@@ -100,3 +100,9 @@ temp/
 
 API_SPEC.md
 .omx/
+# AI / agent generated artifacts
+.omc/
+.omg/
+.playwright-mcp/
+test-results/
+

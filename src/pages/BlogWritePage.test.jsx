@@ -85,11 +85,11 @@ describe('BlogWritePage', () => {
     fireEvent.change(screen.getByLabelText('노트 제목'), { target: { value: '주간 회고' } })
     fireEvent.change(screen.getByLabelText('본문 입력'), { target: { value: '## 이번 주 배운 점\n- 실험을 자주 하기' } })
 
-    expect(screen.queryByLabelText('실제 게시 미리보기')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('노트 미리보기')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: '미리보기' }))
 
-    expect(screen.getByLabelText('실제 게시 미리보기')).toBeInTheDocument()
+    expect(screen.getByLabelText('노트 미리보기')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '주간 회고' })).toBeInTheDocument()
     expect(screen.getByText('이번 주 배운 점')).toBeInTheDocument()
     expect(screen.getByText('실험을 자주 하기')).toBeInTheDocument()
@@ -102,11 +102,11 @@ describe('BlogWritePage', () => {
 
     const panel = container.querySelector('.bw-meta-panel')
     expect(panel).not.toHaveClass('open')
-    expect(screen.queryByLabelText('실제 게시 미리보기')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('노트 미리보기')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: '미리보기' }))
 
-    expect(screen.getByLabelText('실제 게시 미리보기')).toBeInTheDocument()
+    expect(screen.getByLabelText('노트 미리보기')).toBeInTheDocument()
 
     const [headerToggle] = screen.getAllByRole('button', { name: /인스펙터|설정/ })
     fireEvent.click(headerToggle)
