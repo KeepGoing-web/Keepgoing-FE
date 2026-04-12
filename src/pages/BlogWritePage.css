@@ -382,26 +382,6 @@
   font-family: var(--font-mono);
 }
 
-.bw-rag-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  border-top: 1px solid var(--border);
-}
-
-.bw-rag-action {
-  padding: 0.8rem 0;
-  text-align: left;
-  color: var(--text-secondary);
-  border-bottom: 1px solid var(--border);
-  transition: color var(--transition-fast), background-color var(--transition-fast);
-}
-
-.bw-rag-action:hover {
-  color: var(--accent);
-  background: var(--accent-glow);
-}
-
 .bw-status-bar {
   display: flex;
   align-items: center;

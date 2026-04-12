@@ -14,7 +14,6 @@ import { fetchNote, createNote, updateNote } from '../api/client'
 import '../styles/hljs-theme.css'
 import '../components/MarkdownBody.css'
 import './BlogWritePage.css'
-import { dispatchOpenAIPanel } from '../utils/ai'
 
 const TiptapEditor = lazy(() => import('../components/TiptapEditor'))
 
@@ -126,16 +125,6 @@ const BlogWritePage = () => {
     } finally {
       setSaving(false)
     }
-  }
-
-  const openRAGAssist = (prompt) => {
-    dispatchOpenAIPanel({
-      query: prompt,
-      scope: {
-        mode: 'notes',
-        aiOnly: true,
-      },
-    })
   }
 
   const handleBack = async () => {
@@ -330,33 +319,6 @@ const BlogWritePage = () => {
             <div className="bw-meta-stat">
               <span>공개 범위</span>
               <strong>{visibilityLabel}</strong>
-            </div>
-          </div>
-
-          <div className="bw-meta-group">
-            <label className="bw-meta-label">빠른 도움</label>
-            <div className="bw-rag-actions">
-              <button
-                type="button"
-                className="bw-rag-action"
-                onClick={() => openRAGAssist(`${formData.title || '현재 초안'}과 연결되는 관련 문서를 찾아줘`)}
-              >
-                관련 내용
-              </button>
-              <button
-                type="button"
-                className="bw-rag-action"
-                onClick={() => openRAGAssist(`${formData.title || '현재 초안'}을 3줄로 요약해줘`)}
-              >
-                짧게 정리
-              </button>
-              <button
-                type="button"
-                className="bw-rag-action"
-                onClick={() => openRAGAssist(`${formData.title || '현재 초안'}을 블로그 초안 구조로 바꿔줘`)}
-              >
-                문장 다듬기
-              </button>
             </div>
           </div>
         </aside>
