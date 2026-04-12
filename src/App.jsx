@@ -17,8 +17,6 @@ const BlogListPage = lazy(() => import('./pages/BlogListPage'))
 const BlogDetailPage = lazy(() => import('./pages/BlogDetailPage'))
 const BlogWritePage = lazy(() => import('./pages/BlogWritePage'))
 const RAGQueryPage = lazy(() => import('./pages/RAGQueryPage'))
-const ApplicationsPage = lazy(() => import('./pages/ApplicationsPage'))
-const ExplorePage = lazy(() => import('./pages/ExplorePage'))
 const AccountSettingsPage = lazy(() => import('./pages/AccountSettingsPage'))
 const PublicProfilePage = lazy(() => import('./pages/PublicProfilePage'))
 const PublicPostPage = lazy(() => import('./pages/PublicPostPage'))
@@ -74,8 +72,6 @@ function App() {
                 </Route>
 
                 <Route path="query" element={renderLazyPage(RAGQueryPage)} />
-                <Route path="applications" element={renderLazyPage(ApplicationsPage)} />
-                <Route path="explore" element={renderLazyPage(ExplorePage)} />
                 <Route path="settings/account" element={renderLazyPage(AccountSettingsPage)} />
                 <Route path="users/:username" element={renderLazyPage(PublicProfilePage)} />
                 <Route path="users/:username/:noteId" element={renderLazyPage(PublicPostPage)} />

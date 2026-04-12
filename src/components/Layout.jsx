@@ -127,20 +127,8 @@ const Layout = () => {
             <Link to="/notes" className={isActive("/notes") ? "active" : ""}>
               노트
             </Link>
-            <Link
-              to="/explore"
-              className={isActive("/explore") || isActive("/users") ? "active" : ""}
-            >
-              탐색
-            </Link>
             <Link to="/query" className={isActive("/query") ? "active" : ""}>
               AI 질의
-            </Link>
-            <Link
-              to="/applications"
-              className={isActive("/applications") ? "active" : ""}
-            >
-              지원관리
             </Link>
           </nav>
           <div className="user-menu">
