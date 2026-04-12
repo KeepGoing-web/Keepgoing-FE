@@ -47,7 +47,6 @@ const BlogListPage = () => {
     categories,
     categoryId,
     setCategoryId,
-    setSelectedTagIds,
     addRecentNote,
     notesRevision,
   } = useVault()
@@ -68,10 +67,6 @@ const BlogListPage = () => {
   const [filterOpen, setFilterOpen] = useState(false)
 
   const debouncedQuery = useDebounce(query, 300)
-
-  useEffect(() => {
-    setSelectedTagIds([])
-  }, [setSelectedTagIds])
 
   useEffect(() => {
     setPage(1)
