@@ -11,8 +11,10 @@
   min-height: 0;
   border: 1px solid var(--border);
   border-radius: 10px;
-  overflow: hidden;
+  overflow: visible;
   background: var(--bg-secondary);
+  position: relative;
+  isolation: isolate;
 }
 
 
@@ -67,7 +69,7 @@
   flex-wrap: nowrap;
   min-height: 40px;
   overflow-x: auto;
-  overflow-y: visible;
+  overflow-y: hidden;
   scrollbar-width: thin;
 }
 
@@ -612,9 +614,7 @@
 }
 
 .tiptap-color-dropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 50%;
+  position: fixed;
   transform: translateX(-50%);
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -628,8 +628,30 @@
   animation: colorDropIn 0.12s ease-out;
 }
 
+.tiptap-color-dropdown--portal {
+  z-index: 1000;
+}
+
+.tiptap-color-clear {
+  grid-column: 1 / -1;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.tiptap-color-clear:hover {
+  color: var(--text-primary);
+  border-color: var(--border-light);
+  background: var(--bg-primary);
+}
+
 @keyframes colorDropIn {
-  from { opacity: 0; transform: translateX(-50%) translateY(-4px); }
+  from { opacity: 0; transform: translateX(-50%) translateY(4px); }
   to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 

@@ -1,13 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import rehypeHighlight from 'rehype-highlight'
 import '../styles/hljs-theme.css'
 import './BlogDetailPage.css'
 import '../components/MarkdownBody.css'
 import { fetchNote, deleteNote } from '../api/client'
-import MermaidCodeBlock from '../components/MermaidCodeBlock'
+import RichMarkdown from '../components/RichMarkdown'
 import { useVaultOptional } from '../contexts/VaultContext'
 import { formatDate, estimateReadTime } from '../utils/format'
 import ReadingProgressBar from '../components/ReadingProgressBar'
@@ -145,13 +142,7 @@ const BlogDetailPage = () => {
         </header>
 
         <div className="blog-content markdown-body">
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            rehypePlugins={[rehypeHighlight]}
-            components={{ code: MermaidCodeBlock }}
-          >
-            {post.content}
-          </ReactMarkdown>
+          <RichMarkdown>{post.content}</RichMarkdown>
         </div>
       </article>
     </div>

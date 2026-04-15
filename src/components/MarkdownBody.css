@@ -104,6 +104,42 @@
   color: var(--text-muted);
 }
 
+/* ── Highlight ─────────────────────────────────────────────── */
+
+.markdown-body mark,
+.markdown-body .markdown-highlight {
+  padding: 0.08em 0.28em;
+  border-radius: 0.35rem;
+  color: var(--text-primary);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.markdown-body mark[data-note-highlight='yellow'],
+.markdown-body .markdown-highlight--yellow {
+  background: rgba(250, 224, 118, 0.32);
+}
+
+.markdown-body mark[data-note-highlight='green'],
+.markdown-body .markdown-highlight--green {
+  background: rgba(134, 239, 172, 0.26);
+}
+
+.markdown-body mark[data-note-highlight='blue'],
+.markdown-body .markdown-highlight--blue {
+  background: rgba(125, 211, 252, 0.24);
+}
+
+.markdown-body mark[data-note-highlight='purple'],
+.markdown-body .markdown-highlight--purple {
+  background: rgba(196, 181, 253, 0.26);
+}
+
+.markdown-body mark[data-note-highlight='red'],
+.markdown-body .markdown-highlight--red {
+  background: rgba(253, 164, 175, 0.26);
+}
+
 /* ── Lists ─────────────────────────────────────────────────── */
 
 .markdown-body ul,

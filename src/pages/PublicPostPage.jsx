@@ -1,13 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useParams, useLocation, Link } from 'react-router-dom'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import rehypeHighlight from 'rehype-highlight'
 import '../styles/hljs-theme.css'
 import { fetchPublicNote } from '../api/client'
 import './PublicPostPage.css'
 import '../components/MarkdownBody.css'
-import MermaidCodeBlock from '../components/MermaidCodeBlock'
+import RichMarkdown from '../components/RichMarkdown'
 
 const formatDate = (iso) => {
   if (!iso) return '—'
@@ -128,13 +125,7 @@ const PublicPostPage = () => {
           <div className="pub-article-divider" role="separator" />
 
           <div className="pub-article-body markdown-body">
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              rehypePlugins={[rehypeHighlight]}
-              components={{ code: MermaidCodeBlock }}
-            >
-              {note.content}
-            </ReactMarkdown>
+            <RichMarkdown>{note.content}</RichMarkdown>
           </div>
         </article>
 

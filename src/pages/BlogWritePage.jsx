@@ -1,14 +1,11 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import rehypeHighlight from 'rehype-highlight'
 import { useToast } from '../contexts/ToastContext'
 import { useVaultOptional } from '../contexts/VaultContext'
 import { useConfirm } from '../components/ConfirmModal'
 import LoadingDots from '../components/LoadingDots'
 import PageLoader from '../components/PageLoader'
-import MermaidCodeBlock from '../components/MermaidCodeBlock'
+import RichMarkdown from '../components/RichMarkdown'
 import { estimateReadTime, countChars } from '../utils/format'
 import { fetchNote, createNote, updateNote } from '../api/client'
 import '../styles/hljs-theme.css'
@@ -286,13 +283,7 @@ const BlogWritePage = () => {
                     <div className="bw-preview-divider" role="separator" />
 
                     <div className="bw-preview-body markdown-body">
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        rehypePlugins={[rehypeHighlight]}
-                        components={{ code: MermaidCodeBlock }}
-                      >
-                        {formData.content || ' '}
-                      </ReactMarkdown>
+                      <RichMarkdown>{formData.content || ' '}</RichMarkdown>
                     </div>
                   </article>
                 </div>
