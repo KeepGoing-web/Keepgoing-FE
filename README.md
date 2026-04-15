@@ -32,6 +32,7 @@ npm run build
 ## 환경 변수
 
 - 로컬 개발 기본값은 `.env.development` 에 둡니다. Vite 개발 서버는 여기서 `VITE_DEV_API_TARGET` 을 읽어 `/api`, `/oauth2`, `/login/oauth2` 프록시 대상으로 사용합니다.
+- 기본 로컬 OAuth/API 프록시 대상은 `http://localhost:8080` 입니다.
 - 개인 PC 전용 로컬 값이 필요하면 gitignore 된 `.env.development.local` 을 추가해 덮어씁니다.
 - 운영 배포는 저장소 파일 대신 **Vercel Project Settings → Environment Variables** 에서 설정합니다. 기본적으로 `VITE_API_BASE_URL` 과 `VITE_USE_MOCK_API=false` 를 넣으면 됩니다.
 - `.env.production.example` 은 운영값 참고용 템플릿이며, 로컬에서 운영 빌드를 검증할 때만 복사해 `.env.production` 으로 사용합니다.
