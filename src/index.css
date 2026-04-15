@@ -4,7 +4,7 @@
    Dark/Light 모드 지원
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500&display=swap');
 
 :root {
   /* ── Shared tokens ──────────────────────────────────── */
@@ -20,6 +20,7 @@
 
   /* Typography */
   --font-sans: 'Inter', system-ui, sans-serif;
+  --font-korean: 'Noto Sans KR', var(--font-sans);
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
   /* Transitions */
