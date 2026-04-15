@@ -140,6 +140,40 @@
   background: rgba(253, 164, 175, 0.26);
 }
 
+.markdown-body .markdown-color {
+  transition: color var(--transition-fast);
+}
+
+.markdown-body span[data-note-color='blue'],
+.markdown-body .markdown-color--blue {
+  color: #8aadf4;
+}
+
+.markdown-body span[data-note-color='green'],
+.markdown-body .markdown-color--green {
+  color: #a6da95;
+}
+
+.markdown-body span[data-note-color='yellow'],
+.markdown-body .markdown-color--yellow {
+  color: #eed49f;
+}
+
+.markdown-body span[data-note-color='orange'],
+.markdown-body .markdown-color--orange {
+  color: #f5a97f;
+}
+
+.markdown-body span[data-note-color='red'],
+.markdown-body .markdown-color--red {
+  color: #ed8796;
+}
+
+.markdown-body span[data-note-color='purple'],
+.markdown-body .markdown-color--purple {
+  color: #c6a0f6;
+}
+
 /* ── Lists ─────────────────────────────────────────────────── */
 
 .markdown-body ul,

@@ -8,14 +8,18 @@ import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
 import Placeholder from '@tiptap/extension-placeholder'
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
+import Color from '@tiptap/extension-color'
 import { TextStyle, BackgroundColor } from '@tiptap/extension-text-style'
 import { common, createLowlight } from 'lowlight'
 import { Markdown } from 'tiptap-markdown'
 import MermaidPreview from '../extensions/MermaidPreview'
 import {
   DEFAULT_NOTE_HIGHLIGHT_COLOR,
+  DEFAULT_NOTE_TEXT_COLOR,
   NOTE_HIGHLIGHT_PALETTE,
+  NOTE_TEXT_COLOR_PALETTE,
   findNoteHighlightByColor,
+  findNoteTextColorByColor,
 } from '../utils/highlightPalette'
 import '../styles/hljs-theme.css'
 import '../extensions/MermaidPreview.css'
@@ -104,10 +108,12 @@ const InsertPopover = ({ label, placeholder, value, onChange, onCancel, onConfir
 
 const TiptapEditor = ({ value = '', onChange, placeholder = '내용을 입력하세요...' }) => {
   const [insertMenu, setInsertMenu] = useState(null)
-  const [isColorMenuOpen, setIsColorMenuOpen] = useState(false)
+  const [activeColorMenu, setActiveColorMenu] = useState(null)
   const [lastHighlightColor, setLastHighlightColor] = useState(DEFAULT_NOTE_HIGHLIGHT_COLOR)
+  const [lastTextColor, setLastTextColor] = useState(DEFAULT_NOTE_TEXT_COLOR)
   const insertMenuRef = useRef(null)
-  const colorMenuRef = useRef(null)
+  const highlightMenuRef = useRef(null)
+  const textColorMenuRef = useRef(null)
   const colorDropdownRef = useRef(null)
   const [colorMenuPosition, setColorMenuPosition] = useState({ top: 0, left: 0 })
 
@@ -116,6 +122,7 @@ const TiptapEditor = ({ value = '', onChange, placeholder = '내용을 입력하
       StarterKit.configure({ codeBlock: false }),
       CodeBlockLowlight.configure({ lowlight }),
       TextStyle,
+      Color,
       BackgroundColor,
       Link.configure({ openOnClick: false, HTMLAttributes: { rel: 'noopener noreferrer' } }),
       Image,
@@ -138,8 +145,12 @@ const TiptapEditor = ({ value = '', onChange, placeholder = '내용을 입력하
     },
   })
 
+  const currentTextColor = editor?.getAttributes('textStyle').color ?? null
   const currentHighlight = editor?.getAttributes('textStyle').backgroundColor ?? null
+  const activeTextColor = findNoteTextColorByColor(currentTextColor)
   const activeHighlight = findNoteHighlightByColor(currentHighlight)
+  const isHighlightMenuOpen = activeColorMenu === 'highlight'
+  const isTextColorMenuOpen = activeColorMenu === 'text'
 
   useEffect(() => {
     if (!editor) return
@@ -156,29 +167,43 @@ const TiptapEditor = ({ value = '', onChange, placeholder = '내용을 입력하
   }, [editor])
 
   useEffect(() => {
-    if (!insertMenu && !isColorMenuOpen) return undefined
+    if (!insertMenu && !activeColorMenu) return undefined
 
     const handleOutsideClick = (event) => {
       const clickedInsideInsertMenu = insertMenuRef.current?.contains(event.target)
-      const clickedInsideColorMenu = colorMenuRef.current?.contains(event.target)
+      const clickedInsideHighlightMenu = highlightMenuRef.current?.contains(event.target)
+      const clickedInsideTextColorMenu = textColorMenuRef.current?.contains(event.target)
       const clickedInsideColorDropdown = colorDropdownRef.current?.contains(event.target)
 
       if (!clickedInsideInsertMenu) {
         setInsertMenu(null)
       }
 
-      if (!clickedInsideColorMenu && !clickedInsideColorDropdown) {
-        setIsColorMenuOpen(false)
+      if (!clickedInsideHighlightMenu && !clickedInsideTextColorMenu && !clickedInsideColorDropdown) {
+        setActiveColorMenu(null)
       }
     }
 
     document.addEventListener('mousedown', handleOutsideClick)
     return () => document.removeEventListener('mousedown', handleOutsideClick)
-  }, [insertMenu, isColorMenuOpen])
+  }, [insertMenu, activeColorMenu])
+
+  useEffect(() => {
+    if (!activeColorMenu) return undefined
+
+    const handleKeyDown = (event) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      setActiveColorMenu(null)
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [activeColorMenu])
 
   const openLinkMenu = useCallback(() => {
     if (!editor) return
-    setIsColorMenuOpen(false)
+    setActiveColorMenu(null)
     setInsertMenu({
       type: 'link',
       value: editor.getAttributes('link').href || '',
@@ -187,7 +212,7 @@ const TiptapEditor = ({ value = '', onChange, placeholder = '내용을 입력하
 
   const openImageMenu = useCallback(() => {
     if (!editor) return
-    setIsColorMenuOpen(false)
+    setActiveColorMenu(null)
     setInsertMenu({
       type: 'image',
       value: '',
@@ -218,13 +243,26 @@ const TiptapEditor = ({ value = '', onChange, placeholder = '내용을 입력하
     if (!editor) return
     editor.chain().focus().setBackgroundColor(color).run()
     setLastHighlightColor(color)
-    setIsColorMenuOpen(false)
+    setActiveColorMenu(null)
   }, [editor])
 
   const clearHighlight = useCallback(() => {
     if (!editor) return
     editor.chain().focus().unsetBackgroundColor().run()
-    setIsColorMenuOpen(false)
+    setActiveColorMenu(null)
+  }, [editor])
+
+  const applyTextColor = useCallback((color) => {
+    if (!editor) return
+    editor.chain().focus().setColor(color).run()
+    setLastTextColor(color)
+    setActiveColorMenu(null)
+  }, [editor])
+
+  const clearTextColor = useCallback(() => {
+    if (!editor) return
+    editor.chain().focus().unsetColor().run()
+    setActiveColorMenu(null)
   }, [editor])
 
   const handleQuickHighlight = useCallback(() => {
@@ -238,19 +276,28 @@ const TiptapEditor = ({ value = '', onChange, placeholder = '내용을 입력하
     applyHighlight(lastHighlightColor)
   }, [activeHighlight, applyHighlight, clearHighlight, editor, lastHighlightColor])
 
-  const handleToggleColorMenu = useCallback(() => {
+  const handleToggleHighlightMenu = useCallback(() => {
     setInsertMenu(null)
-    setIsColorMenuOpen((open) => !open)
+    setActiveColorMenu((menu) => (menu === 'highlight' ? null : 'highlight'))
+  }, [])
+
+  const handleToggleTextColorMenu = useCallback(() => {
+    setInsertMenu(null)
+    setActiveColorMenu((menu) => (menu === 'text' ? null : 'text'))
   }, [])
 
   useEffect(() => {
-    if (!isColorMenuOpen) return undefined
+    if (!activeColorMenu) return undefined
 
     const updateColorMenuPosition = () => {
-      const triggerRect = colorMenuRef.current?.getBoundingClientRect()
+      const triggerRef = activeColorMenu === 'highlight'
+        ? highlightMenuRef.current
+        : textColorMenuRef.current
+
+      const triggerRect = triggerRef?.getBoundingClientRect()
       if (!triggerRect) return
 
-      const dropdownWidth = 144
+      const dropdownWidth = 176
       const desiredLeft = triggerRect.left + (triggerRect.width / 2)
       const minLeft = 16 + (dropdownWidth / 2)
       const maxLeft = window.innerWidth - 16 - (dropdownWidth / 2)
@@ -270,7 +317,7 @@ const TiptapEditor = ({ value = '', onChange, placeholder = '내용을 입력하
       window.removeEventListener('resize', updateColorMenuPosition)
       window.removeEventListener('scroll', updateColorMenuPosition, true)
     }
-  }, [isColorMenuOpen])
+  }, [activeColorMenu])
 
   if (!editor) return null
 
@@ -302,8 +349,19 @@ const TiptapEditor = ({ value = '', onChange, placeholder = '내용을 입력하
           </ToolbarBtn>
         </div>
 
-        <div className="tiptap-toolbar-group tiptap-color-picker" ref={colorMenuRef}>
-          <ToolbarBtn onClick={handleToggleColorMenu} active={isColorMenuOpen || Boolean(activeHighlight)} title="형광펜">
+        <div className="tiptap-toolbar-group tiptap-color-picker" ref={textColorMenuRef}>
+          <ToolbarBtn onClick={handleToggleTextColorMenu} active={isTextColorMenuOpen || Boolean(activeTextColor)} title="글자색">
+            <span
+              className="tiptap-color-icon tiptap-color-icon--text"
+              style={{ color: activeTextColor?.color ?? lastTextColor }}
+            >
+              A
+            </span>
+          </ToolbarBtn>
+        </div>
+
+        <div className="tiptap-toolbar-group tiptap-color-picker" ref={highlightMenuRef}>
+          <ToolbarBtn onClick={handleToggleHighlightMenu} active={isHighlightMenuOpen || Boolean(activeHighlight)} title="형광펜">
             <span
               className="tiptap-color-icon"
               style={{ borderBottomColor: activeHighlight?.color ?? lastHighlightColor }}
@@ -397,29 +455,38 @@ const TiptapEditor = ({ value = '', onChange, placeholder = '내용을 입력하
         <EditorContent editor={editor} />
       </div>
 
-      {isColorMenuOpen && typeof document !== 'undefined' && createPortal(
+      {activeColorMenu && typeof document !== 'undefined' && createPortal(
         <div
           ref={colorDropdownRef}
           className="tiptap-color-dropdown tiptap-color-dropdown--portal"
           role="menu"
-          aria-label="형광펜 색상 선택"
+          aria-label={activeColorMenu === 'highlight' ? '형광펜 색상 선택' : '글자색 선택'}
           style={{
             top: `${colorMenuPosition.top}px`,
             left: `${colorMenuPosition.left}px`,
           }}
         >
-          {NOTE_HIGHLIGHT_PALETTE.map((highlight) => (
+          {(activeColorMenu === 'highlight' ? NOTE_HIGHLIGHT_PALETTE : NOTE_TEXT_COLOR_PALETTE).map((colorOption) => (
             <button
-              key={highlight.id}
+              key={colorOption.id}
               type="button"
-              className={`tiptap-color-swatch${activeHighlight?.id === highlight.id ? ' is-active' : ''}`}
-              style={{ background: highlight.color }}
+              className={`tiptap-color-swatch${
+                (activeColorMenu === 'highlight' ? activeHighlight?.id : activeTextColor?.id) === colorOption.id
+                  ? ' is-active'
+                  : ''
+              }`}
+              style={{ background: colorOption.color }}
               onMouseDown={(event) => {
                 event.preventDefault()
-                applyHighlight(highlight.color)
+                if (activeColorMenu === 'highlight') {
+                  applyHighlight(colorOption.color)
+                  return
+                }
+
+                applyTextColor(colorOption.color)
               }}
-              title={highlight.label}
-              aria-label={`${highlight.label} 강조`}
+              title={activeColorMenu === 'highlight' ? `${colorOption.label} 강조` : `${colorOption.label} 글자색`}
+              aria-label={activeColorMenu === 'highlight' ? `${colorOption.label} 강조` : `${colorOption.label} 글자색`}
             />
           ))}
           <button
@@ -427,10 +494,15 @@ const TiptapEditor = ({ value = '', onChange, placeholder = '내용을 입력하
             className="tiptap-color-clear"
             onMouseDown={(event) => {
               event.preventDefault()
-              clearHighlight()
+              if (activeColorMenu === 'highlight') {
+                clearHighlight()
+                return
+              }
+
+              clearTextColor()
             }}
           >
-            지우기
+            {activeColorMenu === 'highlight' ? '형광펜 지우기' : '글자색 지우기'}
           </button>
         </div>,
         document.body,

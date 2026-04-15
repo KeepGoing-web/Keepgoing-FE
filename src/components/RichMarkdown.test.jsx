@@ -25,4 +25,15 @@ describe('RichMarkdown', () => {
     expect(highlight).toBeInTheDocument()
     expect(container.textContent).toContain('<script>alert(1)</script>')
   })
+
+  it('renders safe note text colors from stored markdown html', () => {
+    const { container } = render(
+      <RichMarkdown>{'<span style="color: #8aadf4;">포인트</span>'}</RichMarkdown>,
+    )
+
+    const coloredText = container.querySelector('span[data-note-color="blue"]')
+
+    expect(coloredText).toBeInTheDocument()
+    expect(coloredText).toHaveTextContent('포인트')
+  })
 })

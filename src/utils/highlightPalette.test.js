@@ -8,6 +8,12 @@ describe('prepareMarkdownForRender', () => {
     expect(prepareMarkdownForRender(markdown)).toBe('<mark data-note-highlight="yellow">**중요**</mark> 메모')
   })
 
+  it('converts trusted text color spans into safe note color tags', () => {
+    const markdown = '<span style="color: #8aadf4;">파란 텍스트</span>'
+
+    expect(prepareMarkdownForRender(markdown)).toBe('<span data-note-color="blue">파란 텍스트</span>')
+  })
+
   it('escapes unsupported raw html while keeping the text', () => {
     const markdown = '<script>alert(1)</script><span style="color: red;">위험</span>'
 

@@ -613,11 +613,15 @@
   padding-bottom: 1px;
 }
 
+.tiptap-color-icon--text {
+  border-bottom-color: transparent;
+}
+
 .tiptap-color-dropdown {
   position: fixed;
   transform: translateX(-50%);
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 4px;
   padding: 8px;
   background: var(--bg-overlay);
