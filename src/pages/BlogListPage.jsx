@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { fetchNotes } from '../api/client'
 import { useVault } from '../contexts/VaultContext'
 import { useDebounce } from '../hooks/useDebounce'
+import NotesPageHeader from '../components/NotesPageHeader'
 import { setDraggedNote } from '../utils/noteDrag'
 import { estimateReadTime } from '../utils/format'
 import { buildNoteListParams, DEFAULT_NOTE_LIST_PAGE_META } from './blogListState'
@@ -182,16 +183,12 @@ const BlogListPage = () => {
   return (
     <div className="blog-main">
       <div className="note-shell-header">
-        <div className="note-shell-header-copy">
-          <p className="note-shell-kicker">문서 라이브러리</p>
-          <h1 className="note-shell-title">노트 보관함</h1>
-          <p className="note-shell-subtitle">
-            제목과 본문을 먼저 검색하고, 필요할 때만 고급 필터를 열어 문서를 좁혀보세요.
-          </p>
-        </div>
-        <div className="note-shell-header-actions">
-          <Link to="/notes/write" className="note-shell-create-btn">새 노트 작성</Link>
-        </div>
+        <NotesPageHeader
+          kicker="문서 라이브러리"
+          title="노트 보관함"
+          subtitle="제목과 본문을 먼저 검색하고, 필요할 때만 고급 필터를 열어 문서를 좁혀보세요."
+          actions={<Link to="/notes/write" className="notes-page-action">새 노트 작성</Link>}
+        />
       </div>
 
       <div className="search-bar-wrap">

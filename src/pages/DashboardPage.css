@@ -18,7 +18,6 @@
   gap: 0.95rem;
 }
 
-.dash-header,
 .dash-panel-head {
   display: flex;
   align-items: flex-end;
@@ -26,7 +25,6 @@
   gap: 1rem;
 }
 
-.dash-header-copy,
 .dash-panel-head > div,
 .dash-empty-state {
   display: flex;
@@ -35,7 +33,6 @@
   min-width: 0;
 }
 
-.dash-kicker,
 .dash-panel-kicker {
   margin: 0;
   color: var(--accent-dim);
@@ -45,38 +42,16 @@
   text-transform: uppercase;
 }
 
-.dash-title,
 .dash-panel-title {
   margin: 0;
   color: var(--text-primary);
   letter-spacing: -0.03em;
 }
 
-.dash-title {
-  font-size: 1.36rem;
-}
-
 .dash-panel-title {
   font-size: 0.96rem;
 }
 
-.dash-subtitle {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 0.8rem;
-  line-height: 1.55;
-  max-width: 48ch;
-}
-
-.dash-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.dash-write-btn,
-.dash-secondary-btn,
 .dash-search-submit {
   display: inline-flex;
   align-items: center;
@@ -89,22 +64,11 @@
   transition: color var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast), transform var(--transition-fast);
 }
 
-.dash-write-btn,
 .dash-search-submit {
   color: var(--accent);
   background: var(--accent-glow);
   border: 1px solid var(--accent-border-hover);
 }
-
-.dash-secondary-btn {
-  color: var(--text-secondary);
-  background: transparent;
-  border: 1px solid var(--border);
-}
-
-
-.dash-write-btn:hover,
-.dash-secondary-btn:hover,
 .dash-search-submit:hover:not(:disabled) {
   color: var(--accent);
   border-color: var(--accent-dim);
@@ -276,7 +240,6 @@
     padding: 1.1rem 1rem 2.2rem;
   }
 
-  .dash-header,
   .dash-panel-head,
   .dash-document-row,
   .dash-search-form {

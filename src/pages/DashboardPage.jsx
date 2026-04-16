@@ -4,6 +4,7 @@ import { useVault } from '../contexts/VaultContext'
 import { estimateReadTime, formatDate } from '../utils/format'
 import LoadingDots from '../components/LoadingDots'
 import AIChatPanel from '../components/AIChatPanel'
+import NotesPageHeader from '../components/NotesPageHeader'
 import './DashboardPage.css'
 
 const HOME_SCOPE = {
@@ -65,17 +66,21 @@ const DashboardPage = () => {
   if (allNotes.length === 0) {
     return (
       <div className="dash-page dash-page--empty">
-        <div className="dash-scroll">
-          <div className="dash-empty-state">
-            <p className="dash-kicker">노트</p>
-            <h1 className="dash-title">노트가 아직 없습니다.</h1>
-            <p className="dash-subtitle">새 노트를 만들면 여기서 바로 이어볼 수 있습니다.</p>
-            <div className="dash-header-actions">
-              <Link to="/notes/write" className="dash-write-btn">새 노트</Link>
-              <Link to="/notes/list" className="dash-secondary-btn">보관함</Link>
-            </div>
-          </div>
+      <div className="dash-scroll">
+        <div className="dash-empty-state">
+          <NotesPageHeader
+            kicker="노트"
+            title="최근 노트"
+            subtitle="새 노트를 만들면 여기서 바로 이어볼 수 있습니다."
+            actions={(
+              <>
+                <Link to="/notes/write" className="notes-page-action">새 노트</Link>
+                <Link to="/notes/list" className="notes-page-action--secondary">보관함</Link>
+              </>
+            )}
+          />
         </div>
+      </div>
       </div>
     )
   }
@@ -83,17 +88,17 @@ const DashboardPage = () => {
   return (
     <div className="dash-page">
       <div className="dash-scroll">
-        <header className="dash-header">
-          <div className="dash-header-copy">
-            <p className="dash-kicker">노트</p>
-            <h1 className="dash-title">최근 노트</h1>
-            <p className="dash-subtitle">최근 수정한 노트를 확인합니다.</p>
-          </div>
-          <div className="dash-header-actions">
-            <Link to="/notes/write" className="dash-write-btn">새 노트</Link>
-            <Link to="/notes/list" className="dash-secondary-btn">보관함</Link>
-          </div>
-        </header>
+        <NotesPageHeader
+          kicker="노트"
+          title="최근 노트"
+          subtitle="최근 수정한 노트를 확인합니다."
+          actions={(
+            <>
+              <Link to="/notes/write" className="notes-page-action">새 노트</Link>
+              <Link to="/notes/list" className="notes-page-action--secondary">보관함</Link>
+            </>
+          )}
+        />
 
         <div className="dash-meta-line">
           <span>총 {allNotes.length}개 노트</span>
