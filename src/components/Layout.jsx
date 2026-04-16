@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import AIChatPanel from "./AIChatPanel";
 import CommandPalette from "./CommandPalette";
+import NotesHeaderNav from "./NotesHeaderNav";
 import { OPEN_AI_PANEL_EVENT, buildRAGWorkspaceHref } from "../utils/ai";
 import "./Layout.css";
 
@@ -18,7 +19,7 @@ function getInitialTheme() {
 }
 
 const Layout = () => {
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -73,8 +74,6 @@ const Layout = () => {
   const isActive = (path) => location.pathname.startsWith(path);
   const isNotesHome = location.pathname === "/notes";
 
-  const toggleAiPanel = () => setAiPanelOpen((prev) => !prev);
-
   const handleAIQuery = useCallback((payload) => {
     const nextPayload = typeof payload === "string" ? { query: payload } : payload;
 
@@ -112,62 +111,15 @@ const Layout = () => {
     <div className="layout">
       <a href="#main-content" className="skip-to-content">본문으로 건너뛰기</a>
       <header className="header">
-        <div className="header-content">
-          <Link to="/notes" className="logo">
-            keepgoing
-          </Link>
-          <button
-            className="nav-mobile-toggle"
-            onClick={() => setNavOpen((v) => !v)}
-            aria-label="메뉴"
-          >
-            {navOpen ? "✕" : "☰"}
-          </button>
-          <nav className={`nav${navOpen ? " nav--mobile-open" : ""}`}>
-            <Link to="/notes" className={isActive("/notes") ? "active" : ""}>
-              노트
-            </Link>
-            <Link to="/query" className={isActive("/query") ? "active" : ""}>
-              AI 질의
-            </Link>
-          </nav>
-          <div className="user-menu">
-            <button
-              className="cmd-trigger-btn"
-              onClick={() => setCommandPaletteOpen(true)}
-              title="검색 (Ctrl+K)"
-              aria-label="검색 팔레트 열기"
-            >
-              ⌕ <kbd className="cmd-trigger-kbd">⌘K</kbd>
-            </button>
-            {!isNotesHome && (
-              <button
-                className={`ai-toggle-btn${aiPanelOpen ? " ai-toggle-btn--active" : ""}`}
-                onClick={toggleAiPanel}
-                title={aiPanelOpen ? "AI 패널 닫기" : "AI 패널 열기"}
-                aria-label={aiPanelOpen ? "AI 패널 닫기" : "AI 패널 열기"}
-                aria-pressed={aiPanelOpen}
-              >
-                ⬡
-              </button>
-            )}
-            <button
-              className="theme-toggle-btn"
-              onClick={toggleTheme}
-              title={theme === "dark" ? "라이트 모드로 전환" : "다크 모드로 전환"}
-              aria-label={theme === "dark" ? "라이트 모드로 전환" : "다크 모드로 전환"}
-            >
-              {theme === "dark" ? "☀" : "☾"}
-            </button>
-            <Link to="/settings/account" className="user-settings-link">
-              설정
-            </Link>
-            <span className="user-name">{user?.name}</span>
-            <button onClick={handleLogout} className="logout-btn">
-              로그아웃
-            </button>
-          </div>
-        </div>
+        <NotesHeaderNav
+          navOpen={navOpen}
+          onToggleNav={() => setNavOpen((v) => !v)}
+          isActive={isActive}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onLogout={handleLogout}
+          onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+        />
       </header>
       <div className="layout-body">
         <main id="main-content" className={`main-content${aiPanelOpen && !isNotesHome ? " main-content--panel-open" : ""}`}>
