@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import '../styles/hljs-theme.css'
 import './BlogDetailPage.css'
@@ -23,6 +23,8 @@ const BlogDetailPage = () => {
   const [post, setPost] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef(null)
 
   const vault = useVaultOptional()
   const addRecentNote = vault?.addRecentNote ?? null
@@ -50,6 +52,19 @@ const BlogDetailPage = () => {
     }
     void load()
   }, [addRecentNote, id, notesRevision])
+
+  useEffect(() => {
+    if (!menuOpen) return undefined
+
+    const handlePointerDown = (event) => {
+      if (!menuRef.current?.contains(event.target)) {
+        setMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+    return () => document.removeEventListener('mousedown', handlePointerDown)
+  }, [menuOpen])
 
   const getVisibilityLabel = (visibility) => {
     switch (visibility) {
@@ -126,7 +141,22 @@ const BlogDetailPage = () => {
             관련 문서
           </Link>
           <Link to={`/notes/edit/${post.id}`} className="edit-button">수정</Link>
-          <button className="delete-button" onClick={handleDelete}>삭제</button>
+          <div className="blog-more-menu" ref={menuRef}>
+            <button
+              type="button"
+              className="more-button"
+              aria-expanded={menuOpen}
+              aria-label="추가 작업"
+              onClick={() => setMenuOpen((open) => !open)}
+            >
+              ⋯
+            </button>
+            {menuOpen ? (
+              <div className="blog-more-popover" role="menu">
+                <button type="button" className="blog-more-item" role="menuitem" onClick={handleDelete}>삭제</button>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -135,7 +165,6 @@ const BlogDetailPage = () => {
           <h1>{post.title}</h1>
           <div className="blog-meta">
             <span className="visibility-badge">{getVisibilityLabel(post.visibility)}</span>
-            {post.aiCollectable && <span className="ai-badge">AI 수집 가능</span>}
             <span className="blog-date">작성일: {formatDate(post.createdAt)}</span>
             <span className="blog-read-time">· {estimateReadTime(post.content)}분 읽기</span>
           </div>

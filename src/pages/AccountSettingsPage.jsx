@@ -42,6 +42,7 @@ const AccountSettingsPage = () => {
     () => name.trim().length > 0 && name.trim() !== String(user?.name ?? '').trim(),
     [name, user?.name],
   )
+  const loginMethodLabel = user?.email ? '이메일 로그인' : '소셜 로그인'
 
   const handleProfileSubmit = async (event) => {
     event.preventDefault()
@@ -98,24 +99,26 @@ const AccountSettingsPage = () => {
       <div className="account-settings-shell">
         <header className="account-settings-header">
           <div>
-            <p className="account-settings-eyebrow">Account</p>
             <h1>계정 설정</h1>
-            <p className="account-settings-copy">백엔드에 추가된 사용자 정보 수정과 비밀번호 변경 흐름을 여기서 바로 연결했습니다.</p>
+            <p className="account-settings-copy">수정 가능한 정보만 간단하게 정리해뒀습니다.</p>
           </div>
         </header>
 
-        <div className="account-settings-grid">
-          <section className="account-settings-card" aria-labelledby="profile-settings-title">
+        <section className="account-settings-card account-settings-card--stacked">
+          <div className="account-settings-section">
             <div className="account-settings-card-head">
               <h2 id="profile-settings-title">프로필</h2>
-              <p>이름 변경은 즉시 현재 세션에 반영됩니다.</p>
             </div>
 
             <form className="account-settings-form" onSubmit={handleProfileSubmit}>
-              <label className="account-settings-field">
-                <span>이메일</span>
-                <input value={user?.email ?? ''} disabled />
-              </label>
+              <div className="account-settings-info">
+                <span className="account-settings-info-label">이메일</span>
+                <strong className="account-settings-info-value">{user?.email ?? '-'}</strong>
+              </div>
+              <div className="account-settings-info">
+                <span className="account-settings-info-label">로그인 방식</span>
+                <span className="account-settings-method-badge">● {loginMethodLabel}</span>
+              </div>
               <label className="account-settings-field">
                 <span>이름</span>
                 <input
@@ -125,25 +128,23 @@ const AccountSettingsPage = () => {
                   placeholder="이름을 입력하세요"
                 />
               </label>
-              <label className="account-settings-field">
-                <span>권한</span>
-                <input value={user?.role ?? 'USER'} disabled />
-              </label>
 
               {profileError ? <p className="account-settings-error">{profileError}</p> : null}
 
-              <div className="account-settings-actions">
+              <div className="account-settings-actions account-settings-actions--start">
                 <button type="submit" className="account-settings-primary" disabled={!canSubmitProfile || profileSaving}>
                   {profileSaving ? '저장 중...' : '프로필 저장'}
                 </button>
               </div>
             </form>
-          </section>
+          </div>
 
-          <section className="account-settings-card" aria-labelledby="password-settings-title">
+          <div className="account-settings-divider" />
+
+          <div className="account-settings-section">
             <div className="account-settings-card-head">
-              <h2 id="password-settings-title">비밀번호</h2>
-              <p>로컬 비밀번호 계정만 변경할 수 있습니다.</p>
+              <h2 id="password-settings-title">비밀번호 변경</h2>
+              <p>이메일 로그인 계정만 비밀번호를 변경할 수 있습니다.</p>
             </div>
 
             <form className="account-settings-form" onSubmit={handlePasswordSubmit}>
@@ -179,23 +180,23 @@ const AccountSettingsPage = () => {
               </label>
 
               <p className="account-settings-hint">
-                8~64자, 영문 대/소문자, 숫자, 특수문자(!@#$%^&*)를 모두 포함해야 합니다.
+                8~64자, 영문 대/소문자, 숫자, 특수문자를 포함해야 합니다.
               </p>
 
               {passwordError ? <p className="account-settings-error">{passwordError}</p> : null}
 
-              <div className="account-settings-actions">
+              <div className="account-settings-actions account-settings-actions--start">
                 <button
                   type="submit"
-                  className="account-settings-primary"
+                  className="account-settings-secondary"
                   disabled={passwordSaving || !currentPassword || !newPassword || !confirmPassword}
                 >
                   {passwordSaving ? '변경 중...' : '비밀번호 변경'}
                 </button>
               </div>
             </form>
-          </section>
-        </div>
+          </div>
+        </section>
       </div>
     </div>
   )

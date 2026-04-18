@@ -36,16 +36,17 @@ const BlogWritePage = () => {
   const [saving, setSaving] = useState(false)
   const [isDirty, setIsDirty] = useState(false)
   const [error, setError] = useState(null)
-  const [metaOpen, setMetaOpen] = useState(() => window.innerWidth > MOBILE_BREAKPOINT)
+  const [metaOpen, setMetaOpen] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
-  const showMetaPanel = !isMobileViewport || metaOpen
+  const showMetaPanel = isMobileViewport && metaOpen
+  const shouldRenderMetaPanel = isMobileViewport
 
   useEffect(() => {
     const handleResize = () => {
       const nextIsMobile = window.innerWidth <= MOBILE_BREAKPOINT
       setIsMobileViewport(nextIsMobile)
       if (!nextIsMobile) {
-        setMetaOpen(true)
+        setMetaOpen(false)
       }
     }
 
@@ -138,8 +139,8 @@ const BlogWritePage = () => {
   }
 
   const visibilityOptions = [
-    { value: 'PUBLIC', label: '공개', icon: '🌐' },
-    { value: 'PRIVATE', label: '비공개', icon: '🔒' },
+    { value: 'PUBLIC', label: '공개' },
+    { value: 'PRIVATE', label: '비공개' },
   ]
 
   const visibilityLabel = visibilityOptions.find((option) => option.value === formData.visibility)?.label || '공개'
@@ -195,7 +196,6 @@ const BlogWritePage = () => {
                 title={option.label}
                 aria-pressed={formData.visibility === option.value}
               >
-                <span className="bw-vis-icon">{option.icon}</span>
                 <span className="bw-vis-label">{option.label}</span>
               </button>
             ))}
@@ -219,16 +219,6 @@ const BlogWritePage = () => {
             aria-controls="note-preview-panel"
           >
             미리보기
-          </button>
-
-          <button
-            type="button"
-            className={`bw-btn bw-btn--ghost bw-meta-toggle ${metaOpen ? 'active' : ''}`}
-            onClick={() => setMetaOpen((open) => !open)}
-            aria-expanded={showMetaPanel}
-            title="문서 인스펙터"
-          >
-설정
           </button>
 
           <button type="button" className="bw-btn bw-btn--ghost" onClick={handleBack}>
@@ -292,7 +282,8 @@ const BlogWritePage = () => {
           </div>
         </div>
 
-        <aside className={`bw-meta-panel ${showMetaPanel ? 'open' : ''}`} aria-hidden={!showMetaPanel}>
+        {shouldRenderMetaPanel && (
+          <aside className={`bw-meta-panel ${showMetaPanel ? 'open' : ''}`} aria-hidden={!showMetaPanel}>
           <div className="bw-inspector-overview">
             <span className="bw-inspector-kicker">노트 정보</span>
             <strong className="bw-inspector-title">{formData.title.trim() || (isEdit ? '제목 없는 노트' : '새 노트')}</strong>
@@ -312,7 +303,8 @@ const BlogWritePage = () => {
               <strong>{visibilityLabel}</strong>
             </div>
           </div>
-        </aside>
+          </aside>
+        )}
       </div>
 
       <div className="bw-status-bar">

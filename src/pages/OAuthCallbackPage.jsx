@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import AuthShell from '../components/auth/AuthShell'
+import '../components/auth/AuthShell.css'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function OAuthCallbackPage() {
@@ -25,9 +25,8 @@ export default function OAuthCallbackPage() {
   }, [navigate, oauthLogin])
 
   return (
-    <AuthShell cardClassName="auth-card--compact">
-      <p className="auth-status-text auth-status-text--strong">로그인 처리 중...</p>
-      <p className="auth-status-text auth-status-text--muted">Google 계정을 확인하고 잠시 후 이동합니다.</p>
-    </AuthShell>
+    <div className="auth-callback-screen" role="status" aria-live="polite">
+      <p className="auth-callback-text">로그인 처리 중...</p>
+    </div>
   )
 }

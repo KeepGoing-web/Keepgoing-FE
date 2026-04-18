@@ -31,7 +31,6 @@ describe('OAuthCallbackPage', () => {
     render(<OAuthCallbackPage />)
 
     expect(screen.getByText('로그인 처리 중...')).toBeInTheDocument()
-    expect(screen.getByText('Google 계정을 확인하고 잠시 후 이동합니다.')).toBeInTheDocument()
   })
 
   it('navigates to notes when oauth login succeeds', async () => {

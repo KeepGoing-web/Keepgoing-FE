@@ -269,6 +269,23 @@
   line-height: 20px;
 }
 
+.auth-callback-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  background: var(--bg-secondary);
+}
+
+.auth-callback-text {
+  color: var(--text-muted);
+  font-family: var(--font-korean);
+  font-size: 14px;
+  line-height: 22px;
+  text-align: center;
+}
+
 @media (max-width: 520px) {
   .auth-screen {
     padding: 24px 16px;

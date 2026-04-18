@@ -54,8 +54,8 @@
 }
 
 .edit-button,
-.delete-button,
-.related-button {
+.related-button,
+.more-button {
   padding: 0.45rem 0.95rem;
   text-decoration: none;
   border-radius: 999px;
@@ -74,8 +74,8 @@
   align-items: center;
 }
 
-.delete-button,
-.related-button {
+.related-button,
+.more-button {
   color: var(--text-secondary);
   background-color: transparent;
   border: 1px solid var(--border);
@@ -88,10 +88,45 @@
   background-color: var(--accent-glow);
 }
 
-.delete-button:hover {
+.more-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  padding-inline: 0.7rem;
+}
+
+.blog-more-menu {
+  position: relative;
+}
+
+.blog-more-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 96px;
+  padding: 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-primary);
+  box-shadow: 0 12px 24px var(--shadow-overlay);
+  z-index: 20;
+}
+
+.blog-more-item {
+  width: 100%;
+  padding: 0.5rem 0.7rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
   color: var(--danger, #f38ba8);
-  border-color: var(--danger, #f38ba8);
-  background-color: rgba(243, 139, 168, 0.08);
+  text-align: left;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.blog-more-item:hover {
+  background: rgba(243, 139, 168, 0.08);
 }
 
 .blog-article {
@@ -118,8 +153,7 @@
   color: var(--text-muted);
 }
 
-.visibility-badge,
-.ai-badge {
+.visibility-badge {
   padding: 2px 8px;
   border-radius: 999px;
   font-size: 0.72rem;
@@ -131,12 +165,6 @@
   background-color: var(--badge-public-bg);
   color: var(--badge-public-text);
   border: 1px solid rgba(166, 227, 161, 0.2);
-}
-
-.ai-badge {
-  background-color: var(--badge-ai-bg);
-  color: var(--badge-ai-text);
-  border: 1px solid rgba(137, 220, 235, 0.2);
 }
 
 
