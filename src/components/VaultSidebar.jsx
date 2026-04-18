@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useVault } from '../contexts/VaultContext'
+import NotesSidebarHeader from './NotesSidebarHeader'
+import NotesSidebarSection from './NotesSidebarSection'
 import { useToast } from '../contexts/ToastContext'
 import { useConfirm } from './ConfirmModal'
 import { clearDraggedNote, getDraggedNote, setDraggedNote } from '../utils/noteDrag'
@@ -17,26 +19,6 @@ const MOBILE_SIDEBAR_MEDIA = '(max-width: 680px)'
 function isMobileSidebarViewport() {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
   return window.matchMedia(MOBILE_SIDEBAR_MEDIA).matches
-}
-
-const SidebarSection = ({ title, children, defaultOpen = true, aside, className = '', contentClassName = '' }) => {
-  const [open, setOpen] = useState(defaultOpen)
-  return (
-    <section className={`sidebar-section${className ? ` ${className}` : ''}`}>
-      <button
-        className="sidebar-section-header"
-        onClick={() => setOpen((current) => !current)}
-        aria-expanded={open}
-      >
-        <span className="sidebar-section-title-wrap">
-          <i className={`sidebar-section-chevron${open ? ' open' : ''}`}>▶</i>
-          <span>{title}</span>
-        </span>
-        {aside ? <span className="sidebar-section-aside">{aside}</span> : null}
-      </button>
-      {open ? <div className={`sidebar-section-content${contentClassName ? ` ${contentClassName}` : ''}`}>{children}</div> : null}
-    </section>
-  )
 }
 
 function matchesQuery(value, query) {
@@ -90,6 +72,48 @@ function isFolderMoveInvalid(draggedFolder, targetParentId, categories) {
   return getFolderAncestry(normalizedTargetParentId, categories).includes(draggedFolderId)
 }
 
+function collectFolderIds(folderId, categories) {
+  const currentId = String(folderId)
+  const childIds = categories
+    .filter((category) => String(category.parentId) === currentId)
+    .flatMap((category) => collectFolderIds(category.id, categories))
+
+  return [currentId, ...childIds]
+}
+
+function getFolderNoteCount(folderId, categories, notes) {
+  const folderIds = new Set(collectFolderIds(folderId, categories))
+  return notes.filter((note) => {
+    const noteFolderId = note.folderId ?? note.categoryId ?? note.category?.id ?? null
+    return noteFolderId != null && folderIds.has(String(noteFolderId))
+  }).length
+}
+
+const FolderGlyph = ({ open = false }) => (
+  <svg className="tree-glyph tree-glyph--folder" viewBox="0 0 14 14" aria-hidden="true">
+    <path
+      d="M1.75 4.25h3.1l1.15 1.2H12a.75.75 0 0 1 .75.75v4.45a.75.75 0 0 1-.75.75H2a.75.75 0 0 1-.75-.75V5a.75.75 0 0 1 .5-.7Z"
+      fill={open ? 'var(--accent-glow)' : 'var(--bg-primary)'}
+      stroke={open ? 'var(--accent-border-hover)' : 'var(--border-light)'}
+      strokeWidth="1"
+      strokeLinejoin="round"
+    />
+  </svg>
+)
+
+const FileGlyph = () => (
+  <svg className="tree-glyph tree-glyph--file" viewBox="0 0 12 14" aria-hidden="true">
+    <path
+      d="M3 1.5h4.25L9.5 3.75v8a.75.75 0 0 1-.75.75H3a.75.75 0 0 1-.75-.75v-9.5A.75.75 0 0 1 3 1.5Z"
+      fill="var(--bg-primary)"
+      stroke="var(--border-light)"
+      strokeWidth="1"
+      strokeLinejoin="round"
+    />
+    <path d="M7.25 1.5v2.25H9.5" stroke="var(--border-light)" strokeWidth="1" strokeLinejoin="round" />
+  </svg>
+)
+
 const DraftFolderRow = ({
   draftName,
   placeholder,
@@ -101,7 +125,7 @@ const DraftFolderRow = ({
 }) => (
   <li className="tree-folder tree-folder--draft">
     <form className="tree-folder-draft-form" onSubmit={onDraftSubmit}>
-      <span className="tree-folder-draft-icon" aria-hidden="true">📁</span>
+      <span className="tree-folder-draft-icon tree-folder-draft-icon--folder" aria-hidden="true" />
       <input
         className="tree-folder-draft-input"
         value={draftName}
@@ -126,7 +150,7 @@ const DraftNoteRow = ({
 }) => (
   <li className="tree-folder tree-folder--draft">
     <form className="tree-folder-draft-form" onSubmit={onDraftSubmit}>
-      <span className="tree-folder-draft-icon" aria-hidden="true">📄</span>
+      <span className="tree-folder-draft-icon tree-folder-draft-icon--file" aria-hidden="true" />
       <input
         className="tree-folder-draft-input"
         value={draftName}
@@ -189,6 +213,7 @@ const FolderNode = ({
   const isDropTarget = dropTargetId === String(folder.id)
   const showDraftHere = draftFolder?.mode === 'create' && String(draftFolder.parentId ?? '') === String(folder.id)
   const showRenameDraft = draftFolder?.mode === 'rename' && String(draftFolder.folderId) === String(folder.id)
+  const folderNoteCount = getFolderNoteCount(folder.id, categories, notes)
 
   if (!searchQuery && visibleChildFolders.length === 0 && directNotes.length === 0 && !folderHasMatch(folder, categories, notes, searchQuery)) {
     return null
@@ -220,7 +245,7 @@ const FolderNode = ({
           onClick={() => toggleFolder(folder.id)}
           aria-label={isOpen ? '폴더 닫기' : '폴더 열기'}
         >
-          <span className="tree-folder-icon">{isOpen ? '📂' : '📁'}</span>
+          <span className={`tree-chevron${isOpen ? ' is-open' : ''}`} aria-hidden="true">›</span>
         </button>
         <button
           ref={(node) => registerFolderButton(folder.id, node)}
@@ -242,8 +267,9 @@ const FolderNode = ({
             onFolderContextMenu(folder, event)
           }}
         >
+          <FolderGlyph open={isOpen} />
           <span className="tree-label">{folder.name}</span>
-          <span className="sidebar-item-count">{directNotes.length}</span>
+          <span className="sidebar-item-count">{folderNoteCount}</span>
         </button>
       </div>
 
@@ -328,7 +354,7 @@ const FolderNode = ({
                   onDragEnd={onNoteDragEnd}
                   title={note.title}
                 >
-                  <span className="tree-file-icon">📄</span>
+                  <FileGlyph />
                   <span className="tree-file-label">{note.title}</span>
                 </button>
               </li>
@@ -526,7 +552,7 @@ const CategoryTree = ({
                 onDragEnd={onNoteDragEnd}
                 title={note.title}
               >
-                <span className="tree-file-icon">📄</span>
+                <FileGlyph />
                 <span className="tree-file-label">{note.title}</span>
               </button>
             </li>
@@ -559,7 +585,6 @@ const VaultSidebar = () => {
   const {
     allNotes,
     categories,
-    recentNotes,
     categoryId,
     setCategoryId,
     navigateToNote,
@@ -573,7 +598,6 @@ const VaultSidebar = () => {
     deleteNote: deleteNoteInVault,
   } = useVault()
 
-  const [explorerQuery, setExplorerQuery] = useState('')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     if (isMobileSidebarViewport()) {
       return true
@@ -613,10 +637,7 @@ const VaultSidebar = () => {
   const folderButtonRefs = useRef(new Map())
   const rootFolderButtonRef = useRef(null)
 
-  const filteredRecentNotes = recentNotes
-    .map((note) => allNotes.find((candidate) => String(candidate.id) === String(note.id)) || note)
-    .filter((note) => matchesQuery(note.title, explorerQuery.trim().toLowerCase()))
-    .slice(0, 5)
+  const normalizedQuery = ''
   const showFolderSelection = !activePostId
 
   useEffect(() => {
@@ -751,6 +772,11 @@ const VaultSidebar = () => {
       }
       return next
     })
+  }
+
+  const handleSidebarToggleClick = (event) => {
+    toggleSidebar()
+    event.currentTarget.blur()
   }
 
   const handleFolderClick = (folderId) => {
@@ -1083,7 +1109,7 @@ const VaultSidebar = () => {
     >
       <button
         className="sidebar-toggle"
-        onClick={toggleSidebar}
+        onClick={handleSidebarToggleClick}
         title={sidebarCollapsed ? '탐색기 열기' : '탐색기 닫기'}
         aria-label={sidebarCollapsed ? '탐색기 열기' : '탐색기 닫기'}
       >
@@ -1173,66 +1199,9 @@ const VaultSidebar = () => {
           </div>
         ) : null}
 
-        <div className="sidebar-minimal-header">
-          <div>
-            <span className="sidebar-minimal-title">문서</span>
-            <p className="sidebar-minimal-copy">최근 문서와 폴더만 조용하게 정리합니다.</p>
-          </div>
-          <Link to="/notes/write" className="sidebar-new-note-btn">✦</Link>
-        </div>
+        <NotesSidebarHeader noteCount={allNotes.length} />
 
-        <div className="sidebar-search-wrap">
-          <span className="sidebar-search-icon">⌕</span>
-          <input
-            className="sidebar-search-input"
-            value={explorerQuery}
-            onChange={(event) => setExplorerQuery(event.target.value)}
-            placeholder="문서 찾기"
-            aria-label="탐색기 검색"
-          />
-          {explorerQuery ? (
-            <button type="button" className="sidebar-search-clear" onClick={() => setExplorerQuery('')}>
-              ×
-            </button>
-          ) : null}
-        </div>
-
-        {filteredRecentNotes.length > 0 && (
-          <SidebarSection title="최근 문서" defaultOpen>
-            <ul className="sidebar-items sidebar-list-plain">
-              {filteredRecentNotes.map((note) => (
-                draftNote?.surface === 'recent' && String(draftNote.noteId) === String(note.id) ? (
-                  <DraftNoteRow
-                    key={note.id}
-                    draftName={draftNoteTitle}
-                    placeholder={draftNote.placeholder}
-                    onDraftNameChange={setDraftNoteTitle}
-                    onDraftSubmit={handleDraftNoteSubmit}
-                    onDraftKeyDown={handleDraftNoteKeyDown}
-                    disabled={isRenamingNote}
-                  />
-                ) : (
-                  <li key={note.id}>
-                    <button
-                      draggable={String(movingNoteId) !== String(note.id)}
-                      className={`sidebar-item sidebar-file-item recent-file-item${draggingNoteId === String(note.id) ? ' is-dragging' : ''}`}
-                      onClick={() => navigate(`/notes/${note.id}`)}
-                      onContextMenu={(event) => openNoteContextMenu(note, event, 'recent')}
-                      onDragStart={(event) => handleNoteDragStart(event, note)}
-                      onDragEnd={handleNoteDragEnd}
-                      title={note.title}
-                    >
-                      <span className="recent-file-dot">·</span>
-                      <span className="recent-file-label">{note.title}</span>
-                    </button>
-                  </li>
-                )
-              ))}
-            </ul>
-          </SidebarSection>
-        )}
-
-        <SidebarSection title="폴더" defaultOpen aside="우클릭 +" className="sidebar-section--folders" contentClassName="sidebar-section-content--fill">
+        <NotesSidebarSection title="노트 폴더" defaultOpen className="sidebar-section--folders" contentClassName="sidebar-section-content--fill">
           <div className="sidebar-folder-surface" onContextMenu={(event) => openFolderContextMenu(event, null)}>
             <CategoryTree
               categories={categories}
@@ -1241,7 +1210,7 @@ const VaultSidebar = () => {
               activeFolderId={showFolderSelection ? categoryId : ''}
               onFolderClick={handleFolderClick}
               activePostId={activePostId}
-              searchQuery={explorerQuery.trim().toLowerCase()}
+              searchQuery={normalizedQuery}
               onTreeContextMenu={(event) => openFolderContextMenu(event, null)}
               onFolderContextMenu={(folder, event) => openFolderContextMenu(event, folder)}
               onNoteContextMenu={openNoteContextMenu}
@@ -1272,13 +1241,8 @@ const VaultSidebar = () => {
               rootFolderButtonRef={rootFolderButtonRef}
             />
           </div>
-        </SidebarSection>
+        </NotesSidebarSection>
 
-        {categoryId ? (
-          <button type="button" className="sidebar-reset-btn" onClick={() => { resetFilters(); navigate('/notes/list') }}>
-            선택 해제
-          </button>
-        ) : null}
       </div>
     </aside>
   )

@@ -372,6 +372,26 @@ describe('VaultSidebar', () => {
     expect(screen.queryByRole('button', { name: /인박스 문서/i })).not.toBeInTheDocument()
   })
 
+  it('renders the figma-inspired sidebar header labels', () => {
+    renderSidebar()
+
+    expect(screen.getByText('콘텐츠')).toBeInTheDocument()
+    expect(document.querySelector('.sidebar-minimal-count')).toHaveTextContent(/노트\s*\d+개/)
+    expect(screen.getByText('노트')).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByText('블로그')).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByText('노트 폴더')).toBeInTheDocument()
+  })
+
+  it('releases focus from the sidebar toggle immediately after it is clicked', async () => {
+    const user = userEvent.setup()
+    renderSidebar()
+
+    const toggle = screen.getByRole('button', { name: '탐색기 닫기' })
+    await user.click(toggle)
+
+    expect(toggle).not.toHaveFocus()
+  })
+
   it('does not keep folder or recent-note active styling when a note page is open', () => {
     const { container } = renderSidebar({
       categoryId: 'folder_1',
@@ -381,7 +401,7 @@ describe('VaultSidebar', () => {
     expect(screen.getByRole('button', { name: /Inbox/i })).not.toHaveClass('active')
 
     const recentNoteButton = container.querySelector('.recent-file-item')
-    expect(recentNoteButton).not.toHaveClass('active')
+    expect(recentNoteButton).toBeNull()
 
     const treeNoteButton = container.querySelector('.sidebar-tree-surface .sidebar-file-item:not(.recent-file-item)')
     expect(treeNoteButton).toHaveClass('active')

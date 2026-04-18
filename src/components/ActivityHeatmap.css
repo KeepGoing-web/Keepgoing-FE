@@ -1,112 +1,131 @@
-/* ── ActivityHeatmap — GitHub-style contribution grid ── */
-
 .heatmap {
+  width: min(100%, 438px);
+  margin-left: auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  align-items: flex-end;
+  gap: 8px;
 }
 
-.heatmap-header {
+.heatmap-topline {
+  width: 100%;
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.heatmap-streak {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-}
-
-.heatmap-streak-value {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--accent);
-  font-family: var(--font-mono);
-  line-height: 1;
-}
-
-.heatmap-streak-label {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
+  justify-content: flex-end;
 }
 
 .heatmap-total {
-  font-size: 0.72rem;
-  color: var(--text-muted);
+  color: var(--text-faint);
   font-family: var(--font-mono);
+  font-size: 0.65rem;
+  line-height: 1.4;
 }
 
-/* Grid */
+.heatmap-month {
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  line-height: 14px;
+}
+
 .heatmap-grid {
+  width: 100%;
   display: flex;
-  gap: 3px;
-  overflow-x: auto;
-  padding-bottom: 4px;
+  justify-content: flex-end;
+  gap: 16px;
+}
+
+.heatmap-month-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.heatmap-month-weeks {
+  display: flex;
+  gap: 5px;
 }
 
 .heatmap-col {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 5px;
 }
 
 .heatmap-cell {
-  width: 11px;
-  height: 11px;
-  border-radius: 2px;
-  transition: outline-color var(--transition-fast);
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  box-sizing: border-box;
+  transition: outline-color var(--transition-fast), transform var(--transition-fast);
 }
 
 .heatmap-cell:hover {
-  outline: 1px solid var(--text-muted);
+  outline: 1px solid color-mix(in srgb, var(--accent) 30%, white);
   outline-offset: 1px;
+  transform: translateY(-1px);
 }
 
-.heatmap-cell--0 {
-  background: var(--bg-surface);
+.heatmap-cell--0,
+.heatmap-cell--empty {
+  background: var(--bg-primary);
+  border-color: var(--border);
 }
 
 .heatmap-cell--1 {
-  background: var(--accent-border);
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-primary));
 }
 
 .heatmap-cell--2 {
-  background: var(--accent-border-active);
+  background: color-mix(in srgb, var(--accent) 24%, var(--bg-primary));
 }
 
 .heatmap-cell--3 {
   background: var(--accent);
 }
 
-/* Legend */
 .heatmap-legend {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 6px;
+  margin-top: 2px;
   align-self: flex-end;
 }
 
 .heatmap-legend .heatmap-cell {
   width: 9px;
   height: 9px;
+  border-radius: 2px;
 }
 
 .heatmap-legend-label {
-  font-size: 0.65rem;
   color: var(--text-faint);
-  padding: 0 4px;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
+@media (max-width: 920px) {
+  .heatmap {
+    width: 100%;
+    align-items: flex-start;
+    margin-left: 0;
+  }
+
+  .heatmap-topline,
   .heatmap-grid {
-    max-width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .heatmap-grid {
+    overflow-x: auto;
+    padding-bottom: 2px;
   }
 
   .heatmap-cell {
-    width: 9px;
-    height: 9px;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
   }
 }

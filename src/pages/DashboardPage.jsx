@@ -1,59 +1,35 @@
 import { Link } from 'react-router-dom'
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useVault } from '../contexts/VaultContext'
-import { estimateReadTime, formatDate } from '../utils/format'
+import { deriveDashboardTodoGroups } from '../utils/dashboardTasks'
 import LoadingDots from '../components/LoadingDots'
-import AIChatPanel from '../components/AIChatPanel'
+import ActivityHeatmap from '../components/ActivityHeatmap'
 import NotesPageHeader from '../components/NotesPageHeader'
 import './DashboardPage.css'
 
-const HOME_SCOPE = {
-  mode: 'all',
-  currentNoteId: null,
-  aiOnly: true,
-}
+const EMPTY_STATE_SUBTITLE = '새 노트를 만들면 여기서 바로 이어볼 수 있습니다.'
 
+const SHORT_DATE_FORMATTER = new Intl.DateTimeFormat('ko-KR', {
+  timeZone: 'Asia/Seoul',
+  month: '2-digit',
+  day: '2-digit',
+})
 
-const VISIBILITY_LABELS = {
-  PUBLIC: '공개',
-  PRIVATE: '비공개',
-  AI_COLLECTABLE: '활용 가능',
+function formatCompactDate(value) {
+  return SHORT_DATE_FORMATTER.format(new Date(value)).replace(/\.\s*$/, '')
 }
 
 const DashboardPage = () => {
-  const { allNotes, categoryStats, loading, navigateToNote } = useVault()
-  const [prompt, setPrompt] = useState('')
-  const [inlineChatOpen, setInlineChatOpen] = useState(false)
-  const [externalRequest, setExternalRequest] = useState(null)
+  const { allNotes, loading, navigateToNote } = useVault()
 
-  const latestNotes = useMemo(
-    () => [...allNotes]
-      .sort((left, right) => new Date(right.updatedAt || right.createdAt || 0) - new Date(left.updatedAt || left.createdAt || 0))
-      .slice(0, 5),
+  const openNoteSummary = (noteId, noteTitle) => {
+    navigateToNote({ id: noteId, title: noteTitle })
+  }
+
+  const { groups: todoGroups, totalOpenTasks } = useMemo(
+    () => deriveDashboardTodoGroups(allNotes, { maxGroups: 3, maxTasksPerGroup: 1 }),
     [allNotes],
   )
-
-  const folderCount = useMemo(
-    () => categoryStats.filter((category) => category.count > 0).length,
-    [categoryStats],
-  )
-
-  const lastUpdatedAt = latestNotes[0]?.updatedAt || latestNotes[0]?.createdAt || null
-
-  const openInlineChat = (query) => {
-    const trimmed = String(query || '').trim()
-    if (!trimmed) return
-
-    setInlineChatOpen(true)
-    setExternalRequest({ id: Date.now(), query: trimmed, scope: HOME_SCOPE })
-    setPrompt('')
-  }
-
-  const handleSubmit = (event) => {
-    event.preventDefault()
-    openInlineChat(prompt)
-  }
-
 
   if (loading) {
     return (
@@ -66,21 +42,21 @@ const DashboardPage = () => {
   if (allNotes.length === 0) {
     return (
       <div className="dash-page dash-page--empty">
-      <div className="dash-scroll">
-        <div className="dash-empty-state">
-          <NotesPageHeader
-            kicker="노트"
-            title="최근 노트"
-            subtitle="새 노트를 만들면 여기서 바로 이어볼 수 있습니다."
-            actions={(
-              <>
-                <Link to="/notes/write" className="notes-page-action">새 노트</Link>
-                <Link to="/notes/list" className="notes-page-action--secondary">보관함</Link>
-              </>
-            )}
-          />
+        <div className="dash-scroll">
+          <div className="dash-empty-state">
+            <NotesPageHeader
+              kicker="노트"
+              title="최근 노트"
+              subtitle={EMPTY_STATE_SUBTITLE}
+              actions={(
+                <>
+                  <Link to="/notes/write" className="notes-page-action">새 노트</Link>
+                  <Link to="/notes/list" className="notes-page-action--secondary">보관함</Link>
+                </>
+              )}
+            />
+          </div>
         </div>
-      </div>
       </div>
     )
   }
@@ -88,84 +64,67 @@ const DashboardPage = () => {
   return (
     <div className="dash-page">
       <div className="dash-scroll">
-        <NotesPageHeader
-          kicker="노트"
-          title="최근 노트"
-          subtitle="최근 수정한 노트를 확인합니다."
-          actions={(
-            <>
-              <Link to="/notes/write" className="notes-page-action">새 노트</Link>
-              <Link to="/notes/list" className="notes-page-action--secondary">보관함</Link>
-            </>
-          )}
-        />
-
-        <div className="dash-meta-line">
-          <span>총 {allNotes.length}개 노트</span>
-          <span>폴더 {folderCount}개</span>
-          <span>마지막 수정 {lastUpdatedAt ? formatDate(lastUpdatedAt) : '아직 없음'}</span>
-        </div>
-
-        <section className="dash-search" aria-label="찾기">
-          <form className="dash-search-form" onSubmit={handleSubmit}>
-            <input
-              type="text"
-              className="dash-search-input"
-              value={prompt}
-              onChange={(event) => setPrompt(event.target.value)}
-              placeholder="검색어나 질문을 입력하세요"
-              aria-label="검색 또는 질문"
-            />
-            <button type="submit" className="dash-search-submit" disabled={!prompt.trim()}>
-              열기
-            </button>
-          </form>
+        <section className="dash-section-shell dash-section-shell--activity" aria-labelledby="dashboard-activity-title">
+          <div className="dash-activity-layout">
+            <div className="dash-activity-copy">
+              <p className="dash-panel-kicker dash-panel-kicker--notes">ACTIVITY</p>
+              <h2 id="dashboard-activity-title" className="dash-panel-title dash-panel-title--balanced">활동 캘린더</h2>
+            </div>
+            <ActivityHeatmap posts={allNotes} months={4} />
+          </div>
         </section>
 
-        {inlineChatOpen && (
-          <section className="dash-inline-chat" aria-label="대화">
-            <AIChatPanel
-              variant="inline"
-              title="대화"
-              isOpen={inlineChatOpen}
-              onClose={() => setInlineChatOpen(false)}
-              externalRequest={externalRequest}
-              onExternalRequestConsumed={() => setExternalRequest(null)}
-              showScopeControls={false}
-            />
-          </section>
-        )}
-
-        <section className="dash-panel">
-          <div className="dash-panel-head">
+        <section className="dash-section-shell dash-section-shell--todo" aria-labelledby="dashboard-todo-title">
+          <div className="dash-section-shell__header dash-section-shell__header--split">
             <div>
-              <p className="dash-panel-kicker">최근 업데이트</p>
-              <h2 className="dash-panel-title">노트 목록</h2>
+              <p className="dash-panel-kicker">Focus</p>
+              <h2 id="dashboard-todo-title" className="dash-panel-title dash-panel-title--balanced">TODO</h2>
+            </div>
+            <div className="dash-todo-actions">
+              <Link to="/notes/write" className="dash-todo-add-link">새 노트</Link>
+              <span className="dash-todo-pill">{totalOpenTasks}개 진행 중</span>
             </div>
           </div>
 
-          <ul className="dash-document-list">
-            {latestNotes.map((note) => (
-              <li key={note.id}>
-                <button className="dash-document-row" onClick={() => navigateToNote(note)}>
-                  <div className="dash-document-main">
-                    <div className="dash-document-topline">
-                      <span className="dash-document-title">{note.title}</span>
-                      <span className="dash-document-badge">{VISIBILITY_LABELS[note.visibility] || note.visibility}</span>
+          {todoGroups.length > 0 ? (
+            <div className="dash-todo-groups">
+              {todoGroups.map((group) => (
+                <article key={group.noteId} className="dash-todo-group">
+                  <div className="dash-todo-group__header">
+                    <div className="dash-todo-group__meta">
+                      <strong className="dash-todo-group__title">{group.noteTitle}</strong>
+                      {group.categoryName ? (
+                        <>
+                          <span className="dash-todo-group__divider">·</span>
+                          <span className="dash-todo-group__category">{group.categoryName}</span>
+                        </>
+                      ) : null}
+                      <span className="dash-todo-group__divider">·</span>
+                      <span className="dash-todo-group__date">{formatCompactDate(group.updatedAt)}</span>
                     </div>
-                    <p className="dash-document-preview">
-                      {(note.content || '').replace(/\s+/g, ' ').slice(0, 120) || '본문이 아직 없습니다.'}
-                    </p>
+                    <button type="button" className="dash-todo-group__cta" onClick={() => openNoteSummary(group.noteId, group.noteTitle)}>
+                      노트 열기 ↗
+                    </button>
                   </div>
-                  <div className="dash-document-meta">
-                    <span>{formatDate(note.updatedAt || note.createdAt)}</span>
-                    <span>{note.aiCollectable ? '활용 가능' : '일반 노트'}</span>
-                    <span>{estimateReadTime(note.content)}분 읽기</span>
-                  </div>
-                </button>
-              </li>
-            ))}
-          </ul>
+                  <ul className="dash-todo-list">
+                    {group.tasks.map((task) => (
+                      <li key={task.id}>
+                        <button type="button" className="dash-todo-row" onClick={() => openNoteSummary(group.noteId, group.noteTitle)}>
+                          <span className="dash-todo-checkbox" aria-hidden="true" />
+                          <span className="dash-todo-text">{task.text}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="dash-todo-empty">
+              <p>아직 진행 중인 TODO가 없습니다.</p>
+              <span>노트에서 체크리스트를 추가하면 이 영역에 자동으로 나타납니다.</span>
+            </div>
+          )}
         </section>
       </div>
     </div>

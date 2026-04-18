@@ -17,7 +17,7 @@ const mockNotes = [
   {
     noteId: '101',
     title: '대시보드 개선 아이디어',
-    content: '현재 대시보드에서는 overview 카드와 최근 활동의 밀도를 조금 더 높일 수 있다.',
+    content: ['# 대시보드 개선', '- [ ] 카드 간격 다듬기', '- [ ] TODO 액션 문구 검토'].join('\n'),
     visibility: 'PUBLIC',
     aiCollectable: true,
     createdAt: '2026-04-01T10:00:00Z',
@@ -28,7 +28,7 @@ const mockNotes = [
   {
     noteId: '102',
     title: 'API note 스펙 전환 메모',
-    content: 'post 기반 응답을 note 기반 응답으로 치환하는 동안 호환 레이어가 필요하다.',
+    content: ['스펙 전환 메모', '- [ ] 응답 필드 호환 레이어 확인'].join('\n'),
     visibility: 'AI_COLLECTABLE',
     aiCollectable: true,
     createdAt: '2026-04-02T10:00:00Z',
@@ -88,24 +88,25 @@ async function mockNoteApi(page) {
   }
 }
 
-test('dashboard home is simplified and document-first', async ({ page }) => {
+test('dashboard home follows activity → todo → recent notes flow', async ({ page }) => {
   await mockNoteApi(page)
 
   await page.goto('/notes')
-  await expect(page.locator('.dash-title')).toContainText('최근 노트')
-  await expect(page.locator('.dash-search-input')).toBeVisible()
-  await expect(page.locator('.dash-document-row')).toHaveCount(3)
-  await expect(page.locator('.ai-toggle-btn')).toHaveCount(0)
-  await expect(page.getByText('최근 열어본 문서')).toHaveCount(0)
-  await expect(page.getByText('문서가 많은 폴더')).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: '활동 캘린더' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'TODO' })).toBeVisible()
+  await expect(page.getByText('ACTIVITY')).toBeVisible()
+  await expect(page.getByText('최근 4개월')).toBeVisible()
+  await expect(page.getByText('1월')).toBeVisible()
+  await expect(page.locator('.dash-todo-group')).toHaveCount(2)
+  const todoSection = page.locator('.dash-section-shell--todo')
+  await expect(todoSection.getByRole('button', { name: /카드 간격 다듬기/i })).toBeVisible()
 
-  await page.locator('.dash-search-input').fill('최근 메모를 바탕으로 핵심 개념을 정리해줘')
-  await page.locator('.dash-search-submit').click()
-  await expect(page).toHaveURL(/\/notes$/)
-  await expect(page.locator('.ai-message').last()).toContainText('가장 가까운 문서는')
+  await todoSection.getByRole('button', { name: /카드 간격 다듬기/i }).click()
+  await expect(page).toHaveURL(/\/notes\/101$/)
+  await expect(page.getByRole('heading', { name: '대시보드 개선 아이디어' })).toBeVisible()
 
   await page.goto('/notes/list')
-  await expect(page.locator('.note-shell-title')).toContainText('노트')
+  await expect(page.getByRole('heading', { name: '노트 보관함' })).toBeVisible()
   await expect(page.locator('.note-list-summary-meta')).toContainText('총 3개 문서')
 })
 
@@ -117,7 +118,7 @@ test('dashboard home and library respect the light theme palette', async ({ page
 
   await page.goto('/notes')
 
-  const searchInput = await page.locator('.dash-search-input').evaluate((element) => {
+  const dashboardShell = await page.locator('.dash-section-shell--activity').evaluate((element) => {
     const styles = window.getComputedStyle(element)
     return {
       theme: document.documentElement.getAttribute('data-theme'),
@@ -126,20 +127,8 @@ test('dashboard home and library respect the light theme palette', async ({ page
     }
   })
 
-  expect(searchInput.theme).toBe('light')
-  expect(searchInput.backgroundColor).not.toContain('17, 17, 27')
-  expect(searchInput.backgroundColor).not.toContain('30, 30, 46')
-  expect(searchInput.borderColor).not.toContain('17, 17, 27')
-
-  await page.goto('/notes/list')
-  const searchBar = await page.locator('.search-bar').evaluate((element) => {
-    const styles = window.getComputedStyle(element)
-    return {
-      backgroundColor: styles.backgroundColor,
-      borderColor: styles.borderColor,
-    }
-  })
-  expect(searchBar.backgroundColor).not.toContain('17, 17, 27')
-  expect(searchBar.backgroundColor).not.toContain('30, 30, 46')
-  expect(searchBar.borderColor).not.toContain('17, 17, 27')
+  expect(dashboardShell.theme).toBe('light')
+  expect(dashboardShell.backgroundColor).not.toContain('17, 17, 27')
+  expect(dashboardShell.backgroundColor).not.toContain('30, 30, 46')
+  expect(dashboardShell.borderColor).not.toContain('17, 17, 27')
 })
