@@ -324,7 +324,7 @@ export async function createNote(payload) {
 
   const res = await apiFetch(`${BASE_URL}/notes`, {
     method: 'POST',
-    headers: getAuthHeaders(),
+    headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
     body: JSON.stringify(backendPayload),
   })
   const data = await handleResponse(res)
@@ -356,7 +356,7 @@ export async function moveNote(id, folderId) {
 
   const res = await apiFetch(`${BASE_URL}/notes/${id}/folder`, {
     method: 'PATCH',
-    headers: getAuthHeaders(),
+    headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
     body: JSON.stringify({ folderId: normalizedFolderId }),
   })
 
@@ -406,7 +406,7 @@ export async function updateNote(id, payload) {
 
   const res = await apiFetch(`${BASE_URL}/notes/${id}`, {
     method: 'PUT',
-    headers: getAuthHeaders(),
+    headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
     body: JSON.stringify(backendPayload),
   })
 
