@@ -25,92 +25,143 @@ function toDateKey({ year, month, day }) {
   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }
 
+function fromDateKey(dateKey) {
+  const [year, month, day] = String(dateKey).split('-').map(Number)
+  return { year, month, day }
+}
+
+function toUTCDate(parts) {
+  return new Date(Date.UTC(parts.year, parts.month - 1, parts.day))
+}
+
+function fromUTCDate(date) {
+  return {
+    year: date.getUTCFullYear(),
+    month: date.getUTCMonth() + 1,
+    day: date.getUTCDate(),
+  }
+}
+
+function shiftDate(parts, offsetDays) {
+  const nextDate = toUTCDate(parts)
+  nextDate.setUTCDate(nextDate.getUTCDate() + offsetDays)
+  return fromUTCDate(nextDate)
+}
+
 function getKSTDayOfWeek(parts) {
-  const utcDate = new Date(Date.UTC(parts.year, parts.month - 1, parts.day))
-  return utcDate.getUTCDay()
-}
-
-function getDaysInMonth(year, monthIndex) {
-  return new Date(year, monthIndex + 1, 0).getDate()
-}
-
-function getMonthBlocks(referenceDate, months) {
-  const { year, month } = getKSTParts(referenceDate)
-  const blocks = []
-
-  for (let offset = months - 1; offset >= 0; offset -= 1) {
-    const monthIndex = month - 1 - offset
-    const blockDate = new Date(year, monthIndex, 1)
-    blocks.push({
-      year: blockDate.getFullYear(),
-      monthIndex: blockDate.getMonth(),
-      monthNumber: blockDate.getMonth() + 1,
-      label: MONTH_LABELS[blockDate.getMonth()],
-    })
-  }
-
-  return blocks
-}
-
-function buildMonthWeeks(block, countMap) {
-  const dayCount = getDaysInMonth(block.year, block.monthIndex)
-  const firstDayOfWeek = getKSTDayOfWeek({ year: block.year, month: block.monthNumber, day: 1 })
-  const cells = []
-
-  for (let i = 0; i < firstDayOfWeek; i += 1) {
-    cells.push(null)
-  }
-
-  for (let day = 1; day <= dayCount; day += 1) {
-    const parts = { year: block.year, month: block.monthNumber, day }
-    const key = toDateKey(parts)
-    cells.push({
-      count: countMap.get(key) || 0,
-      date: key,
-    })
-  }
-
-  while (cells.length % 7 !== 0) {
-    cells.push(null)
-  }
-
-  const weeks = []
-  for (let index = 0; index < cells.length; index += 7) {
-    weeks.push(cells.slice(index, index + 7))
-  }
-
-  return weeks
+  return toUTCDate(parts).getUTCDay()
 }
 
 function getLevel(count) {
   if (count === 0) return 0
   if (count === 1) return 1
   if (count <= 3) return 2
-  return 3
+  if (count <= 5) return 3
+  return 4
 }
 
-const ActivityHeatmap = ({ posts = [], months = 4 }) => {
-  const { monthBlocks, totalRangeLabel } = useMemo(() => {
-    const countMap = new Map()
+function buildFallbackRange(months) {
+  const todayParts = getKSTParts(new Date())
+  let startYear = todayParts.year
+  let startMonth = todayParts.month - (months - 1)
 
-    posts.forEach((post) => {
-      const timestamps = [...new Set([post.createdAt, post.updatedAt].filter(Boolean))]
-      timestamps.forEach((timestamp) => {
-        const key = toDateKey(getKSTParts(timestamp))
-        countMap.set(key, (countMap.get(key) || 0) + 1)
-      })
+  while (startMonth <= 0) {
+    startMonth += 12
+    startYear -= 1
+  }
+
+  return {
+    from: { year: startYear, month: startMonth, day: 1 },
+    to: todayParts,
+  }
+}
+
+function buildContinuousGrid(calendar, months) {
+  const countMap = new Map()
+
+  calendar.forEach((day) => {
+    if (!day?.date) return
+    const count = Number(day.count || 0)
+    countMap.set(String(day.date), {
+      count,
+      level: typeof day.level === 'number' ? day.level : getLevel(count),
     })
+  })
 
-    const blocks = getMonthBlocks(new Date(), months).map((block) => ({
-      ...block,
-      weeks: buildMonthWeeks(block, countMap),
-    }))
+  const sortedDates = [...countMap.keys()].sort()
+  const fallbackRange = buildFallbackRange(months)
+  const rangeStart = sortedDates[0] ? fromDateKey(sortedDates[0]) : fallbackRange.from
+  const rangeEnd = sortedDates.at(-1) ? fromDateKey(sortedDates.at(-1)) : fallbackRange.to
+  const rangeStartKey = toDateKey(rangeStart)
+  const rangeEndKey = toDateKey(rangeEnd)
+
+  const gridStart = shiftDate(rangeStart, -getKSTDayOfWeek(rangeStart))
+  const gridEnd = shiftDate(rangeEnd, 6 - getKSTDayOfWeek(rangeEnd))
+
+  const weeks = []
+  let cursor = gridStart
+
+  while (toDateKey(cursor) <= toDateKey(gridEnd)) {
+    const week = []
+
+    for (let dayIndex = 0; dayIndex < 7; dayIndex += 1) {
+      const key = toDateKey(cursor)
+      const inRange = key >= rangeStartKey && key <= rangeEndKey
+      const activity = countMap.get(key)
+
+      week.push(
+        inRange
+          ? {
+              date: key,
+              count: activity?.count || 0,
+              level: activity?.level ?? 0,
+            }
+          : null,
+      )
+
+      cursor = shiftDate(cursor, 1)
+    }
+
+    weeks.push(week)
+  }
+
+  const monthLabels = []
+  let previousMonthKey = null
+
+  weeks.forEach((week, index) => {
+    const firstDayInWeek = week.find(Boolean)
+    if (!firstDayInWeek) return
+
+    const parts = fromDateKey(firstDayInWeek.date)
+    const monthKey = `${parts.year}-${parts.month}`
+
+    if (monthKey !== previousMonthKey) {
+      monthLabels.push({
+        column: index + 1,
+        label: MONTH_LABELS[parts.month - 1],
+      })
+      previousMonthKey = monthKey
+    }
+  })
+
+  return {
+    weeks,
+    monthLabels,
+  }
+}
+
+const ActivityHeatmap = ({ calendar = [], months = 4 }) => {
+  const todayKey = toDateKey(getKSTParts(new Date()))
+
+  const { monthLabels, totalRangeLabel, weeks } = useMemo(() => {
+    const grid = buildContinuousGrid(calendar, months)
 
     return {
-      monthBlocks: blocks,
+      monthLabels: grid.monthLabels,
       totalRangeLabel: `최근 ${months}개월`,
+      weeks: grid.weeks,
     }
-  }, [months, posts])
+  }, [calendar, months])
 
   return (
     <div className="heatmap" role="img" aria-label={`${totalRangeLabel} 활동 캘린더`}>
@@ -118,26 +169,34 @@ const ActivityHeatmap = ({ posts = [], months = 4 }) => {
         <span className="heatmap-total">{totalRangeLabel}</span>
       </div>
 
-      <div className="heatmap-grid">
-        {monthBlocks.map((block) => (
-          <div key={`${block.year}-${block.monthNumber}`} className="heatmap-month-block">
-            <span className="heatmap-month">{block.label}</span>
-            <div className="heatmap-month-weeks">
-              {block.weeks.map((week, weekIndex) => (
-                <div key={weekIndex} className="heatmap-col">
-                  {week.map((cell, cellIndex) => (
-                    <div
-                      key={cell?.date || `${block.year}-${block.monthNumber}-${weekIndex}-${cellIndex}`}
-                      className={`heatmap-cell heatmap-cell--${cell ? getLevel(cell.count) : 'empty'}`}
-                      title={cell ? `${cell.date}: ${cell.count}개 활동` : undefined}
-                      aria-label={cell ? `${cell.date}: ${cell.count}개 활동` : undefined}
-                    />
-                  ))}
-                </div>
+      <div className="heatmap-board" style={{ '--heatmap-columns': weeks.length }}>
+        <div className="heatmap-month-grid">
+          {monthLabels.map((item) => (
+            <span key={`${item.label}-${item.column}`} className="heatmap-month" style={{ gridColumn: `${item.column} / span 1` }}>
+              {item.label}
+            </span>
+          ))}
+        </div>
+
+        <div className="heatmap-week-grid">
+          {weeks.map((week, weekIndex) => (
+            <div key={`week-${weekIndex}`} className="heatmap-week-col">
+              {week.map((cell, cellIndex) => (
+                <div
+                  key={cell?.date || `blank-${weekIndex}-${cellIndex}`}
+                  className={[
+                    'heatmap-cell',
+                    cell ? `heatmap-cell--${cell.level}` : 'heatmap-cell--outside',
+                    cell?.date === todayKey ? 'heatmap-cell--today' : '',
+                  ].filter(Boolean).join(' ')}
+                  title={cell ? `${cell.date}: ${cell.count}개 활동` : undefined}
+                  aria-label={cell ? `${cell.date}: ${cell.count}개 활동` : undefined}
+                  aria-hidden={cell ? undefined : 'true'}
+                />
               ))}
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       <div className="heatmap-legend">
@@ -146,6 +205,7 @@ const ActivityHeatmap = ({ posts = [], months = 4 }) => {
         <div className="heatmap-cell heatmap-cell--1" />
         <div className="heatmap-cell heatmap-cell--2" />
         <div className="heatmap-cell heatmap-cell--3" />
+        <div className="heatmap-cell heatmap-cell--4" />
         <span className="heatmap-legend-label">많음</span>
       </div>
     </div>

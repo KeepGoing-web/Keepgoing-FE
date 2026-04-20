@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useVault } from '../contexts/VaultContext'
+import { fetchMyActivities, getRecentActivityRange } from '../api/activities'
 import { deriveDashboardTodoGroups } from '../utils/dashboardTasks'
 import LoadingDots from '../components/LoadingDots'
 import ActivityHeatmap from '../components/ActivityHeatmap'
@@ -8,6 +9,7 @@ import NotesPageHeader from '../components/NotesPageHeader'
 import './DashboardPage.css'
 
 const EMPTY_STATE_SUBTITLE = '새 노트를 만들면 여기서 바로 이어볼 수 있습니다.'
+const ACTIVITY_MONTHS = 4
 
 const SHORT_DATE_FORMATTER = new Intl.DateTimeFormat('ko-KR', {
   timeZone: 'Asia/Seoul',
@@ -20,7 +22,10 @@ function formatCompactDate(value) {
 }
 
 const DashboardPage = () => {
-  const { allNotes, loading, navigateToNote } = useVault()
+  const { allNotes, loading, navigateToNote, notesRevision = 0 } = useVault()
+  const [activityCalendar, setActivityCalendar] = useState([])
+  const [activityLoading, setActivityLoading] = useState(true)
+  const [activityError, setActivityError] = useState(false)
 
   const openNoteSummary = (noteId, noteTitle) => {
     navigateToNote({ id: noteId, title: noteTitle })
@@ -30,6 +35,36 @@ const DashboardPage = () => {
     () => deriveDashboardTodoGroups(allNotes, { maxGroups: 3, maxTasksPerGroup: 1 }),
     [allNotes],
   )
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadActivityCalendar = async () => {
+      const nextRange = getRecentActivityRange(ACTIVITY_MONTHS)
+      setActivityLoading(true)
+      setActivityError(false)
+
+      try {
+        const activity = await fetchMyActivities(nextRange)
+        if (!cancelled) {
+          setActivityCalendar(Array.isArray(activity?.calendar) ? activity.calendar : [])
+          setActivityLoading(false)
+        }
+      } catch {
+        if (!cancelled) {
+          setActivityCalendar([])
+          setActivityError(true)
+          setActivityLoading(false)
+        }
+      }
+    }
+
+    void loadActivityCalendar()
+
+    return () => {
+      cancelled = true
+    }
+  }, [notesRevision])
 
   if (loading) {
     return (
@@ -69,8 +104,21 @@ const DashboardPage = () => {
             <div className="dash-activity-copy">
               <p className="dash-panel-kicker dash-panel-kicker--notes">ACTIVITY</p>
               <h2 id="dashboard-activity-title" className="dash-panel-title dash-panel-title--balanced">활동 캘린더</h2>
+              <p className="dash-activity-status" role="status">
+                {activityError ? '활동 기록을 불러오지 못했어요.' : activityLoading ? '활동 기록을 불러오는 중…' : '활동 기록 기준으로 표시됩니다.'}
+              </p>
             </div>
-            <ActivityHeatmap posts={allNotes} months={4} />
+            {activityLoading && activityCalendar.length === 0 ? (
+              <div className="dash-activity-feedback" role="status">
+                활동 기록을 불러오는 중…
+              </div>
+            ) : activityError ? (
+              <div className="dash-activity-feedback" role="status">
+                잠시 후 다시 새로고침해 주세요.
+              </div>
+            ) : (
+              <ActivityHeatmap calendar={activityCalendar} months={ACTIVITY_MONTHS} />
+            )}
           </div>
         </section>
 
