@@ -92,55 +92,55 @@
 /* ── Light Theme ─────────────────────────────────────── */
 
 [data-theme="light"] {
-  /* Core backgrounds (미색 — 인지부하 최소화, 밝은 환경 최적) */
+  /* Core backgrounds (Warm paper — 약한 웜 언더톤, 눈 피로 ↓) */
   --bg-primary:   #ffffff;
-  --bg-secondary: #f5f7fa;
-  --bg-surface:   #edf0f5;
-  --bg-hover:     #e2e7ee;
-  --bg-overlay:   #eef1f6;
+  --bg-secondary: #f7f6f2;
+  --bg-surface:   #efede7;
+  --bg-hover:     #e6e3dc;
+  --bg-overlay:   #f2f0ea;
 
-  /* Text (Dark navy — 강한 가독성) */
+  /* Text (Dark navy — 강한 가독성, 순흑 회피) */
   --text-primary:   #1a2332;
   --text-secondary: #4a5a6f;
-  --text-muted:     #556a7f;
-  --text-faint:     #7d8896;
+  --text-muted:     #667487;
+  --text-faint:     #8a94a3;
 
-  /* Accent (Deeper teal — 밝은 배경 위 충분한 대비 4.5:1+) */
-  --accent:          #0a7169;
-  --accent-dim:      #0d9488;
-  --accent-hover:    #0a635c;
-  --accent-glow:     rgba(10, 113, 105, 0.12);
-  --accent-glow-md:  rgba(10, 113, 105, 0.22);
+  /* Accent (Mid teal — 다크의 #2dd4bf와 가족감, 대비 4.8:1) */
+  --accent:          #0d8f83;
+  --accent-dim:      #0fa598;
+  --accent-hover:    #0a7c72;
+  --accent-glow:     rgba(13, 143, 131, 0.10);
+  --accent-glow-md:  rgba(13, 143, 131, 0.20);
 
   /* Accent alpha scale (테마 인식 투명도 단계) */
-  --accent-border:        rgba(10, 113, 105, 0.25);
-  --accent-border-hover:  rgba(10, 113, 105, 0.35);
-  --accent-border-active: rgba(10, 113, 105, 0.50);
+  --accent-border:        rgba(13, 143, 131, 0.22);
+  --accent-border-hover:  rgba(13, 143, 131, 0.38);
+  --accent-border-active: rgba(13, 143, 131, 0.55);
 
-  /* Borders */
-  --border:       #e2e8f0;
-  --border-light: #cbd5e1;
+  /* Borders (warm neutral — 채도 있는 그레이 대신 페이퍼 톤) */
+  --border:       #e4e0d7;
+  --border-light: #d1ccc1;
 
   /* Tags */
-  --tag-bg:   rgba(10, 113, 105, 0.08);
-  --tag-text: #0a7169;
+  --tag-bg:   rgba(13, 143, 131, 0.09);
+  --tag-text: #0a7c72;
 
-  /* Status badges */
-  --badge-public-bg:   rgba(22, 101, 52, 0.10);
-  --badge-public-text: #166534;
-  --badge-private-bg:  rgba(185, 28, 28, 0.08);
+  /* Status badges (명도↑, saturation↑ for white bg readability) */
+  --badge-public-bg:   rgba(22, 101, 52, 0.11);
+  --badge-public-text: #15803d;
+  --badge-private-bg:  rgba(185, 28, 28, 0.10);
   --badge-private-text:#b91c1c;
-  --badge-ai-bg:       rgba(10, 113, 105, 0.08);
-  --badge-ai-text:     #0a7169;
+  --badge-ai-bg:       rgba(13, 143, 131, 0.11);
+  --badge-ai-text:     #0a7c72;
 
   /* Shadows */
-  --shadow-overlay: rgba(0, 0, 0, 0.12);
-  --shadow-heavy:   rgba(0, 0, 0, 0.18);
+  --shadow-overlay: rgba(26, 35, 50, 0.10);
+  --shadow-heavy:   rgba(26, 35, 50, 0.16);
   --card-raised-start: rgba(255, 255, 255, 0.98);
-  --card-raised-end: rgba(238, 241, 246, 0.96);
+  --card-raised-end: rgba(242, 240, 234, 0.96);
 
   /* Functional */
-  --success: #147339;
+  --success: #15803d;
   --danger:  #b91c1c;
   --warning: #9a4a08;
   --info:    #0369a1;
