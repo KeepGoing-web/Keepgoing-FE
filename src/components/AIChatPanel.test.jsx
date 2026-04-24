@@ -1,30 +1,36 @@
-import { act, render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import { vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import AIChatPanel from './AIChatPanel'
 
-const mockQueryRAG = vi.fn()
+const mockSendAiPanelMessage = vi.fn()
+const mockFetchNote = vi.fn()
 
-vi.mock('../api/rag', () => ({
-  queryRAG: (...args) => mockQueryRAG(...args),
-  getRAGScopeLabel: () => '전체 지식베이스',
+vi.mock('../api/aiPanel', () => ({
+  sendAiPanelMessage: (...args) => mockSendAiPanelMessage(...args),
+}))
+
+vi.mock('../api/client', () => ({
+  fetchNote: (...args) => mockFetchNote(...args),
 }))
 
 describe('AIChatPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockQueryRAG.mockResolvedValue({
-      answer: {
-        text: '백엔드 연동 전 단계입니다.',
-        summary: '1개 문서를 기반으로 정리했습니다.',
-      },
-      sources: [{ id: '1', noteId: '1', title: '테스트', typeLabel: 'Memo', relevance: 0.9 }],
+    mockFetchNote.mockResolvedValue({ id: 42, title: '오늘 회의록' })
+    mockSendAiPanelMessage.mockResolvedValue({
+      assistantMessage: '백엔드와 연결되었습니다.',
+      contextNoteId: null,
+      contextAttached: false,
     })
   })
 
-  it('submits an external query automatically after the panel opens', async () => {
-    vi.useFakeTimers()
+  afterEach(() => {
+    vi.useRealTimers()
+  })
 
+  it('submits an external query automatically after the panel opens', async () => {
     const onExternalRequestConsumed = vi.fn()
 
     render(
@@ -32,21 +38,47 @@ describe('AIChatPanel', () => {
         <AIChatPanel
           isOpen
           onClose={() => {}}
-          externalRequest={{ id: 1, query: '최근 노트 요약해줘' }}
+          externalRequest={{ id: 1, query: '최근 회의 내용을 요약해줘' }}
           onExternalRequestConsumed={onExternalRequestConsumed}
         />
       </MemoryRouter>,
     )
 
-    await act(async () => {
-      vi.advanceTimersByTime(500)
+    await waitFor(() => {
+      expect(mockSendAiPanelMessage).toHaveBeenCalledWith({
+        message: '최근 회의 내용을 요약해줘',
+        contextNoteId: null,
+      })
     })
 
     expect(onExternalRequestConsumed).toHaveBeenCalledTimes(1)
+    expect(screen.getByText('최근 회의 내용을 요약해줘')).toBeInTheDocument()
+    expect(await screen.findByText('백엔드와 연결되었습니다.')).toBeInTheDocument()
+  })
 
-    expect(screen.getByText('최근 노트 요약해줘')).toBeInTheDocument()
-    expect(screen.getByText(/백엔드 연동 전 단계입니다/)).toBeInTheDocument()
+  it('uses the current note route as panel context', async () => {
+    const user = userEvent.setup()
 
-    vi.useRealTimers()
+    render(
+      <MemoryRouter initialEntries={['/notes/42']}>
+        <AIChatPanel isOpen onClose={() => {}} />
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => {
+      expect(mockFetchNote).toHaveBeenCalledWith(42)
+    })
+
+    expect(screen.getAllByText(/오늘 회의록/).length).toBeGreaterThan(0)
+
+    await user.type(screen.getByRole('textbox'), '핵심만 정리해줘')
+    await user.click(screen.getByRole('button', { name: '전송' }))
+
+    await waitFor(() => {
+      expect(mockSendAiPanelMessage).toHaveBeenCalledWith({
+        message: '핵심만 정리해줘',
+        contextNoteId: 42,
+      })
+    })
   })
 })

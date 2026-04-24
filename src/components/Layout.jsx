@@ -4,7 +4,7 @@ import { useAuth } from "../contexts/AuthContext";
 import AIChatPanel from "./AIChatPanel";
 import CommandPalette from "./CommandPalette";
 import NotesHeaderNav from "./NotesHeaderNav";
-import { OPEN_AI_PANEL_EVENT, buildRAGWorkspaceHref } from "../utils/ai";
+import { OPEN_AI_PANEL_EVENT } from "../utils/ai";
 import "./Layout.css";
 
 const AI_PANEL_KEY = "kg-ai-panel-open";
@@ -34,8 +34,7 @@ const Layout = () => {
   });
 
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
-  const [externalQuery, setExternalQuery] = useState(null);
-  const [externalScope, setExternalScope] = useState(null);
+  const [externalRequest, setExternalRequest] = useState(null);
   const [navOpen, setNavOpen] = useState(false);
 
   useEffect(() => {
@@ -72,31 +71,22 @@ const Layout = () => {
   useEffect(() => { setNavOpen(false) }, [location.pathname]);
 
   const isActive = (path) => location.pathname.startsWith(path);
-  const isNotesHome = location.pathname === "/notes";
 
   const handleAIQuery = useCallback((payload) => {
-    const nextPayload = typeof payload === "string" ? { query: payload } : payload;
-
-    if (isNotesHome) {
-      navigate(buildRAGWorkspaceHref({ query: nextPayload?.query || "", scope: nextPayload?.scope || {} }));
-      return;
-    }
+    const nextPayload = typeof payload === "string" ? { query: payload } : (payload || {});
 
     setAiPanelOpen(true);
-    setExternalQuery(nextPayload?.query || null);
-    setExternalScope(nextPayload?.scope || null);
-  }, [isNotesHome, navigate]);
-
-  const handleExternalQueryConsumed = useCallback(() => {
-    setExternalQuery(null);
-    setExternalScope(null);
+    setExternalRequest(nextPayload.query
+      ? {
+          id: Date.now(),
+          ...nextPayload,
+        }
+      : null);
   }, []);
 
-  useEffect(() => {
-    if (isNotesHome && aiPanelOpen) {
-      setAiPanelOpen(false);
-    }
-  }, [aiPanelOpen, isNotesHome]);
+  const handleExternalRequestConsumed = useCallback(() => {
+    setExternalRequest(null);
+  }, []);
 
   useEffect(() => {
     const handleOpenAIPanel = (event) => {
@@ -118,22 +108,21 @@ const Layout = () => {
           theme={theme}
           onToggleTheme={toggleTheme}
           onLogout={handleLogout}
+          aiPanelOpen={aiPanelOpen}
+          onToggleAIPanel={() => setAiPanelOpen((prev) => !prev)}
           onOpenCommandPalette={() => setCommandPaletteOpen(true)}
         />
       </header>
       <div className="layout-body">
-        <main id="main-content" className={`main-content${aiPanelOpen && !isNotesHome ? " main-content--panel-open" : ""}`}>
+        <main id="main-content" className={`main-content${aiPanelOpen ? " main-content--panel-open" : ""}`}>
           <Outlet />
         </main>
-        {!isNotesHome && (
-          <AIChatPanel
-            isOpen={aiPanelOpen}
-            onClose={() => setAiPanelOpen(false)}
-            externalQuery={externalQuery}
-            externalScope={externalScope}
-            onExternalQueryConsumed={handleExternalQueryConsumed}
-          />
-        )}
+        <AIChatPanel
+          isOpen={aiPanelOpen}
+          onClose={() => setAiPanelOpen(false)}
+          externalRequest={externalRequest}
+          onExternalRequestConsumed={handleExternalRequestConsumed}
+        />
       </div>
 
       <CommandPalette

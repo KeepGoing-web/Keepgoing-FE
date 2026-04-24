@@ -7,6 +7,8 @@ const NotesHeaderNav = ({
   theme,
   onToggleTheme,
   onLogout,
+  aiPanelOpen,
+  onToggleAIPanel,
   onOpenCommandPalette,
 }) => {
   return (
@@ -33,6 +35,16 @@ const NotesHeaderNav = ({
         </nav>
       </div>
       <div className="user-menu">
+        <button
+          className={`cmd-trigger-btn cmd-trigger-btn--ai${aiPanelOpen ? ' cmd-trigger-btn--active' : ''}`}
+          onClick={onToggleAIPanel}
+          title={aiPanelOpen ? 'AI 패널 닫기' : 'AI 패널 열기'}
+          aria-label={aiPanelOpen ? 'AI 패널 닫기' : 'AI 패널 열기'}
+          aria-pressed={aiPanelOpen}
+        >
+          <span className="cmd-trigger-icon" aria-hidden="true">⬡</span>
+          <span className="cmd-trigger-label">AI</span>
+        </button>
         <button
           className="cmd-trigger-btn"
           onClick={onOpenCommandPalette}

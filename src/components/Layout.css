@@ -181,6 +181,28 @@
   background: var(--bg-secondary);
 }
 
+.cmd-trigger-btn--ai {
+  min-width: 58px;
+  gap: 6px;
+}
+
+.cmd-trigger-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.cmd-trigger-btn--active {
+  color: var(--accent);
+  border-color: var(--accent-dim);
+  background: var(--accent-glow);
+}
+
+.cmd-trigger-btn--active .cmd-trigger-kbd,
+.cmd-trigger-btn--active .cmd-trigger-label {
+  color: var(--accent);
+}
+
 .cmd-trigger-icon {
   font-size: 13px;
   line-height: 1;

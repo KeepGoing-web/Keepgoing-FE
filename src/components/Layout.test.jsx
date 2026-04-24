@@ -1,17 +1,21 @@
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Layout from './Layout'
 
 const mockUseAuth = vi.fn()
+const mockAIChatPanel = vi.fn()
 
 vi.mock('../contexts/AuthContext', () => ({
   useAuth: () => mockUseAuth(),
 }))
 
 vi.mock('./AIChatPanel', () => ({
-  default: () => <div data-testid="ai-chat-panel" />,
+  default: (props) => {
+    mockAIChatPanel(props)
+    return <div data-testid="ai-chat-panel" data-open={String(props.isOpen)} />
+  },
 }))
 
 vi.mock('./CommandPalette', () => ({
@@ -20,7 +24,6 @@ vi.mock('./CommandPalette', () => ({
 
 vi.mock('../utils/ai', () => ({
   OPEN_AI_PANEL_EVENT: 'kg:test-open-ai-panel',
-  buildRAGWorkspaceHref: () => '/query',
 }))
 
 function renderLayout(initialEntry = '/notes/list', authOverrides = {}) {
@@ -54,6 +57,7 @@ function renderLayout(initialEntry = '/notes/list', authOverrides = {}) {
 describe('Layout', () => {
   beforeEach(() => {
     mockUseAuth.mockReset()
+    mockAIChatPanel.mockReset()
     window.matchMedia = vi.fn().mockReturnValue({
       matches: false,
       addEventListener: vi.fn(),
@@ -68,9 +72,42 @@ describe('Layout', () => {
     expect(screen.getByRole('link', { name: 'keepgoing' })).toHaveAttribute('href', '/notes')
     expect(screen.getByRole('link', { name: '노트' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'AI 질의' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '설정' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'AI 패널 열기' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '검색 팔레트 열기' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '라이트 모드로 전환' })).toBeInTheDocument()
+  })
+
+  it('toggles the AI panel from the header button', async () => {
+    const user = userEvent.setup()
+    renderLayout()
+
+    expect(mockAIChatPanel.mock.lastCall[0]).toEqual(expect.objectContaining({ isOpen: false }))
+
+    await user.click(screen.getByRole('button', { name: 'AI 패널 열기' }))
+
+    expect(mockAIChatPanel.mock.lastCall[0]).toEqual(expect.objectContaining({ isOpen: true }))
+    expect(screen.getByRole('button', { name: 'AI 패널 닫기' })).toBeInTheDocument()
+  })
+
+  it('opens the AI panel and forwards an external request from the open-panel event', () => {
+    renderLayout()
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent('kg:test-open-ai-panel', {
+        detail: {
+          query: '이 문서 핵심만 정리해줘',
+          contextNoteId: 7,
+        },
+      }))
+    })
+
+    expect(mockAIChatPanel.mock.lastCall[0]).toEqual(expect.objectContaining({
+      isOpen: true,
+      externalRequest: expect.objectContaining({
+        query: '이 문서 핵심만 정리해줘',
+        contextNoteId: 7,
+      }),
+    }))
   })
 
   it('logs out and navigates to login when the logout button is pressed', async () => {

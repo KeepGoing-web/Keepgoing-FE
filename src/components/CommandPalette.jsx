@@ -49,12 +49,12 @@ const CommandPalette = ({ isOpen, onClose, onAIQuery }) => {
 
   const selectResult = useCallback((index) => {
     if (hasAIOption && index === results.length) {
+      const editMatch = location.pathname.match(/^\/notes\/edit\/([^/]+)$/)
       const noteMatch = location.pathname.match(/^\/notes\/([^/]+)$/)
-      const scope = noteMatch
-        ? { mode: 'current-note', currentNoteId: noteMatch[1], aiOnly: true }
-        : { mode: 'all', aiOnly: true }
+      const detailNoteId = noteMatch && !['list', 'write'].includes(noteMatch[1]) ? noteMatch[1] : null
+      const contextNoteId = editMatch?.[1] || detailNoteId || null
 
-      onAIQuery?.({ query: query.trim(), scope })
+      onAIQuery?.({ query: query.trim(), contextNoteId })
       onClose()
       return
     }

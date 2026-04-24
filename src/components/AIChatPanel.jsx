@@ -1,56 +1,110 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { AI_DEMO_MODE, fetchNote } from '../api/client'
-import { getRAGScopeLabel, queryRAG } from '../api/rag'
-import { buildRAGWorkspaceHref } from '../utils/ai'
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
+import { useLocation } from 'react-router-dom'
+import { fetchNote } from '../api/client'
+import { sendAiPanelMessage } from '../api/aiPanel'
+import RichMarkdown from './RichMarkdown'
+import './MarkdownBody.css'
 import './AIChatPanel.css'
 
 const WIDTH_KEY = 'kg-ai-panel-width'
-const MIN_WIDTH = 280
-const MAX_WIDTH = 700
-const DEFAULT_WIDTH = 360
-const DEFAULT_SCOPE = {
-  mode: 'all',
-  currentNoteId: null,
-  aiOnly: true,
-}
-const SCOPE_OPTIONS = [
-  { value: 'all', label: '전체 지식베이스' },
-  { value: 'notes', label: '메모만' },
-  { value: 'blogs', label: '블로그만' },
-  { value: 'current-note', label: '현재 문서' },
+const MIN_WIDTH = 300
+const MAX_WIDTH = 720
+const DEFAULT_WIDTH = 380
+
+const NOTE_CONTEXT_SUGGESTIONS = [
+  { label: '현재 문서 3줄 요약', prompt: '현재 문서를 3줄로 요약해줘' },
+  { label: '핵심 액션 아이템 정리', prompt: '현재 문서를 바탕으로 바로 실행할 액션 아이템을 정리해줘' },
+  { label: '놓친 질문 찾기', prompt: '현재 문서를 읽고 추가로 고민해야 할 질문 3개를 제안해줘' },
 ]
 
-function createChatMessage(role, content) {
+const GENERAL_SUGGESTIONS = [
+  { label: '회의록 템플릿 만들기', prompt: '개인 지식관리용 회의록 템플릿을 마크다운으로 만들어줘' },
+  { label: '블로그 개요 초안', prompt: '생산성 관련 블로그 글 개요를 5개 섹션으로 짜줘' },
+  { label: '아이디어 정리 도와줘', prompt: '흩어진 아이디어를 정리하는 질문 리스트를 만들어줘' },
+]
+
+function normalizeContextNoteId(contextNoteId) {
+  if (contextNoteId === undefined || contextNoteId === null || contextNoteId === '') {
+    return null
+  }
+
+  const numericContextNoteId = Number(contextNoteId)
+  return Number.isFinite(numericContextNoteId) ? numericContextNoteId : contextNoteId
+}
+
+function getRouteContextNoteId(pathname) {
+  const editMatch = pathname.match(/^\/notes\/edit\/([^/?#]+)/)
+  if (editMatch) {
+    return normalizeContextNoteId(editMatch[1])
+  }
+
+  const detailMatch = pathname.match(/^\/notes\/([^/?#]+)/)
+  if (!detailMatch) {
+    return null
+  }
+
+  if (['list', 'write'].includes(detailMatch[1])) {
+    return null
+  }
+
+  return normalizeContextNoteId(detailMatch[1])
+}
+
+function getExternalContextNoteId(externalRequest) {
+  return normalizeContextNoteId(
+    externalRequest?.contextNoteId ?? externalRequest?.scope?.currentNoteId ?? null,
+  )
+}
+
+function createChatMessage(role, content, meta = null) {
   return {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     role,
     content,
     timestamp: new Date(),
-    meta: null,
+    meta,
   }
 }
 
-function createAssistantMessage(result, question, scope) {
-  return {
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    role: 'assistant',
-    content: result.answer?.text || `"${question}"에 대한 답변을 만들었습니다.`,
-    timestamp: new Date(),
-    meta: {
-      scope,
-      summary: result.answer?.summary,
-      sourceCount: result.sources?.length || 0,
-      workspaceHref: buildRAGWorkspaceHref({ query: question, scope }),
+function createAssistantMessage(response) {
+  return createChatMessage(
+    'assistant',
+    response?.assistantMessage || '응답을 받았지만 표시할 내용이 비어 있습니다.',
+    {
+      contextAttached: Boolean(response?.contextAttached),
+      contextNoteId: normalizeContextNoteId(response?.contextNoteId),
+      isError: false,
     },
-  }
+  )
 }
 
-const PANEL_SUGGESTIONS = [
-  { label: '현재 문서 핵심 3줄 요약', prompt: '현재 문서의 핵심 개념 3개를 정리해줘' },
-  { label: '관련 노트 찾아줘', prompt: '이 내용과 연결되는 관련 노트를 찾아줘' },
-  { label: '블로그 초안으로 바꿔줘', prompt: '이 내용을 블로그 초안 구조로 바꿔줘' },
-]
+function getAiPanelErrorMessage(error) {
+  if (error?.status === 400) {
+    return '메시지를 보낼 수 없어요. 입력 내용을 다시 확인해 주세요.'
+  }
+
+  if (error?.status === 401) {
+    return '로그인이 만료되어 AI 응답을 불러올 수 없어요. 다시 로그인해 주세요.'
+  }
+
+  if (error?.status === 403) {
+    return '현재 문맥으로 선택한 노트에 접근할 수 없어 응답을 만들지 못했어요.'
+  }
+
+  if (error?.status === 404) {
+    return '연결된 노트를 찾지 못했어요. 다른 노트에서 다시 시도해 주세요.'
+  }
+
+  return 'AI 응답을 가져오지 못했어요. 잠시 후 다시 시도해 주세요.'
+}
+
+function createErrorMessage(error, contextNoteId) {
+  return createChatMessage('assistant', getAiPanelErrorMessage(error), {
+    contextAttached: false,
+    contextNoteId: normalizeContextNoteId(contextNoteId),
+    isError: true,
+  })
+}
 
 const AIChatPanel = ({
   isOpen,
@@ -59,15 +113,17 @@ const AIChatPanel = ({
   onExternalRequestConsumed,
   variant = 'panel',
   title = 'AI 어시스턴트',
-  showScopeControls = true,
 }) => {
-  const navigate = useNavigate()
+  const location = useLocation()
   const isInline = variant === 'inline'
+  const routeContextNoteId = useMemo(() => getRouteContextNoteId(location.pathname), [location.pathname])
+  const requestedContextNoteId = useMemo(() => getExternalContextNoteId(externalRequest), [externalRequest])
+  const activeContextNoteId = requestedContextNoteId ?? routeContextNoteId
+
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const [scope, setScope] = useState(DEFAULT_SCOPE)
-  const [scopeContextLabel, setScopeContextLabel] = useState('')
+  const [contextTitle, setContextTitle] = useState('')
   const [panelWidth, setPanelWidth] = useState(() => {
     try {
       const saved = parseInt(localStorage.getItem(WIDTH_KEY), 10)
@@ -80,6 +136,8 @@ const AIChatPanel = ({
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
 
+  const suggestions = activeContextNoteId ? NOTE_CONTEXT_SUGGESTIONS : GENERAL_SUGGESTIONS
+
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [])
@@ -90,65 +148,82 @@ const AIChatPanel = ({
 
   useEffect(() => {
     if (!isOpen || !inputRef.current) return
-    const focusTimer = setTimeout(() => inputRef.current?.focus(), isInline ? 120 : 350)
+    const focusTimer = setTimeout(() => inputRef.current?.focus(), isInline ? 120 : 280)
     return () => clearTimeout(focusTimer)
   }, [isInline, isOpen])
 
   useEffect(() => {
-    if (!externalRequest?.scope) return
-    setScope((prev) => ({ ...prev, ...externalRequest.scope }))
-  }, [externalRequest])
+    let ignore = false
 
-  useEffect(() => {
-    const loadScopeContext = async () => {
-      if (scope.mode !== 'current-note' || !scope.currentNoteId) {
-        setScopeContextLabel('')
-        return
-      }
+    if (!activeContextNoteId) {
+      setContextTitle('')
+      return undefined
+    }
 
+    const loadContextNote = async () => {
       try {
-        const note = await fetchNote(scope.currentNoteId)
-        setScopeContextLabel(note?.title || '')
+        const note = await fetchNote(activeContextNoteId)
+        if (!ignore) {
+          setContextTitle(note?.title || '')
+        }
       } catch {
-        setScopeContextLabel('')
+        if (!ignore) {
+          setContextTitle('')
+        }
       }
     }
 
-    void loadScopeContext()
-  }, [scope.currentNoteId, scope.mode])
+    void loadContextNote()
 
-  const sendMessage = useCallback(async (rawQuestion, targetScope = scope) => {
-    const question = String(rawQuestion || '').trim()
-    if (!question || loading) return false
+    return () => {
+      ignore = true
+    }
+  }, [activeContextNoteId])
+
+  const sendMessage = useCallback(async (rawMessage, overrideContextNoteId = activeContextNoteId) => {
+    const message = String(rawMessage || '').trim()
+    if (!message || loading) return false
+
+    const contextNoteId = normalizeContextNoteId(overrideContextNoteId)
 
     setInput('')
     setLoading(true)
-    setMessages((prev) => [...prev, createChatMessage('user', question)])
+    setMessages((prev) => [
+      ...prev,
+      createChatMessage('user', message, contextNoteId ? { contextNoteId } : null),
+    ])
 
     try {
-      const result = await queryRAG({ query: question, scope: targetScope })
-      setMessages((prev) => [...prev, createAssistantMessage(result, question, targetScope)])
+      const response = await sendAiPanelMessage({
+        message,
+        contextNoteId,
+      })
+
+      setMessages((prev) => [...prev, createAssistantMessage(response)])
       return true
     } catch (error) {
-      console.error('AI 응답 실패:', error)
+      console.error('AI 패널 응답 실패:', error)
+      setMessages((prev) => [...prev, createErrorMessage(error, contextNoteId)])
       return false
     } finally {
       setLoading(false)
     }
-  }, [loading, scope])
+  }, [activeContextNoteId, loading])
 
   useEffect(() => {
     if (!externalRequest?.query || !isOpen) return
 
     setInput(externalRequest.query)
 
+    const externalContextNoteId = getExternalContextNoteId(externalRequest) ?? routeContextNoteId
     const submitTimer = setTimeout(() => {
-      void sendMessage(externalRequest.query, externalRequest.scope || scope)
-      onExternalRequestConsumed?.()
-    }, isInline ? 120 : 400)
+      void sendMessage(externalRequest.query, externalContextNoteId).finally(() => {
+        onExternalRequestConsumed?.()
+      })
+    }, isInline ? 120 : 360)
 
     return () => clearTimeout(submitTimer)
-  }, [externalRequest, isInline, isOpen, onExternalRequestConsumed, scope, sendMessage])
+  }, [externalRequest, isInline, isOpen, onExternalRequestConsumed, routeContextNoteId, sendMessage])
 
   const handleResizeStart = useCallback((event) => {
     event.preventDefault()
@@ -158,16 +233,17 @@ const AIChatPanel = ({
   useEffect(() => {
     if (!isResizing || isInline) return undefined
 
+    let nextStoredWidth = panelWidth
+
     const handleResizeMove = (event) => {
-      const nextWidth = window.innerWidth - event.clientX
-      const clampedWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, nextWidth))
-      setPanelWidth(clampedWidth)
+      nextStoredWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, window.innerWidth - event.clientX))
+      setPanelWidth(nextStoredWidth)
     }
 
     const handleResizeEnd = () => {
       setIsResizing(false)
       try {
-        localStorage.setItem(WIDTH_KEY, String(panelWidth))
+        localStorage.setItem(WIDTH_KEY, String(nextStoredWidth))
       } catch {
         // ignore storage errors
       }
@@ -203,13 +279,20 @@ const AIChatPanel = ({
     }
   }
 
-  const formatTime = (date) => date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
-  const scopeLabel = getRAGScopeLabel(scope)
+  const formatTime = (date) => date.toLocaleTimeString('ko-KR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+
+  const contextDescription = activeContextNoteId
+    ? `${contextTitle || `노트 #${activeContextNoteId}`}의 제목과 본문이 함께 전달됩니다.`
+    : '현재는 일반 질문 모드입니다. 노트를 열어두면 해당 문서를 문맥으로 함께 보낼 수 있습니다.'
 
   return (
     <aside
       className={`ai-chat-panel${isOpen ? ' ai-chat-panel--open' : ''}${isResizing ? ' ai-chat-panel--resizing' : ''}${isInline ? ' ai-chat-panel--inline' : ''}`}
       style={!isInline && isOpen ? { width: panelWidth, minWidth: panelWidth } : undefined}
+      aria-hidden={!isOpen && !isInline}
     >
       {!isInline && (
         <div
@@ -226,7 +309,6 @@ const AIChatPanel = ({
         <div className="ai-panel-title">
           <span className="ai-panel-icon">⬡</span>
           <span>{title}</span>
-          {AI_DEMO_MODE && <span className="cmd-ai-badge">DEMO</span>}
         </div>
         <div className="ai-panel-actions">
           {messages.length > 0 && (
@@ -250,48 +332,29 @@ const AIChatPanel = ({
         </div>
       </div>
 
-      {showScopeControls ? (
-        <div className="ai-scope-bar">
-          <label className="ai-scope-label">
-            <span>Scope</span>
-            <select
-              className="ai-scope-select"
-              value={scope.mode}
-              onChange={(event) => setScope((prev) => ({ ...prev, mode: event.target.value }))}
-            >
-              {SCOPE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <span className="ai-scope-chip">
-            {scopeLabel}
-            {scopeContextLabel ? ` · ${scopeContextLabel}` : ''}
+      <div className="ai-context-bar">
+        <div className="ai-context-copy">
+          <span className={`ai-context-badge${activeContextNoteId ? ' ai-context-badge--attached' : ''}`}>
+            {activeContextNoteId ? '현재 노트 문맥 연결됨' : '일반 AI 대화'}
           </span>
+          <p className="ai-context-text">{contextDescription}</p>
         </div>
-      ) : (
-        <div className="ai-inline-meta">
-          <span className="ai-scope-chip">
-            {scopeLabel}
-            {scopeContextLabel ? ` · ${scopeContextLabel}` : ''}
-          </span>
-          <button type="button" className="ai-inline-link" onClick={() => navigate(buildRAGWorkspaceHref({ scope }))}>
-            작업실에서 보기
-          </button>
-        </div>
-      )}
+        {activeContextNoteId ? (
+          <span className="ai-context-note-id">#{activeContextNoteId}</span>
+        ) : null}
+      </div>
 
       <div className="ai-messages" role="log" aria-live="polite">
         {messages.length === 0 && !loading ? (
           <div className="ai-empty-state">
             <div className="ai-empty-icon">⬡</div>
-            <p className="ai-empty-title">질문을 입력하면 여기에서 바로 확인할 수 있습니다.</p>
-            <p className="ai-empty-desc">필요할 때만 작업실로 이동해 더 자세히 이어갑니다.</p>
+            <p className="ai-empty-title">
+              {activeContextNoteId ? '현재 노트를 바탕으로 바로 질문할 수 있습니다.' : 'AI와 바로 대화를 시작할 수 있습니다.'}
+            </p>
+            <p className="ai-empty-desc">{contextDescription}</p>
             {!isInline && (
               <ul className="ai-empty-suggestions">
-                {PANEL_SUGGESTIONS.map((suggestion) => (
+                {suggestions.map((suggestion) => (
                   <li key={suggestion.label} className="ai-suggestion" onClick={() => setInput(suggestion.prompt)}>
                     {suggestion.label}
                   </li>
@@ -300,30 +363,45 @@ const AIChatPanel = ({
             )}
           </div>
         ) : (
-          messages.map((message) => (
-            <div key={message.id} className={`ai-message ai-message--${message.role}`}>
-              <div className="ai-message-bubble">
-                <p className="ai-message-content">{message.content}</p>
-                {message.role === 'assistant' && message.meta ? (
-                  <div className="ai-message-meta">
-                    <span>{message.meta.summary}</span>
-                    <span>참조 문서 {message.meta.sourceCount}개</span>
-                  </div>
-                ) : null}
-              </div>
-              {message.role === 'assistant' && message.meta ? (
-                <div className="ai-message-actions">
-                  <button type="button" onClick={() => navigate(message.meta.workspaceHref)}>
-                    근거 보기
-                  </button>
-                  <button type="button" onClick={() => navigate(message.meta.workspaceHref)}>
-                    작업실에서 이어서 보기
-                  </button>
+          messages.map((message) => {
+            const isAssistant = message.role === 'assistant'
+            const meta = message.meta || null
+            const metaItems = []
+
+            if (meta?.isError) {
+              metaItems.push('전송 실패')
+            } else if (isAssistant) {
+              metaItems.push(meta?.contextAttached ? '노트 문맥 포함 응답' : '일반 응답')
+            } else if (meta?.contextNoteId) {
+              metaItems.push('현재 노트 기준 질문')
+            }
+
+            if (meta?.contextNoteId) {
+              metaItems.push(`#${meta.contextNoteId}`)
+            }
+
+            return (
+              <div key={message.id} className={`ai-message ai-message--${message.role}`}>
+                <div className={`ai-message-bubble${meta?.isError ? ' ai-message-bubble--error' : ''}`}>
+                  {isAssistant ? (
+                    <div className="ai-message-markdown markdown-body">
+                      <RichMarkdown>{message.content}</RichMarkdown>
+                    </div>
+                  ) : (
+                    <p className="ai-message-content">{message.content}</p>
+                  )}
+                  {metaItems.length > 0 ? (
+                    <div className="ai-message-meta">
+                      {metaItems.map((item) => (
+                        <span key={item}>{item}</span>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
-              ) : null}
-              <span className="ai-message-time">{formatTime(message.timestamp)}</span>
-            </div>
-          ))
+                <span className="ai-message-time">{formatTime(message.timestamp)}</span>
+              </div>
+            )
+          })
         )}
 
         {loading && (
@@ -347,8 +425,9 @@ const AIChatPanel = ({
           value={input}
           onChange={(event) => setInput(event.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="질문을 입력하세요..."
+          placeholder={activeContextNoteId ? '현재 노트를 기준으로 질문하세요...' : 'AI에게 질문하세요...'}
           rows={2}
+          disabled={loading}
         />
         <button className="ai-send-btn" type="submit" disabled={loading || !input.trim()}>
           전송

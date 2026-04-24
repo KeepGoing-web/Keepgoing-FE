@@ -1,5 +1,5 @@
 /* ============================================================
-   AIChatPanel — Obsidian/Catppuccin Mocha dark theme
+   AIChatPanel — right-side assistant panel
    ============================================================ */
 
 .ai-chat-panel {
@@ -17,8 +17,8 @@
 }
 
 .ai-chat-panel--open {
-  height: calc(100vh - 44px);
-  max-height: calc(100vh - 44px);
+  height: calc(100vh - 52px);
+  max-height: calc(100vh - 52px);
 }
 
 .ai-chat-panel--inline {
@@ -74,7 +74,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 0.875rem;
-  height: 40px;
+  height: 42px;
   border-bottom: 1px solid var(--border);
   background-color: var(--bg-overlay);
   flex-shrink: 0;
@@ -85,7 +85,7 @@
   align-items: center;
   gap: 0.5rem;
   font-size: 0.8125rem;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-secondary);
   font-family: var(--font-mono);
   letter-spacing: 0.02em;
@@ -143,71 +143,63 @@
   background-color: var(--bg-surface);
 }
 
-.ai-scope-bar,
-.ai-inline-meta {
+.ai-context-bar {
   display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-  padding: 0.8rem 0.875rem 0.7rem;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.875rem;
   border-bottom: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.02);
 }
 
-.ai-inline-meta {
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.ai-inline-link {
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 0.72rem;
-  font-family: var(--font-mono);
-  cursor: pointer;
-}
-
-.ai-inline-link:hover {
-  color: var(--accent);
-}
-
-.ai-scope-label {
+.ai-context-copy {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.ai-scope-label span {
-  color: var(--text-muted);
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-family: var(--font-mono);
-}
-
-.ai-scope-select {
-  flex: 1;
+  flex-direction: column;
+  gap: 0.45rem;
   min-width: 0;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text-primary);
-  padding: 0.4rem 0.55rem;
-  font-size: 0.78rem;
 }
 
-.ai-scope-chip {
+.ai-context-badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
   align-self: flex-start;
   padding: 0.25rem 0.55rem;
   border-radius: 999px;
   border: 1px solid var(--border);
   color: var(--text-secondary);
   font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.ai-context-badge--attached {
+  color: var(--accent);
+  border-color: var(--accent-border);
+  background: var(--accent-glow);
+}
+
+.ai-context-text {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  line-height: 1.55;
+}
+
+.ai-context-note-id {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.75rem;
+  height: 2rem;
+  padding: 0 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  flex-shrink: 0;
 }
 
 .ai-messages {
@@ -327,9 +319,9 @@
 }
 
 .ai-message-bubble {
-  max-width: 88%;
-  padding: 0.6rem 0.85rem;
-  border-radius: 10px;
+  max-width: 90%;
+  padding: 0.72rem 0.85rem;
+  border-radius: 12px;
   line-height: 1.55;
 }
 
@@ -345,11 +337,34 @@
   border-bottom-left-radius: 3px;
 }
 
+.ai-message-bubble--error {
+  border-color: rgba(244, 63, 94, 0.4) !important;
+  background: rgba(244, 63, 94, 0.08) !important;
+}
+
 .ai-message-content {
   margin: 0;
   font-size: 0.8125rem;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.ai-message-markdown.markdown-body {
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+.ai-message-markdown.markdown-body > :last-child,
+.ai-message-markdown.markdown-body > :last-child > :last-child {
+  margin-bottom: 0;
+}
+
+.ai-message--user .ai-message-content {
+  color: var(--accent);
+}
+
+.ai-message--assistant .ai-message-markdown {
+  color: var(--text-primary);
 }
 
 .ai-message-meta {
@@ -362,14 +377,6 @@
   font-family: var(--font-mono);
 }
 
-.ai-message--user .ai-message-content {
-  color: var(--accent);
-}
-
-.ai-message--assistant .ai-message-content {
-  color: var(--text-primary);
-}
-
 .ai-message-time {
   font-size: 0.68rem;
   color: var(--text-muted);
@@ -377,30 +384,8 @@
   padding: 0 0.15rem;
 }
 
-.ai-message-actions {
-  display: flex;
-  gap: 0.4rem;
-  flex-wrap: wrap;
-}
-
-.ai-message-actions button {
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--text-secondary);
-  border-radius: 999px;
-  padding: 0.28rem 0.6rem;
-  font-size: 0.7rem;
-  cursor: pointer;
-}
-
-.ai-message-actions button:hover {
-  color: var(--accent);
-  border-color: var(--accent-dim);
-  background: var(--accent-glow);
-}
-
 .ai-message-bubble--loading {
-  padding: 0.75rem 1rem;
+  padding: 0.8rem 1rem;
 }
 
 .ai-loading-dots {
@@ -479,22 +464,24 @@
 }
 
 .ai-input:disabled {
-  opacity: 0.5;
+  opacity: 0.65;
   cursor: not-allowed;
 }
 
 .ai-send-btn {
-  width: 34px;
-  height: 34px;
+  min-width: 56px;
+  height: 36px;
+  padding: 0 0.9rem;
   flex-shrink: 0;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   background-color: var(--accent-glow-md);
   border: 1px solid var(--accent-border-hover);
   border-radius: 8px;
   color: var(--accent);
-  font-size: 1rem;
+  font-size: 0.82rem;
+  font-weight: 600;
   cursor: pointer;
   transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
   line-height: 1;
@@ -515,7 +502,7 @@
 @media (max-width: 900px) {
   .ai-chat-panel--open:not(.ai-chat-panel--inline) {
     position: fixed;
-    top: 44px;
+    top: 52px;
     right: 0;
     bottom: 0;
     width: 340px !important;
@@ -536,8 +523,7 @@
     left: 0;
   }
 
-  .ai-inline-meta {
+  .ai-context-bar {
     flex-direction: column;
-    align-items: flex-start;
   }
 }

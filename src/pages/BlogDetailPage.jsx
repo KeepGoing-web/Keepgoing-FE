@@ -98,11 +98,7 @@ const BlogDetailPage = () => {
   const handleAskAI = () => {
     dispatchOpenAIPanel({
       query: `${post.title}의 핵심 개념 3가지를 정리해줘`,
-      scope: {
-        mode: 'current-note',
-        currentNoteId: post.id,
-        aiOnly: true,
-      },
+      contextNoteId: post.id,
     })
   }
 
