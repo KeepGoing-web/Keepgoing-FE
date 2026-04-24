@@ -20,6 +20,9 @@ export const DEFAULT_NOTE_HIGHLIGHT_COLOR = NOTE_HIGHLIGHT_PALETTE[0].color
 export const DEFAULT_NOTE_TEXT_COLOR = NOTE_TEXT_COLOR_PALETTE[0].color
 
 const SPAN_WITH_STYLE_PATTERN = /<span\b([^>]*)>([\s\S]*?)<\/span>/gi
+const FENCED_CODE_BLOCK_PATTERN = /(^|\n)(`{3,}|~{3,})[^\n]*\n[\s\S]*?\n\2[ \t]*(?=\n|$)/g
+const INLINE_CODE_PATTERN = /(`+)([\s\S]*?)\1/g
+const ANGLE_BRACKET_AUTOLINK_PATTERN = /<(?:https?:\/\/|ftp:\/\/|mailto:)[^<>\s]+>|<[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9.-]+\.[A-Z]{2,}>/gi
 const RAW_HTML_TAG_PATTERN = /<\/?[a-z][^>]*>/gi
 
 function normalizeColorValue(value = '') {
@@ -28,6 +31,18 @@ function normalizeColorValue(value = '') {
 
 function escapeRawHtmlTag(tag) {
   return tag.replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+function protectMarkdownSegment(segment, segments) {
+  const segmentIndex = segments.push(segment) - 1
+  return `@@KG_MARKDOWN_SEGMENT_${segmentIndex}@@`
+}
+
+function restoreProtectedMarkdownSegments(content, segments) {
+  return segments.reduce(
+    (result, segment, segmentIndex) => result.replaceAll(`@@KG_MARKDOWN_SEGMENT_${segmentIndex}@@`, segment),
+    content,
+  )
 }
 
 function getTrustedSpanStyle(attributes) {
@@ -68,8 +83,19 @@ export function prepareMarkdownForRender(content = '') {
   if (!content) return ''
 
   const placeholders = []
+  const protectedMarkdownSegments = []
 
-  const withPlaceholders = content.replace(SPAN_WITH_STYLE_PATTERN, (match, attributes, innerContent) => {
+  const withProtectedCodeBlocks = content.replace(FENCED_CODE_BLOCK_PATTERN, (match, leadingNewline = '') => {
+    const segment = leadingNewline ? match.slice(leadingNewline.length) : match
+    return `${leadingNewline}${protectMarkdownSegment(segment, protectedMarkdownSegments)}`
+  })
+
+  const withProtectedInlineCode = withProtectedCodeBlocks.replace(
+    INLINE_CODE_PATTERN,
+    (match) => protectMarkdownSegment(match, protectedMarkdownSegments),
+  )
+
+  const withPlaceholders = withProtectedInlineCode.replace(SPAN_WITH_STYLE_PATTERN, (match, attributes, innerContent) => {
     const style = getTrustedSpanStyle(attributes)
     if (!style) return match
 
@@ -92,7 +118,13 @@ export function prepareMarkdownForRender(content = '') {
     return match
   })
 
-  const escapedHtml = withPlaceholders.replace(RAW_HTML_TAG_PATTERN, escapeRawHtmlTag)
+  const withProtectedAutolinks = withPlaceholders.replace(
+    ANGLE_BRACKET_AUTOLINK_PATTERN,
+    (match) => protectMarkdownSegment(match, protectedMarkdownSegments),
+  )
+
+  const escapedHtml = withProtectedAutolinks.replace(RAW_HTML_TAG_PATTERN, escapeRawHtmlTag)
+  const restoredMarkdown = restoreProtectedMarkdownSegments(escapedHtml, protectedMarkdownSegments)
 
   return placeholders.reduce((result, placeholder, placeholderIndex) => {
     const openToken = `@@KG_NOTE_STYLE_OPEN_${placeholderIndex}@@`
@@ -101,5 +133,5 @@ export function prepareMarkdownForRender(content = '') {
     return result
       .replaceAll(openToken, `<${placeholder.tagName} ${placeholder.attributeName}="${placeholder.id}">`)
       .replaceAll(closeToken, `</${placeholder.tagName}>`)
-  }, escapedHtml)
+  }, restoredMarkdown)
 }

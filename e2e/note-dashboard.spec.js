@@ -49,26 +49,39 @@ const mockNotes = [
   },
 ]
 
-function pagedNotes(request) {
+function pagedNotes(request, notes = mockNotes) {
   const url = new URL(request.url())
   const page = Number(url.searchParams.get('page') || '0')
   const size = Number(url.searchParams.get('size') || '10')
   const start = page * size
-  const items = mockNotes.slice(start, start + size)
+  const items = notes.slice(start, start + size)
 
   return {
     data: {
       contents: items,
       page,
       size,
-      totalElements: mockNotes.length,
-      totalPages: Math.ceil(mockNotes.length / size),
-      last: start + size >= mockNotes.length,
+      totalElements: notes.length,
+      totalPages: Math.ceil(notes.length / size),
+      last: start + size >= notes.length,
     },
   }
 }
 
-async function mockNoteApi(page) {
+function activityCalendar(request) {
+  const url = new URL(request.url())
+
+  return {
+    data: {
+      from: url.searchParams.get('from') || '2026-01-01',
+      to: url.searchParams.get('to') || '2026-04-22',
+      timezone: 'Asia/Seoul',
+      calendar: [],
+    },
+  }
+}
+
+async function mockNoteApi(page, { notes = mockNotes } = {}) {
   await page.route('**/api/users/me', (route) => route.fulfill({ json: { data: mockUser } }))
   await page.route('**/api/folders/tree', (route) => route.fulfill({
     json: {
@@ -80,10 +93,11 @@ async function mockNoteApi(page) {
       })),
     },
   }))
-  await page.route('**/api/notes/me/search**', (route) => route.fulfill({ json: pagedNotes(route.request()) }))
-  await page.route('**/api/notes/me**', (route) => route.fulfill({ json: pagedNotes(route.request()) }))
+  await page.route('**/api/activities/me/dashboard**', (route) => route.fulfill({ json: activityCalendar(route.request()) }))
+  await page.route('**/api/notes/me/search**', (route) => route.fulfill({ json: pagedNotes(route.request(), notes) }))
+  await page.route('**/api/notes/me**', (route) => route.fulfill({ json: pagedNotes(route.request(), notes) }))
 
-  for (const note of mockNotes) {
+  for (const note of notes) {
     await page.route(`**/api/notes/${note.noteId}`, (route) => route.fulfill({ json: { data: note } }))
   }
 }
@@ -131,4 +145,44 @@ test('dashboard home and library respect the light theme palette', async ({ page
   expect(dashboardShell.backgroundColor).not.toContain('17, 17, 27')
   expect(dashboardShell.backgroundColor).not.toContain('30, 30, 46')
   expect(dashboardShell.borderColor).not.toContain('17, 17, 27')
+})
+
+test('note detail keeps angle-bracket markdown syntax readable after save', async ({ page }) => {
+  const notes = [
+    {
+      noteId: '201',
+      title: '렌더링 회귀 샘플',
+      content: [
+        '# NoteQueryRepository',
+        '',
+        '- 참고 링크',
+        '- PostgreSQL 공식 문서 — Multicolumn Indexes: <https://www.postgresql.org/docs/current/indexes-multicolumn.html>',
+        '- `Page<NoteSummaryResult>` 같은 read model을 직접 반환해도 된다.',
+        '',
+        '```ts',
+        'const page: Page<NoteSummaryResult> = fetchPage()',
+        '```',
+      ].join('\n'),
+      visibility: 'PUBLIC',
+      aiCollectable: true,
+      createdAt: '2026-04-10T10:00:00Z',
+      updatedAt: '2026-04-10T10:00:00Z',
+      categoryId: 'cat-1',
+      tags: [],
+    },
+  ]
+
+  await mockNoteApi(page, { notes })
+
+  await page.goto('/notes/201')
+  await expect(page.getByRole('heading', { name: '렌더링 회귀 샘플' })).toBeVisible()
+
+  const content = page.locator('.blog-content')
+  const link = content.getByRole('link', { name: 'https://www.postgresql.org/docs/current/indexes-multicolumn.html' })
+
+  await expect(link).toHaveAttribute('href', 'https://www.postgresql.org/docs/current/indexes-multicolumn.html')
+  await expect(content).not.toContainText('<https://www.postgresql.org/docs/current/indexes-multicolumn.html>')
+  await expect(content.locator('code').first()).toContainText('Page<NoteSummaryResult>')
+  await expect(content.locator('pre code')).toContainText('const page: Page<NoteSummaryResult> = fetchPage()')
+  await expect(content).not.toContainText('Page&lt;NoteSummaryResult&gt;')
 })
