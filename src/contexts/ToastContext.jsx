@@ -21,6 +21,7 @@ export function ToastProvider({ children }) {
   }, [])
 
   const removeToast = useCallback((id) => {
+    if (timers.current[`exit_${id}`]) return
     clearTimeout(timers.current[id])
     delete timers.current[id]
     setToasts((prev) => prev.map((t) => (t.id === id ? { ...t, exiting: true } : t)))
@@ -35,7 +36,13 @@ export function ToastProvider({ children }) {
     const dur = duration ?? (type === 'error' ? 5000 : 3000)
     setToasts((prev) => {
       const next = [...prev, { id, message, type, exiting: false }]
-      return next.length > 3 ? next.slice(-3) : next
+      if (next.length <= 3) return next
+      const dropped = next[0]
+      // Only trim when neither the new toast nor the dropped one is an error.
+      if (type !== 'error' && dropped.type !== 'error') {
+        return next.slice(-3)
+      }
+      return next
     })
     timers.current[id] = setTimeout(() => removeToast(id), dur)
     return id
@@ -58,7 +65,7 @@ export function ToastProvider({ children }) {
           <div
             key={t.id}
             className={`toast toast--${t.type}${t.exiting ? ' toast--exit' : ''}`}
-            role="status"
+            role={t.type === 'error' ? 'alert' : 'status'}
           >
             <span className="toast-icon">
               {t.type === 'success' && '✓'}

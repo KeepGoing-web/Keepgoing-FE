@@ -35,12 +35,22 @@ const RAGConversationPane = ({ rag }) => {
         ) : (
           entries.map((entry) => {
             const isActive = entry.id === activeEntryId
+            const handleActivate = () => setActiveEntryId(entry.id)
 
             return (
               <article
                 key={entry.id}
                 className={`rag-turn${isActive ? ' is-active' : ''}`}
-                onClick={() => setActiveEntryId(entry.id)}
+                role="button"
+                tabIndex={0}
+                aria-pressed={isActive}
+                onClick={handleActivate}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    handleActivate()
+                  }
+                }}
               >
                 <div className="rag-turn__question">
                   <span className="rag-turn__label">질문</span>

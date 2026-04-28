@@ -1,12 +1,21 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useId } from 'react'
 import mermaid from 'mermaid'
+import DOMPurify from 'dompurify'
+import { initMermaidWithTheme } from '../utils/mermaidTheme'
 import './MermaidRenderer.css'
 
-let idCounter = 0
+function sanitizeMermaidSvg(svg) {
+  if (typeof svg !== 'string' || !svg) return ''
+  return DOMPurify.sanitize(svg, {
+    USE_PROFILES: { svg: true, svgFilters: true },
+    ADD_TAGS: ['use'],
+    KEEP_CONTENT: true,
+  })
+}
 
 const MermaidRenderer = ({ code }) => {
-  const containerRef = useRef(null)
-  const idRef = useRef(`mermaid-${++idCounter}`)
+  const reactId = useId()
+  const idRef = useRef(`mermaid-${reactId.replace(/[^a-z0-9]/gi, '-')}`)
   const [svg, setSvg] = useState('')
   const [error, setError] = useState(null)
   const [showCode, setShowCode] = useState(false)
@@ -18,42 +27,13 @@ const MermaidRenderer = ({ code }) => {
       return
     }
 
-    const theme = document.documentElement.getAttribute('data-theme')
-    mermaid.initialize({
-      startOnLoad: false,
-      theme: theme === 'light' ? 'default' : 'dark',
-      fontFamily: 'var(--font-sans)',
-      themeVariables:
-        theme === 'light'
-          ? {
-              primaryColor: '#d1fae5',
-              primaryTextColor: '#1e293b',
-              primaryBorderColor: '#0d9488',
-              lineColor: '#64748b',
-              secondaryColor: '#e2e8f0',
-              tertiaryColor: '#f1f5f9',
-              noteBkgColor: '#fef3c7',
-              noteTextColor: '#1e293b',
-              noteBorderColor: '#f59e0b',
-            }
-          : {
-              primaryColor: '#1e3a3a',
-              primaryTextColor: '#cdd6f4',
-              primaryBorderColor: '#2dd4bf',
-              lineColor: '#6c7086',
-              secondaryColor: '#313244',
-              tertiaryColor: '#1e1e2e',
-              noteBkgColor: '#45475a',
-              noteTextColor: '#cdd6f4',
-              noteBorderColor: '#f9e2af',
-            },
-    })
+    initMermaidWithTheme()
 
     try {
       // mermaid.render needs a unique ID each time
       const uniqueId = `${idRef.current}-${Date.now()}`
       const { svg: rendered } = await mermaid.render(uniqueId, code.trim())
-      setSvg(rendered)
+      setSvg(sanitizeMermaidSvg(rendered))
       setError(null)
     } catch (err) {
       setSvg('')
@@ -83,7 +63,7 @@ const MermaidRenderer = ({ code }) => {
   }, [renderDiagram])
 
   return (
-    <div className="mermaid-renderer" ref={containerRef}>
+    <div className="mermaid-renderer">
       <div className="mermaid-header">
         <span className="mermaid-label">Mermaid</span>
         <button

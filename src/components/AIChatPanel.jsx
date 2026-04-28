@@ -106,6 +106,10 @@ function createErrorMessage(error, contextNoteId) {
   })
 }
 
+function prefersReducedMotion() {
+  return typeof window !== 'undefined' && Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
+}
+
 const AIChatPanel = ({
   isOpen,
   onClose,
@@ -135,11 +139,19 @@ const AIChatPanel = ({
   const [isResizing, setIsResizing] = useState(false)
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
+  const consumedRequestKey = useRef(null)
 
   const suggestions = activeContextNoteId ? NOTE_CONTEXT_SUGGESTIONS : GENERAL_SUGGESTIONS
 
   const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const target = messagesEndRef.current
+    if (!target) return
+    const scrollContainer = target.parentElement
+    const isNearBottom = scrollContainer
+      ? (scrollContainer.scrollHeight - scrollContainer.scrollTop - scrollContainer.clientHeight) < 80
+      : true
+    if (!isNearBottom) return
+    target.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
   }, [])
 
   useEffect(() => {
@@ -155,7 +167,7 @@ const AIChatPanel = ({
   useEffect(() => {
     let ignore = false
 
-    if (!activeContextNoteId) {
+    if (!activeContextNoteId || !isOpen) {
       setContextTitle('')
       return undefined
     }
@@ -178,7 +190,7 @@ const AIChatPanel = ({
     return () => {
       ignore = true
     }
-  }, [activeContextNoteId])
+  }, [activeContextNoteId, isOpen])
 
   const sendMessage = useCallback(async (rawMessage, overrideContextNoteId = activeContextNoteId) => {
     const message = String(rawMessage || '').trim()
@@ -211,19 +223,25 @@ const AIChatPanel = ({
   }, [activeContextNoteId, loading])
 
   useEffect(() => {
-    if (!externalRequest?.query || !isOpen) return
+    if (!externalRequest?.query || !isOpen) return undefined
+
+    const externalContextNoteId = getExternalContextNoteId(externalRequest)
+    const requestKey = `${externalRequest.query}|${externalContextNoteId ?? ''}|${externalRequest.id ?? externalRequest.timestamp ?? ''}`
+    if (consumedRequestKey.current === requestKey) return undefined
+    consumedRequestKey.current = requestKey
 
     setInput(externalRequest.query)
 
-    const externalContextNoteId = getExternalContextNoteId(externalRequest) ?? routeContextNoteId
+    const submitContextNoteId = externalContextNoteId ?? routeContextNoteId
     const submitTimer = setTimeout(() => {
-      void sendMessage(externalRequest.query, externalContextNoteId).finally(() => {
+      void sendMessage(externalRequest.query, submitContextNoteId).finally(() => {
         onExternalRequestConsumed?.()
       })
     }, isInline ? 120 : 360)
 
     return () => clearTimeout(submitTimer)
-  }, [externalRequest, isInline, isOpen, onExternalRequestConsumed, routeContextNoteId, sendMessage])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalRequest, isInline, isOpen, onExternalRequestConsumed, sendMessage])
 
   const handleResizeStart = useCallback((event) => {
     event.preventDefault()
@@ -307,7 +325,7 @@ const AIChatPanel = ({
 
       <div className="ai-panel-header">
         <div className="ai-panel-title">
-          <span className="ai-panel-icon">⬡</span>
+          <span className="ai-panel-icon" aria-hidden="true">⬡</span>
           <span>{title}</span>
         </div>
         <div className="ai-panel-actions">
@@ -327,7 +345,7 @@ const AIChatPanel = ({
             title={isInline ? '대화 닫기' : '패널 닫기'}
             aria-label={isInline ? '대화 닫기' : 'AI 패널 닫기'}
           >
-            ✕
+            <span aria-hidden="true">✕</span>
           </button>
         </div>
       </div>
@@ -347,7 +365,7 @@ const AIChatPanel = ({
       <div className="ai-messages" role="log" aria-live="polite">
         {messages.length === 0 && !loading ? (
           <div className="ai-empty-state">
-            <div className="ai-empty-icon">⬡</div>
+            <div className="ai-empty-icon" aria-hidden="true">⬡</div>
             <p className="ai-empty-title">
               {activeContextNoteId ? '현재 노트를 바탕으로 바로 질문할 수 있습니다.' : 'AI와 바로 대화를 시작할 수 있습니다.'}
             </p>
@@ -355,8 +373,14 @@ const AIChatPanel = ({
             {!isInline && (
               <ul className="ai-empty-suggestions">
                 {suggestions.map((suggestion) => (
-                  <li key={suggestion.label} className="ai-suggestion" onClick={() => setInput(suggestion.prompt)}>
-                    {suggestion.label}
+                  <li key={suggestion.label}>
+                    <button
+                      type="button"
+                      className="ai-suggestion"
+                      onClick={() => setInput(suggestion.prompt)}
+                    >
+                      {suggestion.label}
+                    </button>
                   </li>
                 ))}
               </ul>

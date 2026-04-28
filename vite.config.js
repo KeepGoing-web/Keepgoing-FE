@@ -54,6 +54,22 @@ export default defineConfig(({ mode }) => {
               return 'mermaid'
             }
 
+            if (
+              id.includes('react-markdown') ||
+              id.includes('rehype-') ||
+              id.includes('remark-') ||
+              id.includes('vfile') ||
+              id.includes('unist-') ||
+              id.includes('mdast-') ||
+              id.includes('micromark') ||
+              id.includes('hast-') ||
+              id.includes('property-information') ||
+              id.includes('space-separated-tokens') ||
+              id.includes('comma-separated-tokens')
+            ) {
+              return 'markdown-renderer'
+            }
+
             return undefined
           },
         },

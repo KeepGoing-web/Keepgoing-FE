@@ -1,16 +1,22 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { fetchNotes } from '../api/client'
+import { useVaultOptional } from '../contexts/VaultContext'
 import './CommandPalette.css'
 
 const CommandPalette = ({ isOpen, onClose, onAIQuery }) => {
   const navigate = useNavigate()
   const location = useLocation()
+  const vault = useVaultOptional()
+  const recentNotes = vault?.recentNotes ?? []
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(0)
   const inputRef = useRef(null)
+
+  const isSearching = query.trim().length > 0
+  const visibleRecents = recentNotes.slice(0, 5)
 
   useEffect(() => {
     if (isOpen) {
@@ -19,6 +25,14 @@ const CommandPalette = ({ isOpen, onClose, onAIQuery }) => {
       setSelectedIndex(0)
       setTimeout(() => inputRef.current?.focus(), 50)
     }
+  }, [isOpen])
+
+  /* Lock body scroll while palette is open */
+  useEffect(() => {
+    if (!isOpen) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
   }, [isOpen])
 
   useEffect(() => {
@@ -44,26 +58,36 @@ const CommandPalette = ({ isOpen, onClose, onAIQuery }) => {
     return () => clearTimeout(timer)
   }, [query, isOpen])
 
-  const hasAIOption = query.trim().length > 0
-  const totalItems = results.length + (hasAIOption ? 1 : 0)
+  const hasAIOption = isSearching
+  const totalItems = isSearching
+    ? results.length + (hasAIOption ? 1 : 0)
+    : visibleRecents.length
 
   const selectResult = useCallback((index) => {
-    if (hasAIOption && index === results.length) {
-      const editMatch = location.pathname.match(/^\/notes\/edit\/([^/]+)$/)
-      const noteMatch = location.pathname.match(/^\/notes\/([^/]+)$/)
-      const detailNoteId = noteMatch && !['list', 'write'].includes(noteMatch[1]) ? noteMatch[1] : null
-      const contextNoteId = editMatch?.[1] || detailNoteId || null
+    if (isSearching) {
+      if (hasAIOption && index === results.length) {
+        const editMatch = location.pathname.match(/^\/notes\/edit\/([^/]+)$/)
+        const noteMatch = location.pathname.match(/^\/notes\/([^/]+)$/)
+        const detailNoteId = noteMatch && !['list', 'write'].includes(noteMatch[1]) ? noteMatch[1] : null
+        const contextNoteId = editMatch?.[1] || detailNoteId || null
 
-      onAIQuery?.({ query: query.trim(), contextNoteId })
-      onClose()
-      return
+        onAIQuery?.({ query: query.trim(), contextNoteId })
+        onClose()
+        return
+      }
+      const post = results[index]
+      if (post) {
+        navigate(`/notes/${post.id}`)
+        onClose()
+      }
+    } else {
+      const recent = visibleRecents[index]
+      if (recent) {
+        navigate(`/notes/${recent.id}`)
+        onClose()
+      }
     }
-    const post = results[index]
-    if (post) {
-      navigate(`/notes/${post.id}`)
-      onClose()
-    }
-  }, [results, query, hasAIOption, location.pathname, navigate, onClose, onAIQuery])
+  }, [isSearching, results, query, hasAIOption, visibleRecents, location.pathname, navigate, onClose, onAIQuery])
 
   const handleKeyDown = (e) => {
     if (e.key === 'Escape') {
@@ -96,9 +120,15 @@ const CommandPalette = ({ isOpen, onClose, onAIQuery }) => {
 
   return (
     <div className="cmd-overlay" onClick={onClose}>
-      <div className="cmd-palette" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="cmd-palette"
+        role="dialog"
+        aria-modal="true"
+        aria-label="명령 팔레트"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="cmd-input-wrap">
-          <span className="cmd-input-icon">⌕</span>
+          <span className="cmd-input-icon" aria-hidden="true">⌕</span>
           <input
             ref={inputRef}
             className="cmd-input"
@@ -114,17 +144,18 @@ const CommandPalette = ({ isOpen, onClose, onAIQuery }) => {
         </div>
 
         <div className="cmd-results" role="listbox">
-          {loading && (
+          {/* ── Search mode ────────────────────────────────── */}
+          {isSearching && loading && (
             <div className="cmd-loading">검색 중...</div>
           )}
 
-          {!loading && query.trim() && results.length === 0 && (
+          {isSearching && !loading && results.length === 0 && (
             <div className="cmd-no-results">
               일치하는 노트가 없습니다
             </div>
           )}
 
-          {results.map((post, i) => (
+          {isSearching && results.map((post, i) => (
             <button
               key={post.id}
               className={`cmd-result-item${i === selectedIndex ? ' cmd-result-item--selected' : ''}`}
@@ -133,7 +164,7 @@ const CommandPalette = ({ isOpen, onClose, onAIQuery }) => {
               onClick={() => selectResult(i)}
               onMouseEnter={() => setSelectedIndex(i)}
             >
-              <span className="cmd-result-icon">📄</span>
+              <span className="cmd-result-icon" aria-hidden="true">📄</span>
               <div className="cmd-result-info">
                 <span className="cmd-result-title">{post.title}</span>
                 {post.category && (
@@ -143,7 +174,7 @@ const CommandPalette = ({ isOpen, onClose, onAIQuery }) => {
             </button>
           ))}
 
-          {hasAIOption && (
+          {isSearching && hasAIOption && (
             <>
               {results.length > 0 && <div className="cmd-divider" />}
               <button
@@ -153,7 +184,7 @@ const CommandPalette = ({ isOpen, onClose, onAIQuery }) => {
                 onClick={() => selectResult(results.length)}
                 onMouseEnter={() => setSelectedIndex(results.length)}
               >
-                <span className="cmd-result-icon">⬡</span>
+                <span className="cmd-result-icon" aria-hidden="true">⬡</span>
                 <div className="cmd-result-info">
                   <span className="cmd-result-title">AI에게 질문하기</span>
                   <span className="cmd-ai-query">&quot;{query.trim()}&quot;</span>
@@ -161,6 +192,35 @@ const CommandPalette = ({ isOpen, onClose, onAIQuery }) => {
                 <span className="cmd-ai-badge">AI</span>
               </button>
             </>
+          )}
+
+          {/* ── Recents mode (empty query) ──────────────────── */}
+          {!isSearching && visibleRecents.length > 0 && (
+            <>
+              <div className="cmd-section-header" role="presentation">최근 본 노트</div>
+              {visibleRecents.map((recent, i) => (
+                <button
+                  key={recent.id}
+                  className={`cmd-result-item${i === selectedIndex ? ' cmd-result-item--selected' : ''}`}
+                  role="option"
+                  aria-selected={i === selectedIndex}
+                  onClick={() => selectResult(i)}
+                  onMouseEnter={() => setSelectedIndex(i)}
+                >
+                  <span className="cmd-result-icon" aria-hidden="true">📄</span>
+                  <div className="cmd-result-info">
+                    <span className="cmd-result-title">{recent.title}</span>
+                  </div>
+                  <span className="cmd-recent-pill">최근</span>
+                </button>
+              ))}
+            </>
+          )}
+
+          {!isSearching && visibleRecents.length === 0 && (
+            <div className="cmd-no-results">
+              검색어를 입력해 노트를 찾아보세요
+            </div>
           )}
         </div>
 

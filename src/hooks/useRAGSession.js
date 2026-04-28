@@ -33,7 +33,7 @@ export function useRAGSession({ initialQuery = '', initialScope }) {
   const [activeEntryId, setActiveEntryId] = useState(null)
   const [activeSourceId, setActiveSourceId] = useState(null)
   const [activeQuoteId, setActiveQuoteId] = useState(null)
-  const autoSubmittedRef = useRef(false)
+  const lastAutoSubmitKeyRef = useRef(null)
 
   const activeEntry = useMemo(
     () => entries.find((entry) => entry.id === activeEntryId) || entries[entries.length - 1] || null,
@@ -132,10 +132,16 @@ export function useRAGSession({ initialQuery = '', initialScope }) {
   }, [])
 
   useEffect(() => {
-    if (!initialQuery || autoSubmittedRef.current) return
-    autoSubmittedRef.current = true
+    if (!initialQuery) return
+    const key = `${initialQuery}|${JSON.stringify(initialScope)}`
+    if (lastAutoSubmitKeyRef.current === key) return
+    lastAutoSubmitKeyRef.current = key
     void submitQuery(initialQuery, initialScope)
-  }, [initialQuery, initialScope, submitQuery])
+    // submitQuery identity changes on every scope/draftQuery update; gating by
+    // the auto-submit key above is what guarantees we only fire once per
+    // (query, scope) pair.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialQuery, initialScope])
 
   return {
     draftQuery,

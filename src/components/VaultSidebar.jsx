@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { useIsMobile } from '../hooks/useIsMobile'
 import { useVault } from '../contexts/VaultContext'
 import NotesSidebarHeader from './NotesSidebarHeader'
 import NotesSidebarSection from './NotesSidebarSection'
@@ -14,34 +15,7 @@ const MIN_SIDEBAR = 220
 const MAX_SIDEBAR = 360
 const DEFAULT_SIDEBAR = 248
 const ROOT_DROP_TARGET = '__root__'
-const MOBILE_SIDEBAR_MEDIA = '(max-width: 680px)'
-
-function isMobileSidebarViewport() {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
-  return window.matchMedia(MOBILE_SIDEBAR_MEDIA).matches
-}
-
-function matchesQuery(value, query) {
-  if (!query) return true
-  return String(value || '').toLowerCase().includes(query)
-}
-
-function noteMatchesQuery(note, query) {
-  if (!query) return true
-  const normalized = query.toLowerCase()
-  return matchesQuery(note.title, normalized) || matchesQuery(note.content, normalized)
-}
-
-function folderHasMatch(folder, categories, notes, query) {
-  if (!query) return true
-  if (matchesQuery(folder.name, query)) return true
-
-  const directNotes = notes.filter((note) => note.category && String(note.category.id) === String(folder.id))
-  if (directNotes.some((note) => noteMatchesQuery(note, query))) return true
-
-  const children = categories.filter((category) => String(category.parentId) === String(folder.id))
-  return children.some((child) => folderHasMatch(child, categories, notes, query))
-}
+const MOBILE_SIDEBAR_BREAKPOINT = 680
 
 function getFolderAncestry(folderId, categories) {
   if (!folderId) return []
@@ -176,7 +150,6 @@ const FolderNode = ({
   activeFolderId,
   onFolderClick,
   activePostId,
-  searchQuery,
   onFolderContextMenu,
   onNoteContextMenu,
   onFolderDragOver,
@@ -205,19 +178,12 @@ const FolderNode = ({
   registerFolderButton,
 }) => {
   const childFolders = categories.filter((category) => String(category.parentId) === String(folder.id))
-  const visibleChildFolders = childFolders.filter((child) => folderHasMatch(child, categories, notes, searchQuery))
-  const directNotes = notes
-    .filter((note) => note.category && String(note.category.id) === String(folder.id))
-    .filter((note) => noteMatchesQuery(note, searchQuery))
-  const isOpen = searchQuery ? true : Boolean(openFolders[folder.id])
+  const directNotes = notes.filter((note) => note.category && String(note.category.id) === String(folder.id))
+  const isOpen = Boolean(openFolders[folder.id])
   const isDropTarget = dropTargetId === String(folder.id)
   const showDraftHere = draftFolder?.mode === 'create' && String(draftFolder.parentId ?? '') === String(folder.id)
   const showRenameDraft = draftFolder?.mode === 'rename' && String(draftFolder.folderId) === String(folder.id)
   const folderNoteCount = getFolderNoteCount(folder.id, categories, notes)
-
-  if (!searchQuery && visibleChildFolders.length === 0 && directNotes.length === 0 && !folderHasMatch(folder, categories, notes, searchQuery)) {
-    return null
-  }
 
   if (showRenameDraft) {
     return (
@@ -273,7 +239,7 @@ const FolderNode = ({
         </button>
       </div>
 
-      {isOpen && (showDraftHere || visibleChildFolders.length > 0 || directNotes.length > 0) && (
+      {isOpen && (showDraftHere || childFolders.length > 0 || directNotes.length > 0) && (
         <ul
           className="tree-children"
           onDragOver={(event) => onFolderDragOver(event, folder.id)}
@@ -289,7 +255,7 @@ const FolderNode = ({
             />
           ) : null}
 
-          {visibleChildFolders.map((child) => (
+          {childFolders.map((child) => (
             <FolderNode
               key={child.id}
               folder={child}
@@ -302,7 +268,6 @@ const FolderNode = ({
               activeFolderId={activeFolderId}
               onFolderClick={onFolderClick}
               activePostId={activePostId}
-              searchQuery={searchQuery}
               onFolderContextMenu={onFolderContextMenu}
               onNoteContextMenu={onNoteContextMenu}
               onFolderDragOver={onFolderDragOver}
@@ -373,7 +338,6 @@ const CategoryTree = ({
   activeFolderId,
   onFolderClick,
   activePostId,
-  searchQuery,
   onTreeContextMenu,
   onFolderContextMenu,
   onNoteContextMenu,
@@ -459,7 +423,6 @@ const CategoryTree = ({
   }, [activeFolderId, categories])
 
   const toggleFolder = (id) => {
-    if (searchQuery) return
     setOpenFolders((prev) => ({ ...prev, [id]: !prev[id] }))
   }
 
@@ -468,10 +431,8 @@ const CategoryTree = ({
   }
 
   const topLevelFolders = categories.filter((category) => !category.parentId)
-  const visibleTopLevelFolders = topLevelFolders.filter((folder) => folderHasMatch(folder, categories, notes, searchQuery))
-  const uncategorizedNotes = notes
-    .filter((note) => !note.category)
-    .filter((note) => noteMatchesQuery(note, searchQuery))
+  const visibleTopLevelFolders = topLevelFolders
+  const uncategorizedNotes = notes.filter((note) => !note.category)
   const showRootDraft = draftFolder?.mode === 'create' && !draftFolder.parentId
 
   return (
@@ -500,7 +461,6 @@ const CategoryTree = ({
             activeFolderId={activeFolderId}
             onFolderClick={onFolderClick}
             activePostId={activePostId}
-            searchQuery={searchQuery}
             onFolderContextMenu={onFolderContextMenu}
             onNoteContextMenu={onNoteContextMenu}
             onFolderDragOver={onFolderDragOver}
@@ -559,10 +519,6 @@ const CategoryTree = ({
           )
         ))}
 
-        {searchQuery && visibleTopLevelFolders.length === 0 && uncategorizedNotes.length === 0 ? (
-          <li className="tree-empty-hint">검색 결과가 없습니다</li>
-        ) : null}
-
         <li
           ref={rootFolderButtonRef}
           tabIndex={-1}
@@ -598,8 +554,10 @@ const VaultSidebar = () => {
     deleteNote: deleteNoteInVault,
   } = useVault()
 
+  const isMobileSidebar = useIsMobile(MOBILE_SIDEBAR_BREAKPOINT)
+
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    if (isMobileSidebarViewport()) {
+    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(`(max-width: ${MOBILE_SIDEBAR_BREAKPOINT}px)`).matches) {
       return true
     }
 
@@ -637,7 +595,6 @@ const VaultSidebar = () => {
   const folderButtonRefs = useRef(new Map())
   const rootFolderButtonRef = useRef(null)
 
-  const normalizedQuery = ''
   const showFolderSelection = !activePostId
 
   useEffect(() => {
@@ -671,9 +628,9 @@ const VaultSidebar = () => {
   }, [isSidebarResizing, sidebarWidth])
 
   useEffect(() => {
-    if (!isMobileSidebarViewport()) return
+    if (!isMobileSidebar) return
     setSidebarCollapsed(true)
-  }, [location.pathname])
+  }, [isMobileSidebar, location.pathname])
 
   useEffect(() => {
     const clearDragState = () => {
@@ -1210,7 +1167,6 @@ const VaultSidebar = () => {
               activeFolderId={showFolderSelection ? categoryId : ''}
               onFolderClick={handleFolderClick}
               activePostId={activePostId}
-              searchQuery={normalizedQuery}
               onTreeContextMenu={(event) => openFolderContextMenu(event, null)}
               onFolderContextMenu={(folder, event) => openFolderContextMenu(event, folder)}
               onNoteContextMenu={openNoteContextMenu}

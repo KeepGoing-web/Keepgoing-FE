@@ -275,6 +275,10 @@
 }
 
 .ai-suggestion {
+  appearance: none;
+  display: block;
+  width: 100%;
+  font: inherit;
   padding: 0.5rem 0.75rem;
   background-color: var(--bg-surface);
   border: 1px solid var(--border);
