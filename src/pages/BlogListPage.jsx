@@ -1,12 +1,13 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { fetchNotes } from '../api/client'
+import { keepPreviousData } from '@tanstack/react-query'
+import { useNotes } from '../api/queries/notes'
 import { useVault } from '../contexts/VaultContext'
 import { useDebounce } from '../hooks/useDebounce'
 import NotesPageHeader from '../components/NotesPageHeader'
 import { setDraggedNote } from '../utils/noteDrag'
 import { estimateReadTime } from '../utils/format'
-import { buildNoteListParams, DEFAULT_NOTE_LIST_PAGE_META } from './blogListState'
+import { buildNoteListParams } from './blogListState'
 import './BlogListPage.css'
 
 const VISIBILITY_META = {
@@ -49,18 +50,13 @@ const BlogListPage = () => {
     categoryId,
     setCategoryId,
     addRecentNote,
-    notesRevision,
   } = useVault()
 
-  const [posts, setNotes] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState('createdAt')
   const [order, setOrder] = useState('desc')
   const [page, setPage] = useState(1)
   const [size, setSize] = useState(10)
-  const [pageMeta, setPageMeta] = useState(DEFAULT_NOTE_LIST_PAGE_META)
   const [visibility, setVisibility] = useState('')
   const [aiOnly, setAiOnly] = useState('')
   const [dateFrom, setDateFrom] = useState('')
@@ -73,41 +69,45 @@ const BlogListPage = () => {
     setPage(1)
   }, [categoryId])
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true)
-      setError(null)
+  const queryParams = useMemo(
+    () =>
+      buildNoteListParams({
+        page,
+        size,
+        query: debouncedQuery,
+        categoryId,
+        sort,
+        order,
+        visibility,
+        aiOnly,
+        dateFrom,
+        dateTo,
+      }),
+    [page, size, debouncedQuery, categoryId, sort, order, visibility, aiOnly, dateFrom, dateTo],
+  )
 
-      try {
-        const params = buildNoteListParams({
-          page,
-          size,
-          query: debouncedQuery,
-          categoryId,
-          sort,
-          order,
-          visibility,
-          aiOnly,
-          dateFrom,
-          dateTo,
-        })
-        const response = await fetchNotes(params)
-        setNotes(attachCategoryMeta(response.posts || [], categories))
-        setPageMeta({
-          total: response.total ?? 0,
-          totalPages: response.totalPages ?? 0,
-          hasNext: Boolean(response.hasNext),
-          hasPrev: Boolean(response.hasPrev),
-        })
-      } catch (fetchError) {
-        setError(fetchError.message)
-      } finally {
-        setLoading(false)
-      }
-    }
+  const { data, isLoading, error, isError } = useNotes(queryParams, {
+    placeholderData: keepPreviousData,
+  })
 
-    void load()
-  }, [aiOnly, categories, categoryId, dateFrom, dateTo, debouncedQuery, notesRevision, order, page, size, sort, visibility])
+  const posts = useMemo(() => data?.posts ?? data?.notes ?? [], [data])
+  const pageMeta = useMemo(
+    () => ({
+      total: data?.total ?? 0,
+      totalPages: data?.totalPages ?? 0,
+      hasNext: Boolean(data?.hasNext),
+      hasPrev: Boolean(data?.hasPrev),
+    }),
+    [data],
+  )
+
+  const loading = isLoading
+  const errorMessage = isError ? error?.message ?? '불러오기에 실패했습니다.' : null
+
+  const decoratedPosts = useMemo(
+    () => attachCategoryMeta(posts, categories),
+    [posts, categories]
+  )
 
   const handleResetFilters = () => {
     setVisibility('')
@@ -193,7 +193,7 @@ const BlogListPage = () => {
 
       <div className="search-bar-wrap">
         <div className="search-bar">
-          <i className="search-icon">⌕</i>
+          <i className="search-icon" aria-hidden="true">⌕</i>
           <input
             className="search-input"
             value={query}
@@ -316,13 +316,13 @@ const BlogListPage = () => {
         <button className="toolbar-reset-btn" onClick={handleResetAll}>전체 초기화</button>
       </div>
 
-      {error && <div className="blog-error">{error}</div>}
+      {errorMessage && <div className="blog-error">{errorMessage}</div>}
 
       {loading ? (
         <div className="blog-empty">문서를 불러오는 중입니다...</div>
-      ) : posts.length === 0 ? (
+      ) : decoratedPosts.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon">📝</div>
+          <div className="empty-state-icon" aria-hidden="true">📝</div>
           <h2 className="empty-state-title">
             {activeFilterChips.length > 0 ? '조건에 맞는 문서가 없습니다.' : '아직 작성된 문서가 없습니다.'}
           </h2>
@@ -340,7 +340,7 @@ const BlogListPage = () => {
         </div>
       ) : (
         <div className="blog-list">
-          {posts.map((post) => {
+          {decoratedPosts.map((post) => {
             const visibilityMeta = getVisMeta(post.visibility)
             return (
               <Link
@@ -365,7 +365,7 @@ const BlogListPage = () => {
 
                   <div className="blog-card-meta">
                     <span>{post.category?.name || '미분류'}</span>
-                    <span>{estimateReadTime(post.content)}분 읽기</span>
+                    <span>{estimateReadTime(post.content).minutes}분 읽기</span>
                     <span className={`blog-vis-badge blog-vis-badge--${visibilityMeta.cls}`}>
                       {visibilityMeta.dot && <span className="blog-vis-dot" />}
                       {visibilityMeta.label}

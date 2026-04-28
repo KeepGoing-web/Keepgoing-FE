@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { vi } from 'vitest'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import BlogWritePage from './BlogWritePage'
 
 const mockCreateNote = vi.fn()
@@ -41,14 +42,24 @@ vi.mock('../components/ConfirmModal', () => ({
 }))
 
 function renderWritePage(initialEntry = '/notes/write') {
+  const router = createMemoryRouter(
+    [
+      { path: '/notes/write', element: <BlogWritePage /> },
+      { path: '/notes/edit/:id', element: <BlogWritePage /> },
+      { path: '/notes/:id', element: <div>note detail</div> },
+    ],
+    { initialEntries: [initialEntry] },
+  )
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, gcTime: Infinity, staleTime: 0 },
+      mutations: { retry: false },
+    },
+  })
   return render(
-    <MemoryRouter initialEntries={[initialEntry]}>
-      <Routes>
-        <Route path="/notes/write" element={<BlogWritePage />} />
-        <Route path="/notes/edit/:id" element={<BlogWritePage />} />
-        <Route path="/notes/:id" element={<div>note detail</div>} />
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
   )
 }
 
@@ -70,12 +81,9 @@ describe('BlogWritePage', () => {
 
     await screen.findByText('note detail')
 
-    expect(mockCreateNote).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: '테스트 노트',
-      }),
-    )
-    expect(mockRefreshNotes).toHaveBeenCalled()
+    expect(mockCreateNote).toHaveBeenCalled()
+    expect(mockCreateNote.mock.calls[0][0]).toMatchObject({ title: '테스트 노트' })
+    // mutation hook handles cache invalidation; refreshNotes no longer needed
     expect(mockToast.success).toHaveBeenCalled()
   })
 

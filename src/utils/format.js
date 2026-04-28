@@ -8,13 +8,24 @@ export function formatDate(iso) {
 }
 
 /**
- * Estimate reading time in minutes from text content.
+ * Estimate reading time from text content.
  * Average Korean reading speed: ~500 chars/min
+ * Returns { minutes: number, label: string } for i18n flexibility.
  */
 export function estimateReadTime(text) {
-  if (!text) return 0
+  if (!text) return { minutes: 1, label: '1분 미만' }
   const chars = text.replace(/\s/g, '').length
-  return Math.max(1, Math.round(chars / 500))
+  const minutes = Math.round(chars / 500)
+  if (minutes < 1) return { minutes: 1, label: '1분 미만' }
+  return { minutes, label: `읽기 ${minutes}분` }
+}
+
+/**
+ * Returns only the display label from estimateReadTime.
+ * Convenience helper for callsites that just need the string.
+ */
+export function formatReadTime(text) {
+  return estimateReadTime(text).label
 }
 
 /**

@@ -8,6 +8,20 @@ afterEach(() => {
 })
 
 beforeAll(() => {
+  if (!window.matchMedia) {
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: (query) => ({
+        matches: query.includes('max-width') && parseInt(query.match(/\d+/)?.[0], 10) >= (window.innerWidth ?? 1280),
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }),
+    })
+  }
+
   if (!globalThis.localStorage || typeof globalThis.localStorage.clear !== 'function') {
     let store = {}
 

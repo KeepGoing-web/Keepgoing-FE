@@ -1,42 +1,33 @@
-import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
+import { createContext, useContext, useState, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
+import { attachCategoryMeta } from '../utils/notes'
+import { queryKeys } from '../api/queries/keys'
+import { useNotes } from '../api/queries/notes'
+import { useCategories } from '../api/queries/categories'
 import {
-  fetchNotes,
-  fetchCategories,
-  createCategory as apiCreateCategory,
-  renameCategory as apiRenameCategory,
-  deleteCategory as apiDeleteCategory,
-  moveCategory as apiMoveCategory,
-  moveNote as apiMoveNote,
-  updateNote as apiUpdateNote,
-  deleteNote as apiDeleteNote,
-} from '../api/client'
+  useUpdateNote,
+  useDeleteNote,
+  useMoveNote,
+} from '../api/mutations/notes'
+import {
+  useCreateCategory,
+  useRenameCategory,
+  useDeleteCategory,
+  useMoveCategory,
+} from '../api/mutations/folders'
 
 const RECENT_KEY = 'kg-recent-notes'
 const LEGACY_RECENT_KEY = 'kg-recent-posts'
 const RECENT_MAX = 5
-
-function attachCategoryMeta(posts, categories) {
-  return posts.map((post) => {
-    const folderId = post.folderId ?? post.categoryId ?? post.category?.id ?? null
-
-    return {
-      ...post,
-      category: categories.find((category) => String(category.id) === String(folderId)) || post.category || null,
-      categoryId: folderId,
-      folderId,
-    }
-  })
-}
+const VAULT_NOTES_PARAMS = { page: 1, size: 200, sort: 'createdAt', order: 'desc' }
 
 function getRecentNotes() {
   try {
     const raw = localStorage.getItem(RECENT_KEY) || localStorage.getItem(LEGACY_RECENT_KEY)
     if (!raw) return []
-
     const parsed = JSON.parse(raw)
     const seen = new Set()
-
     return parsed.filter((post) => {
       const key = String(post.id)
       if (seen.has(key)) return false
@@ -50,10 +41,10 @@ function getRecentNotes() {
 
 function addRecentNoteToStorage(post) {
   try {
-    const previousNotes = getRecentNotes().filter((recentPost) => String(recentPost.id) !== String(post.id))
-    const nextNotes = [{ id: post.id, title: post.title }, ...previousNotes].slice(0, RECENT_MAX)
-    localStorage.setItem(RECENT_KEY, JSON.stringify(nextNotes))
-    return nextNotes
+    const previous = getRecentNotes().filter((p) => String(p.id) !== String(post.id))
+    const next = [{ id: post.id, title: post.title }, ...previous].slice(0, RECENT_MAX)
+    localStorage.setItem(RECENT_KEY, JSON.stringify(next))
+    return next
   } catch {
     return getRecentNotes()
   }
@@ -61,50 +52,32 @@ function addRecentNoteToStorage(post) {
 
 function updateRecentNoteInStorage(post) {
   try {
-    const nextNotes = getRecentNotes().map((recentPost) => (
-      String(recentPost.id) === String(post.id)
-        ? { ...recentPost, title: post.title }
-        : recentPost
-    ))
-    localStorage.setItem(RECENT_KEY, JSON.stringify(nextNotes))
-    return nextNotes
+    const next = getRecentNotes().map((r) =>
+      String(r.id) === String(post.id) ? { ...r, title: post.title ?? r.title } : r,
+    )
+    localStorage.setItem(RECENT_KEY, JSON.stringify(next))
+    return next
   } catch {
     return getRecentNotes()
   }
 }
 
-function removeRecentNoteFromStorage(noteId) {
+function removeRecentNoteFromStorage(id) {
   try {
-    const nextNotes = getRecentNotes().filter((recentPost) => String(recentPost.id) !== String(noteId))
-    localStorage.setItem(RECENT_KEY, JSON.stringify(nextNotes))
-    return nextNotes
+    const next = getRecentNotes().filter((r) => String(r.id) !== String(id))
+    localStorage.setItem(RECENT_KEY, JSON.stringify(next))
+    return next
   } catch {
     return getRecentNotes()
-  }
-}
-
-async function fetchVaultData() {
-  const [postsResponse, categoryResponse] = await Promise.all([
-    fetchNotes({ page: 1, size: 200, sort: 'createdAt', order: 'desc' }),
-    fetchCategories(),
-  ])
-
-  const categories = categoryResponse.categories || []
-  const posts = attachCategoryMeta(postsResponse.posts || [], categories)
-
-  return {
-    posts,
-    categories,
-    tags: [],
   }
 }
 
 const VaultContext = createContext(null)
 
 export function useVault() {
-  const context = useContext(VaultContext)
-  if (!context) throw new Error('useVault must be used within VaultProvider')
-  return context
+  const ctx = useContext(VaultContext)
+  if (!ctx) throw new Error('useVault must be used within VaultProvider')
+  return ctx
 }
 
 export function useVaultOptional() {
@@ -113,237 +86,187 @@ export function useVaultOptional() {
 
 export function VaultProvider({ children }) {
   const navigate = useNavigate()
-  const [allNotes, setAllNotes] = useState([])
-  const [categories, setCategories] = useState([])
   const [recentNotes, setRecentNotes] = useState(() => getRecentNotes())
-  const [loading, setLoading] = useState(true)
   const [categoryId, setCategoryId] = useState('')
   const [notesRevision, setNotesRevision] = useState(0)
 
-  const hydrateVault = useCallback(async () => {
-    setLoading(true)
-    try {
-      const data = await fetchVaultData()
-      setAllNotes(data.posts)
-      setCategories(data.categories)
-    } catch {
-      // non-blocking fetch failure; consumers render empty states
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const bumpRevision = useCallback(() => setNotesRevision((n) => n + 1), [])
 
-  useEffect(() => {
-    void hydrateVault()
-  }, [hydrateVault])
+  const notesQuery = useNotes(VAULT_NOTES_PARAMS)
+  const categoriesQuery = useCategories()
+  const loading = notesQuery.isLoading || categoriesQuery.isLoading
 
+  const rawNotes = useMemo(
+    () => notesQuery.data?.notes ?? notesQuery.data?.posts ?? [],
+    [notesQuery.data],
+  )
+  const categories = useMemo(
+    () => categoriesQuery.data?.categories ?? [],
+    [categoriesQuery.data],
+  )
+  const allNotes = useMemo(
+    () => attachCategoryMeta(rawNotes, categories),
+    [rawNotes, categories],
+  )
   const categoryStats = useMemo(
     () =>
       categories.map((category) => ({
         ...category,
-        count: allNotes.filter((post) => post.category && String(post.category.id) === String(category.id)).length,
+        count: allNotes.filter(
+          (post) => post.category && String(post.category.id) === String(category.id),
+        ).length,
       })),
     [allNotes, categories],
   )
 
   const addRecentNote = useCallback((post) => {
-    const nextNotes = addRecentNoteToStorage(post)
-    setRecentNotes(nextNotes)
+    const next = addRecentNoteToStorage(post)
+    setRecentNotes(next)
   }, [])
 
-  const navigateToNote = useCallback((post) => {
-    addRecentNote(post)
-    navigate(`/notes/${post.id}`)
-  }, [addRecentNote, navigate])
+  const navigateToNote = useCallback(
+    (post) => {
+      addRecentNote(post)
+      navigate(`/notes/${post.id}`)
+    },
+    [addRecentNote, navigate],
+  )
 
-  const resetFilters = useCallback(() => {
-    setCategoryId('')
-  }, [])
+  const resetFilters = useCallback(() => setCategoryId(''), [])
 
-  const createCategory = useCallback(async (name, parentId = null) => {
-    const nextCategory = await apiCreateCategory(name, parentId)
-    try {
-      const data = await fetchVaultData()
-      setAllNotes(data.posts)
-      setCategories(data.categories)
-      setNotesRevision((prev) => prev + 1)
-    } catch {
-      setCategories((prev) => [...prev, nextCategory])
-    }
-    return nextCategory
-  }, [])
-
-  const renameCategory = useCallback(async (categoryId, name) => {
-    const updatedCategory = await apiRenameCategory(categoryId, name)
-
-    setCategories((prev) => prev.map((category) => (
-      String(category.id) === String(categoryId)
-        ? { ...category, ...updatedCategory }
-        : category
-    )))
-
-    try {
-      const data = await fetchVaultData()
-      setAllNotes(data.posts)
-      setCategories(data.categories)
-      setNotesRevision((prev) => prev + 1)
-    } catch {
-      setCategories((prev) => prev.map((category) => (
-        String(category.id) === String(categoryId)
-          ? { ...category, ...updatedCategory }
-          : category
-      )))
-    }
-
-    return updatedCategory
-  }, [])
-
-  const deleteCategory = useCallback(async (categoryId) => {
-    await apiDeleteCategory(categoryId)
-
-    setCategories((prev) => prev.filter((category) => String(category.id) !== String(categoryId)))
-
-    try {
-      const data = await fetchVaultData()
-      setAllNotes(data.posts)
-      setCategories(data.categories)
-      setNotesRevision((prev) => prev + 1)
-    } catch {
-      setCategories((prev) => prev.filter((category) => String(category.id) !== String(categoryId)))
-    }
-
-    return true
-  }, [])
-
-  const moveCategory = useCallback(async (categoryId, parentId = null) => {
-    const updatedCategory = await apiMoveCategory(categoryId, parentId)
-
-    setCategories((prev) => prev.map((category) => (
-      String(category.id) === String(categoryId)
-        ? { ...category, ...updatedCategory }
-        : category
-    )))
-
-    try {
-      const data = await fetchVaultData()
-      setAllNotes(data.posts)
-      setCategories(data.categories)
-      setNotesRevision((prev) => prev + 1)
-    } catch {
-      setCategories((prev) => prev.map((category) => (
-        String(category.id) === String(categoryId)
-          ? { ...category, ...updatedCategory }
-          : category
-      )))
-    }
-
-    return updatedCategory
-  }, [])
+  const queryClient = useQueryClient()
 
   const refreshNotes = useCallback(async () => {
-    try {
-      const data = await fetchVaultData()
-      setAllNotes(data.posts)
-      setCategories(data.categories)
-      setNotesRevision((prev) => prev + 1)
-    } catch {
-      // non-blocking refresh failure
-    }
-  }, [])
+    // Invalidate activities so consumers (DashboardPage) refetch even when their
+    // own staleTime hasn't elapsed yet — covers raw create/update flows that
+    // bypass the typed mutation hooks.
+    queryClient.invalidateQueries({ queryKey: queryKeys.activities.all })
+    await Promise.all([notesQuery.refetch(), categoriesQuery.refetch()])
+    bumpRevision()
+  }, [queryClient, notesQuery, categoriesQuery, bumpRevision])
 
-  const moveNoteToFolder = useCallback(async (noteId, folderId = null) => {
-    const movedNote = await apiMoveNote(noteId, folderId)
-    const nextFolderId = movedNote.folderId ?? movedNote.categoryId ?? movedNote.category?.id ?? null
+  const createCategoryMutation = useCreateCategory()
+  const renameCategoryMutation = useRenameCategory()
+  const deleteCategoryMutation = useDeleteCategory()
+  const moveCategoryMutation = useMoveCategory()
+  const moveNoteMutation = useMoveNote()
+  const updateNoteMutation = useUpdateNote()
+  const deleteNoteMutation = useDeleteNote()
 
-    setAllNotes((prev) => attachCategoryMeta(
-      prev.map((note) => (
-        String(note.id) === String(noteId)
-          ? { ...note, ...movedNote, folderId: nextFolderId, categoryId: nextFolderId }
-          : note
-      )),
+  const createCategory = useCallback(
+    async (name, parentId = null) => {
+      const result = await createCategoryMutation.mutateAsync({ name, parentId })
+      bumpRevision()
+      return result
+    },
+    [createCategoryMutation, bumpRevision],
+  )
+
+  const renameCategory = useCallback(
+    async (id, name) => {
+      const result = await renameCategoryMutation.mutateAsync({ id, name })
+      bumpRevision()
+      return result
+    },
+    [renameCategoryMutation, bumpRevision],
+  )
+
+  const deleteCategory = useCallback(
+    async (id) => {
+      const result = await deleteCategoryMutation.mutateAsync(id)
+      bumpRevision()
+      return result
+    },
+    [deleteCategoryMutation, bumpRevision],
+  )
+
+  const moveCategory = useCallback(
+    async (id, parentId = null) => {
+      const result = await moveCategoryMutation.mutateAsync({ id, parentId })
+      bumpRevision()
+      return result
+    },
+    [moveCategoryMutation, bumpRevision],
+  )
+
+  const moveNoteToFolder = useCallback(
+    async (noteId, folderId = null) => {
+      const result = await moveNoteMutation.mutateAsync({ id: noteId, folderId })
+      bumpRevision()
+      return result
+    },
+    [moveNoteMutation, bumpRevision],
+  )
+
+  const updateNote = useCallback(
+    async (id, payload) => {
+      const result = await updateNoteMutation.mutateAsync({ id, payload })
+      const nextTitle = result?.title ?? payload?.title
+      if (nextTitle !== undefined) {
+        const next = updateRecentNoteInStorage({ id, title: nextTitle })
+        setRecentNotes(next)
+      }
+      bumpRevision()
+      return result
+    },
+    [updateNoteMutation, bumpRevision],
+  )
+
+  const deleteNote = useCallback(
+    async (id) => {
+      const result = await deleteNoteMutation.mutateAsync(id)
+      const next = removeRecentNoteFromStorage(id)
+      setRecentNotes(next)
+      bumpRevision()
+      return result
+    },
+    [deleteNoteMutation, bumpRevision],
+  )
+
+  const value = useMemo(
+    () => ({
+      allNotes,
       categories,
-    ))
-
-    try {
-      const data = await fetchVaultData()
-      setAllNotes(data.posts)
-      setCategories(data.categories)
-    } catch {
-      // keep optimistic state if refresh fails
-    } finally {
-      setNotesRevision((prev) => prev + 1)
-    }
-
-    return movedNote
-  }, [categories])
-
-  const updateNote = useCallback(async (noteId, payload) => {
-    const updatedNote = await apiUpdateNote(noteId, payload)
-    const nextFolderId = updatedNote.folderId ?? updatedNote.categoryId ?? updatedNote.category?.id ?? payload.folderId ?? payload.categoryId ?? null
-
-    setAllNotes((prev) => attachCategoryMeta(
-      prev.map((note) => (
-        String(note.id) === String(noteId)
-          ? { ...note, ...updatedNote, folderId: nextFolderId, categoryId: nextFolderId }
-          : note
-      )),
+      categoryStats,
+      recentNotes,
+      loading,
+      notesRevision,
+      categoryId,
+      setCategoryId,
+      addRecentNote,
+      navigateToNote,
+      resetFilters,
+      refreshNotes,
+      createCategory,
+      renameCategory,
+      deleteCategory,
+      moveCategory,
+      moveNoteToFolder,
+      updateNote,
+      deleteNote,
+    }),
+    [
+      allNotes,
       categories,
-    ))
-    setRecentNotes(updateRecentNoteInStorage({ id: noteId, title: updatedNote.title ?? payload.title ?? '' }))
-
-    try {
-      const data = await fetchVaultData()
-      setAllNotes(data.posts)
-      setCategories(data.categories)
-    } catch {
-      // keep optimistic state if refresh fails
-    } finally {
-      setNotesRevision((prev) => prev + 1)
-    }
-
-    return updatedNote
-  }, [categories])
-
-  const deleteNote = useCallback(async (noteId) => {
-    await apiDeleteNote(noteId)
-
-    setAllNotes((prev) => prev.filter((note) => String(note.id) !== String(noteId)))
-    setRecentNotes(removeRecentNoteFromStorage(noteId))
-
-    try {
-      const data = await fetchVaultData()
-      setAllNotes(data.posts)
-      setCategories(data.categories)
-    } catch {
-      // keep optimistic state if refresh fails
-    } finally {
-      setNotesRevision((prev) => prev + 1)
-    }
-
-    return true
-  }, [])
-
-  const value = {
-    allNotes,
-    categories,
-    categoryStats,
-    recentNotes,
-    loading,
-    notesRevision,
-    categoryId,
-    setCategoryId,
-    addRecentNote,
-    navigateToNote,
-    resetFilters,
-    refreshNotes,
-    createCategory,
-    renameCategory,
-    deleteCategory,
-    moveCategory,
-    moveNoteToFolder,
-    updateNote,
-    deleteNote,
-  }
+      categoryStats,
+      recentNotes,
+      loading,
+      notesRevision,
+      categoryId,
+      setCategoryId,
+      addRecentNote,
+      navigateToNote,
+      resetFilters,
+      refreshNotes,
+      createCategory,
+      renameCategory,
+      deleteCategory,
+      moveCategory,
+      moveNoteToFolder,
+      updateNote,
+      deleteNote,
+    ],
+  )
 
   return <VaultContext.Provider value={value}>{children}</VaultContext.Provider>
 }

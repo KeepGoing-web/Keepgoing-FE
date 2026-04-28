@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import DashboardPage from './DashboardPage'
 
 const mockUseVault = vi.fn()
@@ -16,6 +17,28 @@ vi.mock('../api/activities', () => ({
   fetchMyActivities: (...args) => mockFetchMyActivities(...args),
   getRecentActivityRange: (...args) => mockGetRecentActivityRange(...args),
 }))
+
+vi.mock('../api/client', async () => {
+  const actual = await vi.importActual('../api/client')
+  return {
+    ...actual,
+    fetchMyActivities: (...args) => mockFetchMyActivities(...args),
+  }
+})
+
+function renderWithQuery(ui) {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, gcTime: Infinity, staleTime: 0 },
+      mutations: { retry: false },
+    },
+  })
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>{ui}</MemoryRouter>
+    </QueryClientProvider>,
+  )
+}
 
 function buildNote(overrides = {}) {
   return {
@@ -50,11 +73,7 @@ describe('DashboardPage', () => {
       navigateToNote: vi.fn(),
     })
 
-    render(
-      <MemoryRouter>
-        <DashboardPage />
-      </MemoryRouter>,
-    )
+    renderWithQuery(<DashboardPage />)
 
     expect(screen.getByRole('heading', { name: '최근 노트' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '새 노트' })).toHaveAttribute('href', '/notes/write')
@@ -75,11 +94,7 @@ describe('DashboardPage', () => {
       navigateToNote: vi.fn(),
     })
 
-    const { container } = render(
-      <MemoryRouter>
-        <DashboardPage />
-      </MemoryRouter>,
-    )
+    const { container } = renderWithQuery(<DashboardPage />)
 
     const activity = screen.getByRole('heading', { name: '활동 캘린더' })
     const todo = screen.getByRole('heading', { name: 'TODO' })
@@ -93,10 +108,10 @@ describe('DashboardPage', () => {
     expect(screen.getByText(/개 진행 중/)).toBeInTheDocument()
 
     await waitFor(() => {
-      expect(mockFetchMyActivities).toHaveBeenCalledWith({
-        from: '2026-01-01',
-        to: '2026-04-17',
-      })
+      expect(mockFetchMyActivities).toHaveBeenCalledWith(
+        { from: '2026-01-01', to: '2026-04-17' },
+        expect.objectContaining({ signal: expect.anything() }),
+      )
       expect(screen.getByText('최근 4개월')).toBeInTheDocument()
       expect(screen.getByText('활동 기록 기준으로 표시됩니다.')).toBeInTheDocument()
     })
@@ -110,11 +125,7 @@ describe('DashboardPage', () => {
       navigateToNote: vi.fn(),
     })
 
-    render(
-      <MemoryRouter>
-        <DashboardPage />
-      </MemoryRouter>,
-    )
+    renderWithQuery(<DashboardPage />)
 
     await waitFor(() => {
       expect(screen.getByText('활동 기록을 불러오지 못했어요.')).toBeInTheDocument()
@@ -134,11 +145,7 @@ describe('DashboardPage', () => {
       navigateToNote,
     })
 
-    render(
-      <MemoryRouter>
-        <DashboardPage />
-      </MemoryRouter>,
-    )
+    renderWithQuery(<DashboardPage />)
 
     const todoSection = screen.getByRole('heading', { name: 'TODO' }).closest('section')
     await user.click(within(todoSection).getByRole('button', { name: /첫 번째 작업/i }))

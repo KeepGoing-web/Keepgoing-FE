@@ -45,9 +45,10 @@ describe('OAuthCallbackPage', () => {
     })
   })
 
-  it('redirects to login with an error message when oauth login fails', async () => {
+  it('redirects to login with the surfaced error message when oauth login fails', async () => {
     const oauthLogin = vi.fn().mockRejectedValue(new Error('oauth failed'))
     mockUseAuth.mockReturnValue({ oauthLogin })
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
 
     render(<OAuthCallbackPage />)
 
@@ -55,9 +56,12 @@ describe('OAuthCallbackPage', () => {
       expect(mockNavigate).toHaveBeenCalledWith('/login', {
         replace: true,
         state: {
-          error: 'Google 로그인에 실패했습니다. 다시 시도해주세요.',
+          error: 'oauth failed',
         },
       })
     })
+
+    expect(consoleError).toHaveBeenCalledWith('[oauth] login failed', expect.any(Error))
+    consoleError.mockRestore()
   })
 })

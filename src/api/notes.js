@@ -153,7 +153,7 @@ function applyClientFilters(items, params) {
   }
 }
 
-export async function fetchNotes(params = {}) {
+export async function fetchNotes(params = {}, { signal } = {}) {
   if (shouldUseMockNotes) {
     const {
       page = 1,
@@ -261,18 +261,21 @@ export async function fetchNotes(params = {}) {
   })
   const res = await apiFetch(`${BASE_URL}${endpoint}${query}`, {
     headers: getAuthHeaders(),
+    signal,
   })
   const data = await handleResponse(res)
   return normalizePagedNotes(data, size)
 }
 
-export async function fetchNote(id) {
+export async function fetchNote(id, { signal } = {}) {
   if (shouldUseMockNotes) {
     const mockNote = MOCK_NOTES.find((note) => note.id === String(id))
     await delay(200)
 
     if (!mockNote) {
-      throw new Error('NOT_FOUND')
+      const error = new Error('NOT_FOUND')
+      error.status = 404
+      throw error
     }
 
     return enrichMockNote(mockNote)
@@ -280,6 +283,7 @@ export async function fetchNote(id) {
 
   const res = await apiFetch(`${BASE_URL}/notes/${id}`, {
     headers: getAuthHeaders(),
+    signal,
   })
 
   if (res.status === 404) {

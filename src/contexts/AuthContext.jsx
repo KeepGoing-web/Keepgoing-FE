@@ -1,4 +1,5 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   AUTH_SESSION_EXPIRED_EVENT,
   login as apiLogin,
@@ -7,9 +8,13 @@ import {
   updateMyProfile as apiUpdateMyProfile,
   changeMyPassword as apiChangeMyPassword,
 } from '../api/client'
+import { bumpAuthGeneration } from '../api/http'
 
 const AuthContext = createContext(undefined)
 const LEGACY_AUTH_STORAGE_KEYS = ['token', 'refreshToken', 'user']
+// User-scoped local data that must be cleared on session change to prevent
+// previous-user data leakage to the next authenticated user.
+const USER_SCOPED_STORAGE_KEYS = ['kg-recent-notes', 'kg-recent-posts']
 
 let sessionUserCache = null
 let hasSessionUserCache = false
@@ -18,6 +23,16 @@ let sessionUserPromise = null
 function clearLegacyAuthStorage() {
   LEGACY_AUTH_STORAGE_KEYS.forEach((key) => {
     localStorage.removeItem(key)
+  })
+}
+
+function clearUserScopedStorage() {
+  USER_SCOPED_STORAGE_KEYS.forEach((key) => {
+    try {
+      localStorage.removeItem(key)
+    } catch {
+      // ignore quota / disabled-storage errors
+    }
   })
 }
 
@@ -39,12 +54,14 @@ function clearSessionUserCache() {
 }
 
 async function loadSessionUser({ force = false } = {}) {
-  if (!force && hasSessionUserCache) {
-    return sessionUserCache
+  if (force && sessionUserPromise) {
+    await sessionUserPromise.catch(() => {})
+  } else if (sessionUserPromise) {
+    return sessionUserPromise
   }
 
-  if (sessionUserPromise) {
-    return sessionUserPromise
+  if (!force && hasSessionUserCache) {
+    return sessionUserCache
   }
 
   sessionUserPromise = (async () => {
@@ -64,6 +81,7 @@ async function loadSessionUser({ force = false } = {}) {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
 
   const applyUser = useCallback((data) => {
     const nextUser = normalizeUser(data)
@@ -92,6 +110,18 @@ export const AuthProvider = ({ children }) => {
       throw error
     }
   }, [applyUser])
+
+  const clearAuthClientState = useCallback(() => {
+    // Bump generation FIRST so any in-flight refresh result is logically rejected
+    // before we nuke the cache.
+    bumpAuthGeneration()
+    void queryClient.cancelQueries()
+    queryClient.clear()
+    clearSessionUserCache()
+    clearLegacyAuthStorage()
+    clearUserScopedStorage()
+    setUser(null)
+  }, [queryClient])
 
   useEffect(() => {
     let active = true
@@ -122,9 +152,7 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const handleSessionExpired = () => {
-      clearSessionUserCache()
-      clearLegacyAuthStorage()
-      setUser(null)
+      clearAuthClientState()
       setLoading(false)
     }
 
@@ -132,23 +160,23 @@ export const AuthProvider = ({ children }) => {
     return () => {
       window.removeEventListener(AUTH_SESSION_EXPIRED_EVENT, handleSessionExpired)
     }
-  }, [])
+  }, [clearAuthClientState])
 
-  const login = async (email, password) => {
+  const login = useCallback(async (email, password) => {
     clearSessionUserCache()
     const response = await apiLogin(email, password)
     await restoreSession({ force: true, fallbackUser: response })
     return response
-  }
+  }, [restoreSession])
 
   const oauthLogin = useCallback(async () => {
     await restoreSession()
   }, [restoreSession])
 
-  const signup = async (email, password, name) => {
+  const signup = useCallback(async (email, password, name) => {
     const response = await apiSignup(email, password, name)
     return response
-  }
+  }, [])
 
   const updateProfile = useCallback(async (name) => {
     const response = await apiUpdateMyProfile(name)
@@ -161,28 +189,25 @@ export const AuthProvider = ({ children }) => {
   }, [])
 
   const logout = useCallback(() => {
-    clearSessionUserCache()
-    clearLegacyAuthStorage()
-    setUser(null)
-  }, [])
+    clearAuthClientState()
+  }, [clearAuthClientState])
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        login,
-        oauthLogin,
-        signup,
-        updateProfile,
-        changePassword,
-        logout,
-        isAuthenticated: !!user,
-        loading,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo(
+    () => ({
+      user,
+      login,
+      oauthLogin,
+      signup,
+      updateProfile,
+      changePassword,
+      logout,
+      isAuthenticated: !!user,
+      loading,
+    }),
+    [user, login, oauthLogin, signup, updateProfile, changePassword, logout, loading],
   )
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
 export const useAuth = () => {

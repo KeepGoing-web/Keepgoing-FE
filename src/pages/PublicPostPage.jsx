@@ -5,22 +5,14 @@ import { fetchPublicNote } from '../api/client'
 import './PublicPostPage.css'
 import '../components/MarkdownBody.css'
 import RichMarkdown from '../components/RichMarkdown'
-
-const formatDate = (iso) => {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`
-}
-
-const estimateReadTime = (content = '') => {
-  const mins = Math.max(1, Math.round(content.length / 500))
-  return `읽기 ${mins}분`
-}
+import { formatDate, estimateReadTime } from '../utils/format'
 
 const PublicPostPage = () => {
-  const { username, noteId } = useParams()
+  const { username: rawUsername, noteId } = useParams()
   const location = useLocation()
-  const basePath = location.pathname.startsWith('/users/') ? `/users/${username}` : `/@${username}`
+  const username = String(rawUsername || '').replace(/^@/, '')
+  const handlePath = rawUsername?.startsWith('@') ? rawUsername : `@${username}`
+  const basePath = location.pathname.startsWith('/users/') ? `/users/${username}` : `/${handlePath}`
   const [note, setNote] = useState(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
@@ -118,7 +110,7 @@ const PublicPostPage = () => {
               )}
 
               <span className="pub-meta-sep">·</span>
-              <span className="pub-article-readtime">{estimateReadTime(note.content)}</span>
+              <span className="pub-article-readtime">{estimateReadTime(note.content).label}</span>
             </div>
           </header>
 

@@ -12,13 +12,25 @@ export default function OAuthCallbackPage() {
     if (processed.current) return
     processed.current = true
 
+    if (typeof window !== 'undefined') {
+      const providerError = new URLSearchParams(window.location.search).get('error')
+      if (providerError) {
+        navigate('/login', {
+          replace: true,
+          state: { error: providerError },
+        })
+        return
+      }
+    }
+
     oauthLogin()
       .then(() => navigate('/notes', { replace: true }))
-      .catch(() => {
+      .catch((error) => {
+        console.error('[oauth] login failed', error)
         navigate('/login', {
           replace: true,
           state: {
-            error: 'Google 로그인에 실패했습니다. 다시 시도해주세요.',
+            error: error?.code || error?.message || 'oauth_failed',
           },
         })
       })

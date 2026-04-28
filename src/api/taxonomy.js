@@ -20,7 +20,7 @@ function flattenFolderTree(nodes = [], accumulator = []) {
   return accumulator
 }
 
-export async function fetchCategories(params = {}) {
+export async function fetchCategories(params = {}, { signal } = {}) {
   if (shouldUseMockTaxonomy) {
     const { q = '' } = params
     let items = [...MOCK_CATEGORIES]
@@ -39,6 +39,7 @@ export async function fetchCategories(params = {}) {
 
   const res = await apiFetch(`${BASE_URL}/folders/tree`, {
     headers: getAuthHeaders(),
+    signal,
   })
   const data = await handleResponse(res)
   let categories = flattenFolderTree(data)

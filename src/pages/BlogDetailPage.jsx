@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import '../styles/hljs-theme.css'
 import './BlogDetailPage.css'
 import '../components/MarkdownBody.css'
-import { fetchNote, deleteNote } from '../api/client'
+import { useNote } from '../api/queries/notes'
 import RichMarkdown from '../components/RichMarkdown'
 import { useVaultOptional } from '../contexts/VaultContext'
 import { formatDate, estimateReadTime } from '../utils/format'
@@ -19,49 +19,26 @@ const BlogDetailPage = () => {
   const navigate = useNavigate()
   const confirm = useConfirm()
   const toast = useToast()
-
-  const [post, setPost] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef(null)
 
   const vault = useVaultOptional()
   const addRecentNote = vault?.addRecentNote ?? null
   const categories = vault?.categories ?? EMPTY_FOLDERS
-  const notesRevision = vault?.notesRevision ?? 0
+
+  const { data: post, isLoading, error, isError } = useNote(id)
 
   useEffect(() => {
-    const load = async () => {
-      if (!id) return
-      setLoading(true)
-      setError(null)
-      try {
-        const res = await fetchNote(id)
-        setPost(res)
-        if (addRecentNote && res) addRecentNote(res)
-      } catch (e) {
-        if (e.message === 'NOT_FOUND') {
-          setPost(null)
-        } else {
-          setError('불러오기에 실패했습니다.')
-        }
-      } finally {
-        setLoading(false)
-      }
-    }
-    void load()
-  }, [addRecentNote, id, notesRevision])
+    if (!post || !addRecentNote) return
+    addRecentNote(post)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [post?.id, addRecentNote])
 
   useEffect(() => {
     if (!menuOpen) return undefined
-
     const handlePointerDown = (event) => {
-      if (!menuRef.current?.contains(event.target)) {
-        setMenuOpen(false)
-      }
+      if (!menuRef.current?.contains(event.target)) setMenuOpen(false)
     }
-
     document.addEventListener('mousedown', handlePointerDown)
     return () => document.removeEventListener('mousedown', handlePointerDown)
   }, [menuOpen])
@@ -87,7 +64,11 @@ const BlogDetailPage = () => {
     })
     if (!ok) return
     try {
-      await deleteNote(post.id)
+      // Use vault.deleteNote (shim) so cache invalidation AND recentNotes cleanup
+      // both happen — direct useDeleteNote hook would skip the recents cleanup.
+      if (vault?.deleteNote) {
+        await vault.deleteNote(post.id)
+      }
       toast.success('노트가 삭제되었습니다.')
       navigate('/notes')
     } catch {
@@ -102,10 +83,16 @@ const BlogDetailPage = () => {
     })
   }
 
-
-
-  if (loading) {
+  if (isLoading) {
     return <div className="loading">로딩 중...</div>
+  }
+
+  if (isError && (error?.status === 404 || error?.message === 'NOT_FOUND')) {
+    return <div className="error">노트를 찾을 수 없습니다.</div>
+  }
+
+  if (isError) {
+    return <div className="error">불러오기에 실패했습니다.</div>
   }
 
   if (!post) {
@@ -113,14 +100,15 @@ const BlogDetailPage = () => {
   }
 
   const currentFolderId = post.folderId ?? post.categoryId ?? post.category?.id ?? null
-  const folderName = post.category?.name || categories.find((category) => String(category.id) === String(currentFolderId))?.name || '전체 문서'
+  const folderName =
+    post.category?.name ||
+    categories.find((category) => String(category.id) === String(currentFolderId))?.name ||
+    '전체 문서'
   const truncatedTitle = post.title.length > 30 ? `${post.title.slice(0, 30)}…` : post.title
 
   return (
     <div className="blog-detail-page">
       <ReadingProgressBar />
-
-      {error && <div className="error" style={{ marginBottom: 12 }}>{error}</div>}
 
       <div className="blog-actions">
         <nav className="breadcrumb" aria-label="breadcrumb">
@@ -162,7 +150,7 @@ const BlogDetailPage = () => {
           <div className="blog-meta">
             <span className="visibility-badge">{getVisibilityLabel(post.visibility)}</span>
             <span className="blog-date">작성일: {formatDate(post.createdAt)}</span>
-            <span className="blog-read-time">· {estimateReadTime(post.content)}분 읽기</span>
+            <span className="blog-read-time">· {estimateReadTime(post.content).minutes}분 읽기</span>
           </div>
         </header>
 

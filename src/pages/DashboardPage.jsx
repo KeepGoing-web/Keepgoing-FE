@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useVault } from '../contexts/VaultContext'
-import { fetchMyActivities, getRecentActivityRange } from '../api/activities'
+import { useActivities } from '../api/queries/activities'
+import { getRecentActivityRange } from '../api/activities'
 import { deriveDashboardTodoGroups } from '../utils/dashboardTasks'
 import LoadingDots from '../components/LoadingDots'
 import ActivityHeatmap from '../components/ActivityHeatmap'
@@ -22,10 +23,7 @@ function formatCompactDate(value) {
 }
 
 const DashboardPage = () => {
-  const { allNotes, loading, navigateToNote, notesRevision = 0 } = useVault()
-  const [activityCalendar, setActivityCalendar] = useState([])
-  const [activityLoading, setActivityLoading] = useState(true)
-  const [activityError, setActivityError] = useState(false)
+  const { allNotes, loading, navigateToNote } = useVault()
 
   const openNoteSummary = (noteId, noteTitle) => {
     navigateToNote({ id: noteId, title: noteTitle })
@@ -36,35 +34,16 @@ const DashboardPage = () => {
     [allNotes],
   )
 
-  useEffect(() => {
-    let cancelled = false
-
-    const loadActivityCalendar = async () => {
-      const nextRange = getRecentActivityRange(ACTIVITY_MONTHS)
-      setActivityLoading(true)
-      setActivityError(false)
-
-      try {
-        const activity = await fetchMyActivities(nextRange)
-        if (!cancelled) {
-          setActivityCalendar(Array.isArray(activity?.calendar) ? activity.calendar : [])
-          setActivityLoading(false)
-        }
-      } catch {
-        if (!cancelled) {
-          setActivityCalendar([])
-          setActivityError(true)
-          setActivityLoading(false)
-        }
-      }
-    }
-
-    void loadActivityCalendar()
-
-    return () => {
-      cancelled = true
-    }
-  }, [notesRevision])
+  const range = useMemo(() => getRecentActivityRange(ACTIVITY_MONTHS), [])
+  const {
+    data: activityResponse,
+    isLoading: activityLoading,
+    isError: activityError,
+  } = useActivities(range)
+  const activityCalendar = useMemo(
+    () => (Array.isArray(activityResponse?.calendar) ? activityResponse.calendar : []),
+    [activityResponse],
+  )
 
   if (loading) {
     return (

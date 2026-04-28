@@ -75,7 +75,7 @@ export function getRecentActivityRange(months, referenceDate = new Date()) {
   }
 }
 
-export async function fetchMyActivities({ from, to }) {
+export async function fetchMyActivities({ from, to } = {}, { signal } = {}) {
   if (USE_MOCK_API && !USE_BACKEND_POSTS) {
     return {
       from,
@@ -88,6 +88,7 @@ export async function fetchMyActivities({ from, to }) {
   const query = buildQuery({ from, to })
   const res = await apiFetch(`${BASE_URL}/activities/me/dashboard${query}`, {
     headers: getAuthHeaders(),
+    signal,
   })
   const data = await handleResponse(res)
   const rawCalendar = Array.isArray(data) ? data : (data?.calendar || data?.activities || [])

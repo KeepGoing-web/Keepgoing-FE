@@ -2,22 +2,14 @@ import { useState, useEffect } from 'react'
 import { useParams, useLocation, Link } from 'react-router-dom'
 import { fetchPublicProfile, fetchPublicNotes } from '../api/client'
 import './PublicProfilePage.css'
-
-const formatDate = (iso) => {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`
-}
-
-const estimateReadTime = (content = '') => {
-  const mins = Math.max(1, Math.round(content.length / 500))
-  return `읽기 ${mins}분`
-}
+import { formatDate, estimateReadTime } from '../utils/format'
 
 const PublicProfilePage = () => {
-  const { username } = useParams()
+  const { username: rawUsername } = useParams()
   const location = useLocation()
-  const basePath = location.pathname.startsWith('/users/') ? `/users/${username}` : `/@${username}`
+  const username = String(rawUsername || '').replace(/^@/, '')
+  const handlePath = rawUsername?.startsWith('@') ? rawUsername : `@${username}`
+  const basePath = location.pathname.startsWith('/users/') ? `/users/${username}` : `/${handlePath}`
 
   const [profile, setProfile] = useState(null)
   const [notes, setNotes] = useState([])
@@ -176,7 +168,7 @@ const PublicProfilePage = () => {
                         {formatDate(note.createdAt)}
                       </time>
                       <span className="pub-post-meta-sep">·</span>
-                      <span className="pub-post-readtime">{estimateReadTime(note.content)}</span>
+                      <span className="pub-post-readtime">{estimateReadTime(note.content).label}</span>
                     </div>
                   </Link>
                 </li>

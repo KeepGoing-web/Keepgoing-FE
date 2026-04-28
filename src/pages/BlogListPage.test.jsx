@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import BlogListPage from './BlogListPage'
 
 const mockFetchNotes = vi.fn()
@@ -9,6 +10,20 @@ const mockUseVault = vi.fn()
 vi.mock('../api/client', () => ({
   fetchNotes: (...args) => mockFetchNotes(...args),
 }))
+
+function renderWithQuery(ui) {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, gcTime: Infinity, staleTime: 0 },
+      mutations: { retry: false },
+    },
+  })
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>{ui}</MemoryRouter>
+    </QueryClientProvider>,
+  )
+}
 
 vi.mock('../contexts/VaultContext', () => ({
   useVault: () => mockUseVault(),
@@ -54,11 +69,7 @@ describe('BlogListPage', () => {
   })
 
   it('renders the note vault list even when the vault context has no tag reset handler', async () => {
-    render(
-      <MemoryRouter>
-        <BlogListPage />
-      </MemoryRouter>,
-    )
+    renderWithQuery(<BlogListPage />)
 
     expect(screen.getByRole('heading', { name: '노트 보관함' })).toBeInTheDocument()
 

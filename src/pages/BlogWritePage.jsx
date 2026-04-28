@@ -1,13 +1,14 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useIsMobile } from '../hooks/useIsMobile'
 import { useToast } from '../contexts/ToastContext'
-import { useVaultOptional } from '../contexts/VaultContext'
 import { useConfirm } from '../components/ConfirmModal'
 import LoadingDots from '../components/LoadingDots'
 import PageLoader from '../components/PageLoader'
 import RichMarkdown from '../components/RichMarkdown'
 import { estimateReadTime, countChars } from '../utils/format'
-import { fetchNote, createNote, updateNote } from '../api/client'
+import { fetchNote } from '../api/client'
+import { useCreateNote, useUpdateNote } from '../api/mutations/notes'
 import '../styles/hljs-theme.css'
 import '../components/MarkdownBody.css'
 import './BlogWritePage.css'
@@ -21,10 +22,11 @@ const BlogWritePage = () => {
   const { id } = useParams()
   const navigate = useNavigate()
   const toast = useToast()
-  const vault = useVaultOptional()
   const confirm = useConfirm()
   const isEdit = Boolean(id)
-  const [isMobileViewport, setIsMobileViewport] = useState(() => window.innerWidth <= MOBILE_BREAKPOINT)
+  const isMobileViewport = useIsMobile(MOBILE_BREAKPOINT)
+  const createMutation = useCreateNote()
+  const updateMutation = useUpdateNote()
 
   const [formData, setFormData] = useState({
     title: '',
@@ -40,19 +42,6 @@ const BlogWritePage = () => {
   const [previewOpen, setPreviewOpen] = useState(false)
   const showMetaPanel = isMobileViewport && metaOpen
   const shouldRenderMetaPanel = isMobileViewport
-
-  useEffect(() => {
-    const handleResize = () => {
-      const nextIsMobile = window.innerWidth <= MOBILE_BREAKPOINT
-      setIsMobileViewport(nextIsMobile)
-      if (!nextIsMobile) {
-        setMetaOpen(false)
-      }
-    }
-
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
 
   useEffect(() => {
     const loadPost = async () => {
@@ -111,10 +100,9 @@ const BlogWritePage = () => {
       }
 
       const savedNote = isEdit
-        ? await updateNote(id, payload)
-        : await createNote(payload)
-
-      await vault?.refreshNotes?.()
+        ? await updateMutation.mutateAsync({ id, payload })
+        : await createMutation.mutateAsync(payload)
+      // Mutations auto-invalidate notes.detail/notes.lists/activities — no manual refresh needed
       setIsDirty(false)
       toast.success(isEdit ? '노트가 수정되었습니다.' : '노트가 저장되었습니다.')
       navigate(`/notes/${savedNote?.id ?? id}`)
@@ -266,7 +254,7 @@ const BlogWritePage = () => {
                         <span className="bw-preview-badge">{visibilityLabel}</span>
                         {formData.aiCollectable && <span className="bw-preview-badge bw-preview-badge--ai">AI 수집 허용</span>}
                         <span className="bw-preview-meta-text">{countChars(formData.content)}자</span>
-                        <span className="bw-preview-meta-text">· {estimateReadTime(formData.content)}분 읽기</span>
+                        <span className="bw-preview-meta-text">· {estimateReadTime(formData.content).minutes}분 읽기</span>
                       </div>
                     </header>
 
@@ -296,7 +284,7 @@ const BlogWritePage = () => {
             </div>
             <div className="bw-meta-stat">
               <span>예상 읽기 시간</span>
-              <strong>{estimateReadTime(formData.content)}분</strong>
+              <strong>{estimateReadTime(formData.content).minutes}분</strong>
             </div>
             <div className="bw-meta-stat">
               <span>공개 범위</span>
@@ -312,7 +300,7 @@ const BlogWritePage = () => {
           {saving ? '저장 중…' : isDirty ? '작성 중' : isEdit ? '저장됨' : '새 노트'}
         </span>
         <span>{countChars(formData.content)}자</span>
-        <span>{estimateReadTime(formData.content)}분 읽기</span>
+        <span>{estimateReadTime(formData.content).minutes}분 읽기</span>
         {isMobileViewport && (
           <button
             type="button"
