@@ -6,6 +6,7 @@ import { queryKeys } from '../api/queries/keys'
 import { useNotes } from '../api/queries/notes'
 import { useCategories } from '../api/queries/categories'
 import {
+  useCreateNote,
   useUpdateNote,
   useDeleteNote,
   useMoveNote,
@@ -149,9 +150,28 @@ export function VaultProvider({ children }) {
   const renameCategoryMutation = useRenameCategory()
   const deleteCategoryMutation = useDeleteCategory()
   const moveCategoryMutation = useMoveCategory()
+  const createNoteMutation = useCreateNote()
   const moveNoteMutation = useMoveNote()
   const updateNoteMutation = useUpdateNote()
   const deleteNoteMutation = useDeleteNote()
+
+  const createNote = useCallback(
+    async (payload = {}) => {
+      const defaultPayload = {
+        title: '제목 없는 노트',
+        content: '',
+        visibility: 'PRIVATE',
+        aiCollectable: true,
+        ...payload,
+      }
+      const result = await createNoteMutation.mutateAsync(defaultPayload)
+      addRecentNote(result)
+      bumpRevision()
+      navigate(`/notes/edit/${result.id}`)
+      return result
+    },
+    [createNoteMutation, addRecentNote, bumpRevision, navigate],
+  )
 
   const createCategory = useCallback(
     async (name, parentId = null) => {
@@ -237,6 +257,7 @@ export function VaultProvider({ children }) {
       navigateToNote,
       resetFilters,
       refreshNotes,
+      createNote,
       createCategory,
       renameCategory,
       deleteCategory,
@@ -258,6 +279,7 @@ export function VaultProvider({ children }) {
       navigateToNote,
       resetFilters,
       refreshNotes,
+      createNote,
       createCategory,
       renameCategory,
       deleteCategory,

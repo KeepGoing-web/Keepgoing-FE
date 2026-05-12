@@ -23,7 +23,7 @@ function formatCompactDate(value) {
 }
 
 const DashboardPage = () => {
-  const { allNotes, loading, navigateToNote } = useVault()
+  const { allNotes, loading, navigateToNote, createNote } = useVault()
 
   const openNoteSummary = (noteId, noteTitle) => {
     navigateToNote({ id: noteId, title: noteTitle })
@@ -64,7 +64,7 @@ const DashboardPage = () => {
               subtitle={EMPTY_STATE_SUBTITLE}
               actions={(
                 <>
-                  <Link to="/notes/write" className="notes-page-action">새 노트</Link>
+                  <button onClick={() => createNote()} className="notes-page-action">새 노트</button>
                   <Link to="/notes/list" className="notes-page-action--secondary">보관함</Link>
                 </>
               )}
@@ -108,7 +108,7 @@ const DashboardPage = () => {
               <h2 id="dashboard-todo-title" className="dash-panel-title dash-panel-title--balanced">TODO</h2>
             </div>
             <div className="dash-todo-actions">
-              <Link to="/notes/write" className="dash-todo-add-link">새 노트</Link>
+              <button onClick={() => createNote()} className="dash-todo-add-link">새 노트</button>
               <span className="dash-todo-pill">{totalOpenTasks}개 진행 중</span>
             </div>
           </div>

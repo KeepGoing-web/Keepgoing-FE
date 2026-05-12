@@ -71,12 +71,13 @@ describe('DashboardPage', () => {
       categoryStats: [],
       loading: false,
       navigateToNote: vi.fn(),
+      createNote: vi.fn(),
     })
 
     renderWithQuery(<DashboardPage />)
 
     expect(screen.getByRole('heading', { name: '최근 노트' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '새 노트' })).toHaveAttribute('href', '/notes/write')
+    expect(screen.getByRole('button', { name: '새 노트' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '보관함' })).toHaveAttribute('href', '/notes/list')
   })
 
@@ -92,6 +93,7 @@ describe('DashboardPage', () => {
       allNotes: [buildNote(), buildNote({ id: 'note-2', title: '최근 노트', content: '본문', updatedAt: '2026-04-12T10:00:00Z' })],
       loading: false,
       navigateToNote: vi.fn(),
+      createNote: vi.fn(),
     })
 
     const { container } = renderWithQuery(<DashboardPage />)
@@ -123,6 +125,7 @@ describe('DashboardPage', () => {
       allNotes: [buildNote()],
       loading: false,
       navigateToNote: vi.fn(),
+      createNote: vi.fn(),
     })
 
     renderWithQuery(<DashboardPage />)
@@ -143,6 +146,7 @@ describe('DashboardPage', () => {
       allNotes: [buildNote()],
       loading: false,
       navigateToNote,
+      createNote: vi.fn(),
     })
 
     renderWithQuery(<DashboardPage />)

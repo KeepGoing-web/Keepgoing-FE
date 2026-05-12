@@ -50,6 +50,7 @@ const BlogListPage = () => {
     categoryId,
     setCategoryId,
     addRecentNote,
+    createNote,
   } = useVault()
 
   const [query, setQuery] = useState('')
@@ -187,7 +188,7 @@ const BlogListPage = () => {
           kicker="문서 라이브러리"
           title="노트 보관함"
           subtitle="제목과 본문을 먼저 검색하고, 필요할 때만 고급 필터를 열어 문서를 좁혀보세요."
-          actions={<Link to="/notes/write" className="notes-page-action">새 노트 작성</Link>}
+          actions={<button onClick={() => createNote({ folderId: categoryId })} className="notes-page-action">새 노트 작성</button>}
         />
       </div>
 
@@ -335,7 +336,7 @@ const BlogListPage = () => {
             <button type="button" className="empty-state-btn empty-state-btn--ghost" onClick={handleResetAll}>
               전체 초기화
             </button>
-            <Link to="/notes/write" className="empty-state-btn">새 노트 작성</Link>
+            <button onClick={() => createNote({ folderId: categoryId })} className="empty-state-btn">새 노트 작성</button>
           </div>
         </div>
       ) : (

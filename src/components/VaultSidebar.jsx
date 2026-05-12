@@ -545,6 +545,7 @@ const VaultSidebar = () => {
     setCategoryId,
     navigateToNote,
     resetFilters,
+    createNote,
     createCategory,
     renameCategory,
     deleteCategory,
@@ -1140,6 +1141,17 @@ const VaultSidebar = () => {
                     </button>
                   </>
                 ) : null}
+                <button
+                  type="button"
+                  className="sidebar-context-menu-item"
+                  onClick={() => {
+                    createNote({ folderId: contextMenu.parentFolder?.id ?? null })
+                    setContextMenu(null)
+                  }}
+                  role="menuitem"
+                >
+                  새 노트
+                </button>
                 <button
                   type="button"
                   className="sidebar-context-menu-item"

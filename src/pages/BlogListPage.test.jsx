@@ -43,6 +43,7 @@ describe('BlogListPage', () => {
       categoryId: '',
       setCategoryId: vi.fn(),
       addRecentNote: vi.fn(),
+      createNote: vi.fn(),
       notesRevision: 0,
     })
 
