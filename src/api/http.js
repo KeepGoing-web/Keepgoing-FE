@@ -124,16 +124,29 @@ export function buildQuery(params = {}) {
 
 export async function handleResponse(res) {
   if (!res.ok) {
-    const errorBody = await res.json().catch(() => null)
+    let errorBody = null
+    try {
+      errorBody = await res.json()
+    } catch {
+      // Not a JSON error body
+    }
     const error = new Error(errorBody?.error?.message || `HTTP ${res.status}`)
     error.status = res.status
     error.code = errorBody?.error?.code
     throw error
   }
+
   if (res.status === 204 || res.status === 205) return null
+
   const text = await res.text()
   if (!text) return null
-  const json = JSON.parse(text)
-  if (json && typeof json === 'object' && 'data' in json) return json.data
-  return json
+
+  try {
+    const json = JSON.parse(text)
+    if (json && typeof json === 'object' && 'data' in json) return json.data
+    return json
+  } catch (e) {
+    console.error('[http] Failed to parse JSON response:', e, text.slice(0, 100))
+    return null
+  }
 }

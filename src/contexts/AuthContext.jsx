@@ -127,17 +127,21 @@ export const AuthProvider = ({ children }) => {
     let active = true
 
     const bootstrap = async () => {
+      console.log('[auth] starting bootstrap')
       try {
         const me = await loadSessionUser()
+        console.log('[auth] session user loaded:', me?.id ? 'authenticated' : 'anonymous')
         if (!active) return
         applyUser(me)
-      } catch {
+      } catch (error) {
+        console.error('[auth] bootstrap failed:', error)
         if (!active) return
         clearSessionUserCache()
         clearLegacyAuthStorage()
         setUser(null)
       } finally {
         if (active) {
+          console.log('[auth] bootstrap finished')
           setLoading(false)
         }
       }
