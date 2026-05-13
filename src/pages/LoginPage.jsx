@@ -108,7 +108,11 @@ const LoginPage = () => {
   }
 
   if (isAuthenticated) {
-    return null
+    return (
+      <AuthShell cardClassName="auth-card--compact">
+        <p className="auth-status-text">이미 로그인되어 있습니다. 잠시 후 이동합니다...</p>
+      </AuthShell>
+    )
   }
 
   return (

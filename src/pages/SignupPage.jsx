@@ -42,8 +42,14 @@ const SignupPage = () => {
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState({})
   const [loading, setLoading] = useState(false)
-  const { signup } = useAuth()
+  const { signup, isAuthenticated, loading: authLoading } = useAuth()
   const navigate = useNavigate()
+
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      navigate('/notes', { replace: true })
+    }
+  }, [authLoading, isAuthenticated, navigate])
 
   const values = { name, email, password, confirmPassword }
 
@@ -103,6 +109,22 @@ const SignupPage = () => {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (authLoading) {
+    return (
+      <AuthShell cardClassName="auth-card--compact">
+        <p className="auth-status-text">인증 상태를 확인하고 있습니다...</p>
+      </AuthShell>
+    )
+  }
+
+  if (isAuthenticated) {
+    return (
+      <AuthShell cardClassName="auth-card--compact">
+        <p className="auth-status-text">이미 로그인되어 있습니다. 잠시 후 이동합니다...</p>
+      </AuthShell>
+    )
   }
 
   return (

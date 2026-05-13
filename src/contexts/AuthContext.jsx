@@ -37,7 +37,7 @@ function clearUserScopedStorage() {
 }
 
 function normalizeUser(data) {
-  if (!data) return null
+  if (!data || (!data.userId && !data.id)) return null
 
   return {
     id: data.userId ?? data.id ?? null,
