@@ -12,7 +12,8 @@
     "test:run": "vitest run",
     "test:e2e": "playwright test",
     "test:e2e:managed": "PLAYWRIGHT_START_SERVER=1 PLAYWRIGHT_BASE_URL=http://127.0.0.1:4173 playwright test",
-    "test:e2e:live": "E2E_LIVE=1 playwright test e2e/live-smoke.spec.js --workers=1"
+    "test:e2e:live": "E2E_LIVE=1 playwright test e2e/live-smoke.spec.js --workers=1",
+    "check:prod-login": "node scripts/check-production-login.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.100.5",

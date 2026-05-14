@@ -38,6 +38,24 @@ npm run build
 - `.env.production.example` 은 운영값 참고용 템플릿이며, 로컬에서 운영 빌드를 검증할 때만 복사해 `.env.production` 으로 사용합니다.
 - 운영용 `.env.production` 파일은 저장소에 커밋하지 않습니다.
 
+## 운영 로그인 장애 점검
+
+운영에서 로그인 화면이 보이지 않으면 먼저 실제 운영 URL이 Keepgoing 앱을 제공하는지 확인합니다.
+
+```bash
+# 기본값: https://keepgoingapp.vercel.app/login
+npm run check:prod-login
+
+# 다른 운영 도메인을 확인해야 하는 경우
+PROD_BASE_URL=https://your-production-domain.example.com npm run check:prod-login
+```
+
+체크가 실패하면 코드 라우팅보다 배포/도메인 설정 문제일 가능성이 높습니다.
+
+- `DEPLOYMENT_NOT_FOUND`: GitHub repository homepage 또는 공유 중인 운영 URL이 현재 Vercel 프로젝트/프로덕션 alias를 가리키지 않습니다. Vercel Project Settings → Domains에서 공개 도메인을 현재 프로젝트에 다시 연결하고, GitHub repository homepage도 같은 URL로 맞춥니다.
+- `401` 또는 Vercel 로그인으로 이동: Vercel Deployment Protection이 운영 배포를 막고 있습니다. 공개 서비스라면 Production 도메인에는 Vercel Authentication/Password Protection을 해제하거나, 실제 사용자에게 노출할 별도 공개 Production alias를 지정합니다.
+- 앱 셸은 뜨지만 Google OAuth가 열리지 않음: 운영 `VITE_API_BASE_URL` 이 실제 백엔드 `/api` origin으로 설정되어 있는지 확인합니다. 누락되면 OAuth URL이 프론트 도메인의 `/oauth2/authorization/google` 로 계산되어 SPA fallback에 잡힐 수 있습니다.
+
 ## 프로젝트 구조
 
 ```

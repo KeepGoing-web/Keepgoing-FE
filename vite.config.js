@@ -27,54 +27,6 @@ export default defineConfig(({ mode }) => {
         '/login/oauth2': createDevProxy(devApiTarget),
       },
     },
-    build: {
-      rollupOptions: {
-        output: {
-          manualChunks(id) {
-            if (!id.includes('node_modules')) return undefined
-
-            if (
-              id.includes('@tiptap') ||
-              id.includes('prosemirror') ||
-              id.includes('lowlight') ||
-              id.includes('highlight.js') ||
-              id.includes('tiptap-markdown')
-            ) {
-              return 'editor'
-            }
-
-            if (
-              id.includes('mermaid') ||
-              id.includes('@mermaid-js') ||
-              id.includes('katex') ||
-              id.includes('cytoscape') ||
-              id.includes('dagre') ||
-              id.includes('d3-')
-            ) {
-              return 'mermaid'
-            }
-
-            if (
-              id.includes('react-markdown') ||
-              id.includes('rehype-') ||
-              id.includes('remark-') ||
-              id.includes('vfile') ||
-              id.includes('unist-') ||
-              id.includes('mdast-') ||
-              id.includes('micromark') ||
-              id.includes('hast-') ||
-              id.includes('property-information') ||
-              id.includes('space-separated-tokens') ||
-              id.includes('comma-separated-tokens')
-            ) {
-              return 'markdown-renderer'
-            }
-
-            return undefined
-          },
-        },
-      },
-    },
     test: {
       globals: true,
       environment: 'jsdom',
