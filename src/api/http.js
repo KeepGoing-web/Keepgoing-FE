@@ -30,10 +30,63 @@ export function fetchWithCredentials(url, options = {}) {
   })
 }
 
-function makeAbortError(message = 'Aborted') {
+function makeAbortError(message = 'Aborted', code) {
   const err = new Error(message)
   err.name = 'AbortError'
+  if (code) err.code = code
   return err
+}
+
+function getAbortError(signal, fallbackMessage = 'Aborted') {
+  if (signal?.reason instanceof Error) return signal.reason
+  return makeAbortError(fallbackMessage)
+}
+
+function createManagedSignal(externalSignal, timeoutMs) {
+  if (!timeoutMs || timeoutMs <= 0) {
+    return {
+      signal: externalSignal,
+      cleanup: () => {},
+    }
+  }
+
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => {
+    controller.abort(makeAbortError(`Request timed out after ${timeoutMs}ms`, 'REQUEST_TIMEOUT'))
+  }, timeoutMs)
+
+  const abortFromExternalSignal = () => {
+    if (controller.signal.aborted) return
+    controller.abort(getAbortError(externalSignal))
+  }
+
+  if (externalSignal?.aborted) {
+    abortFromExternalSignal()
+  } else {
+    externalSignal?.addEventListener('abort', abortFromExternalSignal, { once: true })
+  }
+
+  return {
+    signal: controller.signal,
+    cleanup: () => {
+      clearTimeout(timeoutId)
+      externalSignal?.removeEventListener('abort', abortFromExternalSignal)
+    },
+  }
+}
+
+function waitForAbortablePromise(promise, signal) {
+  if (!signal) return promise
+  if (signal.aborted) return Promise.reject(getAbortError(signal))
+
+  return new Promise((resolve, reject) => {
+    const handleAbort = () => reject(getAbortError(signal))
+    signal.addEventListener('abort', handleAbort, { once: true })
+
+    promise.then(resolve, reject).finally(() => {
+      signal.removeEventListener('abort', handleAbort)
+    })
+  })
 }
 
 function isRefreshUrl(url) {
@@ -47,14 +100,17 @@ function isRefreshUrl(url) {
   }
 }
 
-async function refreshSession() {
+async function refreshSession(signal) {
   if (refreshSessionPromise) {
-    return refreshSessionPromise
+    return waitForAbortablePromise(refreshSessionPromise, signal)
   }
 
   refreshSessionPromise = (async () => {
+    if (signal?.aborted) throw getAbortError(signal)
+
     const res = await fetchWithCredentials(`${BASE_URL}${REFRESH_PATH}`, {
       method: 'POST',
+      signal,
     })
 
     if (!res.ok) {
@@ -75,30 +131,36 @@ async function refreshSession() {
 }
 
 export async function apiFetch(url, options = {}) {
-  const { skipAuthRefresh = false, signal, ...fetchOptions } = options
-
-  if (signal?.aborted) throw makeAbortError()
-
-  const generationAtStart = authGeneration
-  const res = await fetchWithCredentials(url, { ...fetchOptions, signal })
-
-  if (res.status !== 401 || skipAuthRefresh) return res
-  if (isRefreshUrl(url)) return res
+  const { skipAuthRefresh = false, signal: externalSignal, timeoutMs, ...fetchOptions } = options
+  const { signal, cleanup } = createManagedSignal(externalSignal, timeoutMs)
 
   try {
-    await refreshSession()
-  } catch {
-    return res
-  }
+    if (signal?.aborted) throw getAbortError(signal)
 
-  if (signal?.aborted) throw makeAbortError('Aborted during refresh')
-  if (authGeneration !== generationAtStart) return res
+    const generationAtStart = authGeneration
+    const res = await fetchWithCredentials(url, { ...fetchOptions, signal })
 
-  const retriedResponse = await fetchWithCredentials(url, { ...fetchOptions, signal })
-  if (retriedResponse.status === 401) {
-    dispatchAuthSessionExpired()
+    if (res.status !== 401 || skipAuthRefresh) return res
+    if (isRefreshUrl(url)) return res
+
+    try {
+      await refreshSession(signal)
+    } catch (error) {
+      if (signal?.aborted) throw error
+      return res
+    }
+
+    if (signal?.aborted) throw getAbortError(signal, 'Aborted during refresh')
+    if (authGeneration !== generationAtStart) return res
+
+    const retriedResponse = await fetchWithCredentials(url, { ...fetchOptions, signal })
+    if (retriedResponse.status === 401) {
+      dispatchAuthSessionExpired()
+    }
+    return retriedResponse
+  } finally {
+    cleanup()
   }
-  return retriedResponse
 }
 
 export function getAuthHeaders() {
