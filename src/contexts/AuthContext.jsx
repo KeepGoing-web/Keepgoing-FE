@@ -169,7 +169,7 @@ export const AuthProvider = ({ children }) => {
   const login = useCallback(async (email, password) => {
     clearSessionUserCache()
     const response = await apiLogin(email, password)
-    await restoreSession({ force: true, fallbackUser: response })
+    await restoreSession({ force: true })
     return response
   }, [restoreSession])
 
@@ -178,9 +178,12 @@ export const AuthProvider = ({ children }) => {
   }, [restoreSession])
 
   const signup = useCallback(async (email, password, name) => {
-    const response = await apiSignup(email, password, name)
-    return response
-  }, [])
+    clearSessionUserCache()
+    const signupResponse = await apiSignup(email, password, name)
+    await apiLogin(email, password)
+    await restoreSession({ force: true })
+    return signupResponse
+  }, [restoreSession])
 
   const updateProfile = useCallback(async (name) => {
     const response = await apiUpdateMyProfile(name)

@@ -94,7 +94,7 @@ const SignupPage = () => {
 
     try {
       await signup(email, password, name)
-      navigate('/login', { state: { message: '회원가입이 완료되었습니다. 로그인해주세요.' } })
+      navigate('/notes', { replace: true })
     } catch (err) {
       if (err.code === 'USER_ALREADY_EXISTS') {
         setFieldErrors((prev) => ({

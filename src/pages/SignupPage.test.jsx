@@ -28,6 +28,7 @@ function renderPage(authOverrides = {}) {
       <Routes>
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/login" element={<LoginRedirectMessage />} />
+        <Route path="/notes" element={<div>notes page</div>} />
       </Routes>
     </MemoryRouter>,
   )
@@ -105,7 +106,7 @@ describe('SignupPage', () => {
     expect(auth.signup).not.toHaveBeenCalled()
   })
 
-  it('submits a valid signup form and redirects to login with a success message', async () => {
+  it('submits a valid signup form and redirects to notes after automatic login', async () => {
     const user = userEvent.setup()
     const auth = renderPage()
 
@@ -119,7 +120,7 @@ describe('SignupPage', () => {
       expect(auth.signup).toHaveBeenCalledWith('test@example.com', 'P@ssword1!', '홍길동')
     })
 
-    expect(await screen.findByText('회원가입이 완료되었습니다. 로그인해주세요.')).toBeInTheDocument()
+    expect(await screen.findByText('notes page')).toBeInTheDocument()
   })
 
   it('shows the already-registered email message from the auth error code', async () => {
