@@ -1,6 +1,18 @@
 {
   "rewrites": [
     {
+      "source": "/api/(.*)",
+      "destination": "https://clsz.duckdns.org/api/$1"
+    },
+    {
+      "source": "/oauth2/(.*)",
+      "destination": "https://clsz.duckdns.org/oauth2/$1"
+    },
+    {
+      "source": "/login/oauth2/(.*)",
+      "destination": "https://clsz.duckdns.org/login/oauth2/$1"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
