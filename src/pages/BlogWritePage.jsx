@@ -7,7 +7,7 @@ import LoadingDots from '../components/LoadingDots'
 import PageLoader from '../components/PageLoader'
 import RichMarkdown from '../components/RichMarkdown'
 import { estimateReadTime, countChars } from '../utils/format'
-import { fetchNote } from '../api/client'
+import { fetchNote, uploadNoteImage } from '../api/client'
 import { useCreateNote, useUpdateNote } from '../api/mutations/notes'
 import '../styles/hljs-theme.css'
 import '../components/MarkdownBody.css'
@@ -111,6 +111,14 @@ const BlogWritePage = () => {
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleImageUpload = async (file) => {
+    if (!id) {
+      throw new Error('NOTE_ID_REQUIRED')
+    }
+
+    return uploadNoteImage(id, file)
   }
 
   const handleBack = async () => {
@@ -232,7 +240,12 @@ const BlogWritePage = () => {
 
               <div className="bw-editor-wrap">
                 <Suspense fallback={<PageLoader label="에디터를 불러오는 중..." />}>
-                  <TiptapEditor value={formData.content} onChange={(content) => handleFormChange({ content })} />
+                  <TiptapEditor
+                    value={formData.content}
+                    onChange={(content) => handleFormChange({ content })}
+                    noteId={id}
+                    onUploadImage={handleImageUpload}
+                  />
                 </Suspense>
               </div>
             </section>
