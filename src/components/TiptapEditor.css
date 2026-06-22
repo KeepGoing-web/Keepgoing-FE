@@ -88,6 +88,14 @@
   position: relative;
 }
 
+.tiptap-image-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .tiptap-toolbar-btn {
   display: inline-flex;
   align-items: center;
@@ -562,6 +570,36 @@
   border: 1px solid var(--border);
   display: block;
   margin: 1em auto;
+}
+
+.tiptap-upload-status {
+  position: absolute;
+  right: 0.8rem;
+  bottom: 0.8rem;
+  max-width: min(320px, calc(100% - 1.6rem));
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-overlay);
+  color: var(--text-secondary);
+  box-shadow: 0 8px 18px var(--shadow-overlay);
+  font-size: 0.76rem;
+  z-index: 20;
+}
+
+.tiptap-upload-status--uploading {
+  border-color: var(--accent-dim);
+  color: var(--accent);
+}
+
+.tiptap-upload-status--success {
+  border-color: rgba(74, 222, 128, 0.45);
+  color: #86efac;
+}
+
+.tiptap-upload-status--error {
+  border-color: rgba(248, 113, 113, 0.5);
+  color: #fca5a5;
 }
 
 /* ── ProseMirror internal states ────────────────────────────── */

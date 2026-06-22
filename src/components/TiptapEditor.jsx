@@ -106,15 +106,39 @@ const InsertPopover = ({ label, placeholder, value, onChange, onCancel, onConfir
   </div>
 )
 
-const TiptapEditor = ({ value = '', onChange, placeholder = '내용을 입력하세요...' }) => {
+const ALLOWED_UPLOAD_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+
+const getNormalizedFileType = (file) => file?.type?.trim().toLowerCase() ?? ''
+
+const isAllowedUploadImageFile = (file) => ALLOWED_UPLOAD_IMAGE_TYPES.has(getNormalizedFileType(file))
+
+const isClipboardImageFile = (file) => getNormalizedFileType(file).startsWith('image/')
+
+const getClipboardFiles = (clipboardData) => {
+  if (!clipboardData) return []
+
+  const files = Array.from(clipboardData.files ?? [])
+  if (files.length > 0) return files
+
+  return Array.from(clipboardData.items ?? [])
+    .filter((item) => item.kind === 'file')
+    .map((item) => item.getAsFile())
+    .filter(Boolean)
+}
+
+const TiptapEditor = ({ value = '', onChange, placeholder = '내용을 입력하세요...', noteId, onUploadImage }) => {
   const [insertMenu, setInsertMenu] = useState(null)
   const [activeColorMenu, setActiveColorMenu] = useState(null)
   const [lastHighlightColor, setLastHighlightColor] = useState(DEFAULT_NOTE_HIGHLIGHT_COLOR)
   const [lastTextColor, setLastTextColor] = useState(DEFAULT_NOTE_TEXT_COLOR)
+  const [imageUploadState, setImageUploadState] = useState({ status: 'idle', message: '' })
   const insertMenuRef = useRef(null)
   const highlightMenuRef = useRef(null)
   const textColorMenuRef = useRef(null)
   const colorDropdownRef = useRef(null)
+  const imageInputRef = useRef(null)
+  const previewUrlsRef = useRef(new Set())
+  const uploadImageFileRef = useRef(null)
   const [colorMenuPosition, setColorMenuPosition] = useState({ top: 0, left: 0 })
 
   const editor = useEditor({
@@ -142,6 +166,7 @@ const TiptapEditor = ({ value = '', onChange, placeholder = '내용을 입력하
         class: 'tiptap-prosemirror markdown-body',
         spellcheck: 'false',
       },
+      handlePaste: (_view, event) => uploadImageFileRef.current?.(event) ?? false,
     },
   })
 
@@ -161,7 +186,11 @@ const TiptapEditor = ({ value = '', onChange, placeholder = '내용을 입력하
   }, [value, editor])
 
   useEffect(() => {
+    const previewUrls = previewUrlsRef.current
+
     return () => {
+      previewUrls.forEach((previewUrl) => URL.revokeObjectURL(previewUrl))
+      previewUrls.clear()
       editor?.destroy()
     }
   }, [editor])
@@ -213,11 +242,155 @@ const TiptapEditor = ({ value = '', onChange, placeholder = '내용을 입력하
   const openImageMenu = useCallback(() => {
     if (!editor) return
     setActiveColorMenu(null)
+
+    if (onUploadImage) {
+      if (!noteId) {
+        setImageUploadState({
+          status: 'error',
+          message: '이미지는 저장된 노트에서 업로드할 수 있습니다.',
+        })
+        return
+      }
+
+      imageInputRef.current?.click()
+      return
+    }
+
     setInsertMenu({
       type: 'image',
       value: '',
     })
+  }, [editor, noteId, onUploadImage])
+
+  const updatePreviewImageAttrs = useCallback((previewUrl, nextAttrs) => {
+    if (!editor) return
+
+    const { state, view } = editor
+    let transaction = state.tr
+    let changed = false
+
+    state.doc.descendants((node, pos) => {
+      if (node.type.name !== 'image' || node.attrs.src !== previewUrl) return
+
+      transaction = transaction.setNodeMarkup(pos, undefined, {
+        ...node.attrs,
+        ...nextAttrs,
+      })
+      changed = true
+    })
+
+    if (changed) view.dispatch(transaction)
   }, [editor])
+
+  const removePreviewImage = useCallback((previewUrl) => {
+    if (!editor) return
+
+    const { state, view } = editor
+    const ranges = []
+
+    state.doc.descendants((node, pos) => {
+      if (node.type.name === 'image' && node.attrs.src === previewUrl) {
+        ranges.push({ from: pos, to: pos + node.nodeSize })
+      }
+    })
+
+    if (!ranges.length) return
+
+    let transaction = state.tr
+    ranges.reverse().forEach(({ from, to }) => {
+      transaction = transaction.delete(from, to)
+    })
+    view.dispatch(transaction)
+  }, [editor])
+
+  const uploadImageFile = useCallback(async (file) => {
+    if (!file || !editor || !onUploadImage) return false
+
+    if (!noteId) {
+      setImageUploadState({
+        status: 'error',
+        message: '이미지는 저장된 노트에서 업로드할 수 있습니다.',
+      })
+      return false
+    }
+
+    if (!isAllowedUploadImageFile(file)) {
+      setImageUploadState({ status: 'error', message: 'JPEG, PNG, WebP 이미지만 업로드할 수 있습니다.' })
+      return false
+    }
+
+    const previewUrl = URL.createObjectURL(file)
+    previewUrlsRef.current.add(previewUrl)
+
+    editor
+      .chain()
+      .setImage({
+        src: previewUrl,
+        alt: file.name,
+        title: '업로드 중',
+      })
+      .run()
+
+    setImageUploadState({ status: 'uploading', message: `${file.name} 업로드 중…` })
+
+    try {
+      const result = await onUploadImage(file)
+      const publicId = result?.publicId
+      const status = result?.status ?? 'PENDING'
+
+      updatePreviewImageAttrs(previewUrl, {
+        alt: file.name,
+        title: publicId ? `publicId:${publicId};status:${status}` : `status:${status}`,
+      })
+      setImageUploadState({ status: 'success', message: '이미지 업로드가 시작되었습니다.' })
+    } catch {
+      removePreviewImage(previewUrl)
+      URL.revokeObjectURL(previewUrl)
+      previewUrlsRef.current.delete(previewUrl)
+      setImageUploadState({ status: 'error', message: '이미지 업로드에 실패했습니다.' })
+    }
+    return true
+  }, [editor, noteId, onUploadImage, removePreviewImage, updatePreviewImageAttrs])
+
+  useEffect(() => {
+    uploadImageFileRef.current = (event) => {
+      const imageFiles = getClipboardFiles(event.clipboardData).filter(isClipboardImageFile)
+      if (!imageFiles.length) return false
+
+      if (!onUploadImage) return false
+
+      event.preventDefault()
+
+      if (imageFiles.some((file) => !isAllowedUploadImageFile(file))) {
+        setImageUploadState({ status: 'error', message: 'JPEG, PNG, WebP 이미지만 업로드할 수 있습니다.' })
+        return true
+      }
+
+      if (!noteId) {
+        setImageUploadState({
+          status: 'error',
+          message: '이미지는 저장된 노트에서 업로드할 수 있습니다.',
+        })
+        return true
+      }
+
+      imageFiles.forEach((file) => {
+        void uploadImageFile(file)
+      })
+      return true
+    }
+
+    return () => {
+      uploadImageFileRef.current = null
+    }
+  }, [noteId, onUploadImage, uploadImageFile])
+
+  const handleImageFileChange = useCallback((event) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+
+    void uploadImageFile(file)
+  }, [uploadImageFile])
 
   const handleInsertConfirm = useCallback(() => {
     if (!editor || !insertMenu) return
@@ -323,6 +496,14 @@ const TiptapEditor = ({ value = '', onChange, placeholder = '내용을 입력하
 
   return (
     <div className="tiptap-editor">
+      <input
+        ref={imageInputRef}
+        className="tiptap-image-input"
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        onChange={handleImageFileChange}
+        aria-label="이미지 파일 업로드"
+      />
       <div className="tiptap-smartbar" aria-label="빠른 서식">
         <div className="tiptap-smartbar-actions">
           <SmartActionBtn onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive('heading', { level: 2 })} label="섹션 제목" />
@@ -454,6 +635,12 @@ const TiptapEditor = ({ value = '', onChange, placeholder = '내용을 입력하
       <div className="tiptap-content-area">
         <EditorContent editor={editor} />
       </div>
+
+      {imageUploadState.status !== 'idle' && (
+        <div className={`tiptap-upload-status tiptap-upload-status--${imageUploadState.status}`} role="status">
+          {imageUploadState.message}
+        </div>
+      )}
 
       {activeColorMenu && typeof document !== 'undefined' && createPortal(
         <div
