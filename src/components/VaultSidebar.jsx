@@ -108,7 +108,6 @@ const DraftFolderRow = ({
         placeholder={placeholder || '새 폴더'}
         aria-label={ariaLabel}
         disabled={disabled}
-        autoFocus
       />
     </form>
   </li>
@@ -133,7 +132,6 @@ const DraftNoteRow = ({
         placeholder={placeholder || '노트 제목'}
         aria-label="노트 이름 변경"
         disabled={disabled}
-        autoFocus
       />
     </form>
   </li>
@@ -693,6 +691,19 @@ const VaultSidebar = () => {
   }, [contextMenu])
 
   useEffect(() => {
+    if (!draftFolder && !draftNote) return
+
+    const id = requestAnimationFrame(() => {
+      const input = document.querySelector('.tree-folder-draft-input')
+      if (input && document.activeElement !== input) {
+        input.focus({ preventScroll: true })
+      }
+    })
+
+    return () => cancelAnimationFrame(id)
+  }, [draftFolder, draftNote])
+
+  useEffect(() => {
     if (!pendingFocusFolderId) return undefined
 
     let frameA = 0
@@ -1089,85 +1100,6 @@ const VaultSidebar = () => {
       )}
 
       <div className="sidebar-inner">
-        {contextMenu ? (
-          <div
-            ref={contextMenuRef}
-            className="sidebar-context-menu"
-            style={{ left: contextMenu.x, top: contextMenu.y }}
-            role="menu"
-            aria-label={contextMenu.kind === 'note' ? '노트 메뉴' : '폴더 메뉴'}
-          >
-            {contextMenu.kind === 'note' ? (
-              <>
-                <button
-                  type="button"
-                  className="sidebar-context-menu-item"
-                  onClick={() => handleRenameNote(contextMenu.note, contextMenu.surface)}
-                  role="menuitem"
-                >
-                  이름 변경
-                </button>
-                <button
-                  type="button"
-                  className="sidebar-context-menu-item"
-                  onClick={() => handleDeleteNote(contextMenu.note)}
-                  role="menuitem"
-                >
-                  삭제
-                </button>
-              </>
-            ) : (
-              <>
-                {contextMenu.parentFolder ? (
-                  <>
-                    <button
-                      type="button"
-                      className="sidebar-context-menu-item"
-                      onClick={() => {
-                        openFolderRenameDraft(contextMenu.parentFolder)
-                        setContextMenu(null)
-                      }}
-                      role="menuitem"
-                    >
-                      이름 변경
-                    </button>
-                    <button
-                      type="button"
-                      className="sidebar-context-menu-item"
-                      onClick={() => handleDeleteFolder(contextMenu.parentFolder)}
-                      role="menuitem"
-                    >
-                      삭제
-                    </button>
-                  </>
-                ) : null}
-                <button
-                  type="button"
-                  className="sidebar-context-menu-item"
-                  onClick={() => {
-                    createNote({ folderId: contextMenu.parentFolder?.id ?? null })
-                    setContextMenu(null)
-                  }}
-                  role="menuitem"
-                >
-                  새 노트
-                </button>
-                <button
-                  type="button"
-                  className="sidebar-context-menu-item"
-                  onClick={() => {
-                    openFolderDraft(contextMenu.parentFolder)
-                    setContextMenu(null)
-                  }}
-                  role="menuitem"
-                >
-                  새 폴더
-                </button>
-              </>
-            )}
-          </div>
-        ) : null}
-
         <NotesSidebarHeader noteCount={allNotes.length} />
 
         <NotesSidebarSection title="노트 폴더" defaultOpen className="sidebar-section--folders" contentClassName="sidebar-section-content--fill">
@@ -1212,6 +1144,85 @@ const VaultSidebar = () => {
         </NotesSidebarSection>
 
       </div>
+
+      {contextMenu ? (
+        <div
+          ref={contextMenuRef}
+          className="sidebar-context-menu"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          role="menu"
+          aria-label={contextMenu.kind === 'note' ? '노트 메뉴' : '폴더 메뉴'}
+        >
+          {contextMenu.kind === 'note' ? (
+            <>
+              <button
+                type="button"
+                className="sidebar-context-menu-item"
+                onClick={() => handleRenameNote(contextMenu.note, contextMenu.surface)}
+                role="menuitem"
+              >
+                이름 변경
+              </button>
+              <button
+                type="button"
+                className="sidebar-context-menu-item"
+                onClick={() => handleDeleteNote(contextMenu.note)}
+                role="menuitem"
+              >
+                삭제
+              </button>
+            </>
+          ) : (
+            <>
+              {contextMenu.parentFolder ? (
+                <>
+                  <button
+                    type="button"
+                    className="sidebar-context-menu-item"
+                    onClick={() => {
+                      openFolderRenameDraft(contextMenu.parentFolder)
+                      setContextMenu(null)
+                    }}
+                    role="menuitem"
+                  >
+                    이름 변경
+                  </button>
+                  <button
+                    type="button"
+                    className="sidebar-context-menu-item"
+                    onClick={() => handleDeleteFolder(contextMenu.parentFolder)}
+                    role="menuitem"
+                  >
+                    삭제
+                  </button>
+                </>
+              ) : null}
+              <button
+                type="button"
+                className="sidebar-context-menu-item"
+                onClick={() => {
+                  createNote({ folderId: contextMenu.parentFolder?.id ?? null })
+                  setContextMenu(null)
+                }}
+                role="menuitem"
+              >
+                새 노트
+              </button>
+              <button
+                type="button"
+                className="sidebar-context-menu-item"
+                onClick={() => {
+                  openFolderDraft(contextMenu.parentFolder)
+                  setContextMenu(null)
+                }}
+                role="menuitem"
+              >
+                새 폴더
+              </button>
+            </>
+          )}
+        </div>
+      ) : null}
     </aside>
   )
 }
