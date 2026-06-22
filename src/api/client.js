@@ -9,7 +9,7 @@ export {
 
 export { login, signup, fetchMe } from './auth'
 export { fetchMyActivities, getRecentActivityRange } from './activities'
-export { fetchNotes, fetchNote, createNote, updateNote, moveNote, deleteNote } from './notes'
+export { fetchNotes, fetchNote, createNote, updateNote, moveNote, deleteNote, uploadNoteImage } from './notes'
 export { fetchCategories, createCategory, renameCategory, deleteCategory, moveCategory } from './taxonomy'
 export { fetchPublicProfile, fetchPublicNotes, fetchPublicNote, fetchUsers } from './public'
 export { updateMyProfile, changeMyPassword } from './user'

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createNote, moveNote, updateNote } from './notes'
+import { createNote, moveNote, updateNote, uploadNoteImage } from './notes'
 
 function mockJsonResponse(body, init = {}) {
   return new Response(JSON.stringify(body), {
@@ -113,5 +113,37 @@ describe('note write requests', () => {
         }),
       }),
     )
+  })
+
+  it('sends multipart/form-data without forcing a content-type when uploading a note image', async () => {
+    globalThis.fetch.mockResolvedValueOnce(
+      mockJsonResponse(
+        {
+          data: {
+            publicId: 'image-public-id',
+            status: 'PENDING',
+          },
+        },
+        { status: 201 },
+      ),
+    )
+
+    const file = new File(['image-content'], 'image.png', { type: 'image/png' })
+
+    const result = await uploadNoteImage(10, file)
+
+    expect(result).toEqual({ publicId: 'image-public-id', status: 'PENDING' })
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      '/api/notes/10/images',
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'include',
+        body: expect.any(FormData),
+      }),
+    )
+
+    const [, options] = globalThis.fetch.mock.calls[0]
+    expect(options.headers).not.toHaveProperty('Content-Type')
+    expect(options.body.get('file')).toBe(file)
   })
 })

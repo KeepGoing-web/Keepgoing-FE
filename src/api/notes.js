@@ -335,6 +335,35 @@ export async function createNote(payload) {
   return normalizeNote(data)
 }
 
+export async function uploadNoteImage(noteId, file) {
+  if (!noteId) {
+    throw new Error('NOTE_ID_REQUIRED')
+  }
+
+  if (!(file instanceof File)) {
+    throw new Error('IMAGE_FILE_REQUIRED')
+  }
+
+  if (shouldUseMockNotes) {
+    await delay(200)
+    return {
+      publicId: `mock-${Date.now()}`,
+      status: 'PENDING',
+    }
+  }
+
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const res = await apiFetch(`${BASE_URL}/notes/${noteId}/images`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: formData,
+  })
+
+  return handleResponse(res)
+}
+
 export async function moveNote(id, folderId) {
   if (shouldUseMockNotes) {
     const index = MOCK_NOTES.findIndex((note) => note.id === String(id))
