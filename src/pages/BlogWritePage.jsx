@@ -1,10 +1,9 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useIsMobile } from '../hooks/useIsMobile'
 import { useToast } from '../contexts/ToastContext'
 import { useConfirm } from '../components/ConfirmModal'
 import LoadingDots from '../components/LoadingDots'
-import PageLoader from '../components/PageLoader'
 import RichMarkdown from '../components/RichMarkdown'
 import { estimateReadTime, countChars } from '../utils/format'
 import { fetchNote, uploadNoteImage } from '../api/client'
@@ -13,7 +12,7 @@ import '../styles/hljs-theme.css'
 import '../components/MarkdownBody.css'
 import './BlogWritePage.css'
 
-const TiptapEditor = lazy(() => import('../components/TiptapEditor'))
+import TiptapEditor from '../components/TiptapEditor'
 
 const BLOG_LIST_PATH = '/notes/list'
 const MOBILE_BREAKPOINT = 768
@@ -40,6 +39,7 @@ const BlogWritePage = () => {
   const [error, setError] = useState(null)
   const [metaOpen, setMetaOpen] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
+  const editorRef = useRef(null)
   const showMetaPanel = isMobileViewport && metaOpen
   const shouldRenderMetaPanel = isMobileViewport
 
@@ -94,7 +94,7 @@ const BlogWritePage = () => {
     try {
       const payload = {
         title: formData.title,
-        content: formData.content,
+        content: editorRef.current?.getSaveContent() ?? formData.content,
         visibility: formData.visibility,
         aiCollectable: formData.aiCollectable,
       }
@@ -239,14 +239,13 @@ const BlogWritePage = () => {
               />
 
               <div className="bw-editor-wrap">
-                <Suspense fallback={<PageLoader label="에디터를 불러오는 중..." />}>
                   <TiptapEditor
+                    ref={editorRef}
                     value={formData.content}
                     onChange={(content) => handleFormChange({ content })}
                     noteId={id}
                     onUploadImage={handleImageUpload}
                   />
-                </Suspense>
               </div>
             </section>
 
