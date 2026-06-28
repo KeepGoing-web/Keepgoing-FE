@@ -45,28 +45,43 @@ function restoreProtectedMarkdownSegments(content, segments) {
   )
 }
 
-function getTrustedSpanStyle(attributes) {
+/**
+ * @returns {Array<{tagName:string, attributeName:string, id:string}>}
+ */
+function getTrustedSpanStyles(attributes) {
   const styleMatch = attributes.match(/\bstyle=(["'])(.*?)\1/i)
-
-  if (!styleMatch) return null
+  if (!styleMatch) return []
 
   const remainingAttributes = attributes.replace(styleMatch[0], '').trim()
-  if (remainingAttributes) return null
+  if (remainingAttributes) return []
 
   const declarations = styleMatch[2]
     .split(';')
-    .map((declaration) => declaration.trim())
+    .map((d) => d.trim())
     .filter(Boolean)
 
-  if (declarations.length !== 1) return null
+  const styles = []
+  for (const decl of declarations) {
+    const [property, rawValue = ''] = decl.split(/:(.+)/)
+    if (!property) continue
 
-  const [property, rawValue = ''] = declarations[0].split(/:(.+)/)
-  if (!property) return null
+    const propertyName = property.trim().toLowerCase()
+    const value = normalizeColorValue(rawValue)
 
-  return {
-    propertyName: property.trim().toLowerCase(),
-    value: normalizeColorValue(rawValue),
+    if (propertyName === 'background-color') {
+      const highlight = findNoteHighlightByColor(value)
+      if (highlight) {
+        styles.push({ tagName: 'mark', attributeName: 'data-note-highlight', id: highlight.id })
+      }
+    } else if (propertyName === 'color') {
+      const textColor = findNoteTextColorByColor(value)
+      if (textColor) {
+        styles.push({ tagName: 'span', attributeName: 'data-note-color', id: textColor.id })
+      }
+    }
   }
+
+  return styles
 }
 
 export function findNoteHighlightByColor(color) {
@@ -96,26 +111,16 @@ export function prepareMarkdownForRender(content = '') {
   )
 
   const withPlaceholders = withProtectedInlineCode.replace(SPAN_WITH_STYLE_PATTERN, (match, attributes, innerContent) => {
-    const style = getTrustedSpanStyle(attributes)
-    if (!style) return match
+    const styles = getTrustedSpanStyles(attributes)
+    if (styles.length === 0) return match
 
-    if (style.propertyName === 'background-color') {
-      const highlight = findNoteHighlightByColor(style.value)
-      if (!highlight) return match
-
-      const placeholderIndex = placeholders.push({ tagName: 'mark', attributeName: 'data-note-highlight', id: highlight.id }) - 1
-      return `@@KG_NOTE_STYLE_OPEN_${placeholderIndex}@@${innerContent}@@KG_NOTE_STYLE_CLOSE_${placeholderIndex}@@`
+    // styles[0] = outermost tag, styles[last] = innermost tag
+    let content = innerContent
+    for (let i = styles.length - 1; i >= 0; i--) {
+      const idx = placeholders.push(styles[i]) - 1
+      content = `@@KG_NOTE_STYLE_OPEN_${idx}@@${content}@@KG_NOTE_STYLE_CLOSE_${idx}@@`
     }
-
-    if (style.propertyName === 'color') {
-      const textColor = findNoteTextColorByColor(style.value)
-      if (!textColor) return match
-
-      const placeholderIndex = placeholders.push({ tagName: 'span', attributeName: 'data-note-color', id: textColor.id }) - 1
-      return `@@KG_NOTE_STYLE_OPEN_${placeholderIndex}@@${innerContent}@@KG_NOTE_STYLE_CLOSE_${placeholderIndex}@@`
-    }
-
-    return match
+    return content
   })
 
   const withProtectedAutolinks = withPlaceholders.replace(

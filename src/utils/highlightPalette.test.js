@@ -19,4 +19,10 @@ describe('prepareMarkdownForRender', () => {
 
     expect(prepareMarkdownForRender(markdown)).toBe('&lt;script&gt;alert(1)&lt;/script&gt;&lt;span style="color: red;"&gt;위험&lt;/span&gt;')
   })
+
+  it('handles combined color and background-color on the same span', () => {
+    const markdown = '<span style="color: #8aadf4; background-color: rgba(250, 224, 118, 0.32);">파란+노랑</span>'
+
+    expect(prepareMarkdownForRender(markdown)).toBe('<span data-note-color="blue"><mark data-note-highlight="yellow">파란+노랑</mark></span>')
+  })
 })
