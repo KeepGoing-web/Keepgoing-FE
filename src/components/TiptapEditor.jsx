@@ -1,9 +1,9 @@
-import { useEffect, useCallback, useState, useRef } from 'react'
+import { useEffect, useCallback, useState, useRef, forwardRef, useImperativeHandle } from 'react'
 import { createPortal } from 'react-dom'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
-import Image from '@tiptap/extension-image'
+import ResizableImage from '../extensions/ResizableImage'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
 import Placeholder from '@tiptap/extension-placeholder'
@@ -21,6 +21,7 @@ import {
   findNoteHighlightByColor,
   findNoteTextColorByColor,
 } from '../utils/highlightPalette'
+import { BASE_URL } from '../api/config'
 import '../styles/hljs-theme.css'
 import '../extensions/MermaidPreview.css'
 import './TiptapEditor.css'
@@ -108,11 +109,25 @@ const InsertPopover = ({ label, placeholder, value, onChange, onCancel, onConfir
 
 const ALLOWED_UPLOAD_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
+const EXTENSION_IMAGE_TYPES = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  webp: 'image/webp',
+}
+
 const getNormalizedFileType = (file) => file?.type?.trim().toLowerCase() ?? ''
 
 const isAllowedUploadImageFile = (file) => ALLOWED_UPLOAD_IMAGE_TYPES.has(getNormalizedFileType(file))
 
-const isClipboardImageFile = (file) => getNormalizedFileType(file).startsWith('image/')
+const getImageFileByExtension = (file) => {
+  const ext = file.name?.split('.').pop()?.toLowerCase()
+  const mime = EXTENSION_IMAGE_TYPES[ext]
+  if (!mime) return null
+  const normalized = getNormalizedFileType(file)
+  if (ALLOWED_UPLOAD_IMAGE_TYPES.has(normalized)) return file
+  return new File([file], file.name, { type: mime })
+}
 
 const getClipboardFiles = (clipboardData) => {
   if (!clipboardData) return []
@@ -126,7 +141,7 @@ const getClipboardFiles = (clipboardData) => {
     .filter(Boolean)
 }
 
-const TiptapEditor = ({ value = '', onChange, placeholder = '내용을 입력하세요...', noteId, onUploadImage }) => {
+const TiptapEditor = forwardRef(({ value = '', onChange, placeholder = '내용을 입력하세요...', noteId, onUploadImage }, ref) => {
   const [insertMenu, setInsertMenu] = useState(null)
   const [activeColorMenu, setActiveColorMenu] = useState(null)
   const [lastHighlightColor, setLastHighlightColor] = useState(DEFAULT_NOTE_HIGHLIGHT_COLOR)
@@ -138,6 +153,7 @@ const TiptapEditor = ({ value = '', onChange, placeholder = '내용을 입력하
   const colorDropdownRef = useRef(null)
   const imageInputRef = useRef(null)
   const previewUrlsRef = useRef(new Set())
+  const blobToPersistentRef = useRef({})
   const uploadImageFileRef = useRef(null)
   const [colorMenuPosition, setColorMenuPosition] = useState({ top: 0, left: 0 })
 
@@ -149,7 +165,7 @@ const TiptapEditor = ({ value = '', onChange, placeholder = '내용을 입력하
       Color,
       BackgroundColor,
       Link.configure({ openOnClick: false, HTMLAttributes: { rel: 'noopener noreferrer' } }),
-      Image,
+      ResizableImage,
       TaskList,
       TaskItem.configure({ nested: true }),
       Placeholder.configure({ placeholder }),
@@ -158,8 +174,7 @@ const TiptapEditor = ({ value = '', onChange, placeholder = '내용을 입력하
     ],
     content: value,
     onUpdate: ({ editor: currentEditor }) => {
-      const markdown = currentEditor.storage.markdown.getMarkdown()
-      onChange(markdown)
+      onChange(currentEditor.storage.markdown.getMarkdown())
     },
     editorProps: {
       attributes: {
@@ -194,6 +209,20 @@ const TiptapEditor = ({ value = '', onChange, placeholder = '내용을 입력하
       editor?.destroy()
     }
   }, [editor])
+
+  useImperativeHandle(ref, () => ({
+    getSaveContent() {
+      if (!editor) return ''
+      let markdown = editor.storage.markdown.getMarkdown()
+      const blobMap = blobToPersistentRef.current
+      for (const [blobUrl, persistentUrl] of Object.entries(blobMap)) {
+        if (markdown.includes(blobUrl)) {
+          markdown = markdown.replaceAll(blobUrl, persistentUrl)
+        }
+      }
+      return markdown
+    },
+  }), [editor])
 
   useEffect(() => {
     if (!insertMenu && !activeColorMenu) return undefined
@@ -338,10 +367,20 @@ const TiptapEditor = ({ value = '', onChange, placeholder = '내용을 입력하
       const publicId = result?.publicId
       const status = result?.status ?? 'PENDING'
 
-      updatePreviewImageAttrs(previewUrl, {
-        alt: file.name,
-        title: publicId ? `publicId:${publicId};status:${status}` : `status:${status}`,
-      })
+      if (publicId) {
+        const persistentSrc = `${BASE_URL}/notes/${noteId}/images/${publicId}`
+        blobToPersistentRef.current[previewUrl] = persistentSrc
+        updatePreviewImageAttrs(previewUrl, {
+          alt: file.name,
+          title: `publicId:${publicId};status:${status}`,
+        })
+      } else {
+        updatePreviewImageAttrs(previewUrl, {
+          alt: file.name,
+          title: `status:${status}`,
+        })
+      }
+
       setImageUploadState({ status: 'success', message: '이미지 업로드가 시작되었습니다.' })
     } catch {
       removePreviewImage(previewUrl)
@@ -354,30 +393,29 @@ const TiptapEditor = ({ value = '', onChange, placeholder = '내용을 입력하
 
   useEffect(() => {
     uploadImageFileRef.current = (event) => {
-      const imageFiles = getClipboardFiles(event.clipboardData).filter(isClipboardImageFile)
-      if (!imageFiles.length) return false
+      if (!onUploadImage || !noteId) return false
 
-      if (!onUploadImage) return false
+      const clipboardFiles = getClipboardFiles(event.clipboardData)
 
-      event.preventDefault()
-
-      if (imageFiles.some((file) => !isAllowedUploadImageFile(file))) {
-        setImageUploadState({ status: 'error', message: 'JPEG, PNG, WebP 이미지만 업로드할 수 있습니다.' })
+      // 1. MIME type 기준 (JPEG/PNG/WebP): 일반 이미지 붙여넣기
+      const mimeFiles = clipboardFiles.filter(isAllowedUploadImageFile)
+      if (mimeFiles.length > 0) {
+        event.preventDefault()
+        mimeFiles.forEach((file) => void uploadImageFile(file))
         return true
       }
 
-      if (!noteId) {
-        setImageUploadState({
-          status: 'error',
-          message: '이미지는 저장된 노트에서 업로드할 수 있습니다.',
-        })
-        return true
+      // 2. 확장자 기준 (macOS 스크린샷: MIME type이 빈 경우)
+      for (const file of clipboardFiles) {
+        const fixed = getImageFileByExtension(file)
+        if (fixed) {
+          event.preventDefault()
+          void uploadImageFile(fixed)
+          return true
+        }
       }
 
-      imageFiles.forEach((file) => {
-        void uploadImageFile(file)
-      })
-      return true
+      return false
     }
 
     return () => {
@@ -696,6 +734,6 @@ const TiptapEditor = ({ value = '', onChange, placeholder = '내용을 입력하
       )}
     </div>
   )
-}
+})
 
 export default TiptapEditor

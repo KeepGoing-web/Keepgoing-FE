@@ -747,3 +747,35 @@
     font-size: 0.975rem;
   }
 }
+
+/* ============================================================
+   Resizable Image
+   ============================================================ */
+.resizable-image-wrapper {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+}
+
+.resizable-image-wrapper img {
+  display: block;
+  max-width: 100%;
+}
+
+.resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 12px;
+  height: 12px;
+  border-right: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
+  cursor: se-resize;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.resizable-image-wrapper:hover .resize-handle,
+.resizable-image-wrapper:focus-within .resize-handle {
+  opacity: 1;
+}

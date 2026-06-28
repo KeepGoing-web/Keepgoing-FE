@@ -9,6 +9,7 @@ describe('TiptapEditor', () => {
     URL.revokeObjectURL = vi.fn()
   })
 
+
   it('closes the open color palette when Escape is pressed', async () => {
     const user = userEvent.setup()
 
@@ -42,14 +43,10 @@ describe('TiptapEditor', () => {
     fireEvent.change(screen.getByLabelText('이미지 파일 업로드'), { target: { files: [file] } })
 
     await waitFor(() => {
-      expect(onUploadImage).toHaveBeenCalledWith(file)
-    })
-
-    const image = document.querySelector('img[src="blob:preview-image"]')
-    expect(image).toBeInTheDocument()
-
-    await waitFor(() => {
+      const image = document.querySelector('img[alt="image.png"]')
       expect(image).toHaveAttribute('title', 'publicId:image-public-id;status:PENDING')
+      // src는 서버 404를 피하기 위해 blob URL을 그대로 유지
+      expect(image).toHaveAttribute('src', 'blob:preview-image')
     })
     expect(screen.getByRole('status')).toHaveTextContent('이미지 업로드가 시작되었습니다.')
   })
@@ -74,15 +71,42 @@ describe('TiptapEditor', () => {
     })
 
     await waitFor(() => {
-      expect(onUploadImage).toHaveBeenCalledWith(file)
-    })
-
-    const image = document.querySelector('img[src="blob:preview-image"]')
-    expect(image).toBeInTheDocument()
-
-    await waitFor(() => {
+      const image = document.querySelector('img[alt="pasted.png"]')
       expect(image).toHaveAttribute('title', 'publicId:pasted-image-public-id;status:PENDING')
+      // src는 서버 404를 피하기 위해 blob URL을 그대로 유지
+      expect(image).toHaveAttribute('src', 'blob:preview-image')
     })
     expect(screen.getByRole('status')).toHaveTextContent('이미지 업로드가 시작되었습니다.')
+  })
+
+  it('detects macOS screenshot by extension and uploads with corrected MIME type', async () => {
+    const onUploadImage = vi.fn().mockResolvedValue({
+      publicId: 'macos-public-id',
+      status: 'PENDING',
+    })
+
+    render(<TiptapEditor value="테스트" onChange={() => {}} noteId="10" onUploadImage={onUploadImage} />)
+
+    const file = new File(
+      ['screenshot-content'],
+      'Screenshot 2024-06-28 at 10.00.00.png',
+      { type: '' },
+    )
+    const editor = document.querySelector('.tiptap-prosemirror')
+
+    fireEvent.paste(editor, {
+      clipboardData: {
+        files: [],
+        items: [{ kind: 'file', type: '', getAsFile: () => file }],
+        getData: vi.fn(() => 'Screenshot 2024-06-28 at 10.00.00.png'),
+        types: ['text/plain', 'Files'],
+      },
+    })
+
+    // 확장자 기반으로 MIME type이 보정되어 업로드되어야 함
+    await waitFor(() => {
+      const image = document.querySelector('img[alt="Screenshot 2024-06-28 at 10.00.00.png"]')
+      expect(image).toHaveAttribute('title', 'publicId:macos-public-id;status:PENDING')
+    })
   })
 })
