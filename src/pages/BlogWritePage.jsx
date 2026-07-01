@@ -6,7 +6,7 @@ import { useConfirm } from '../components/ConfirmModal'
 import LoadingDots from '../components/LoadingDots'
 import RichMarkdown from '../components/RichMarkdown'
 import { estimateReadTime, countChars } from '../utils/format'
-import { fetchNote, uploadNoteImage } from '../api/client'
+import { fetchNote, uploadNoteImage, deleteNoteImage } from '../api/client'
 import { useCreateNote, useUpdateNote } from '../api/mutations/notes'
 import '../styles/hljs-theme.css'
 import '../components/MarkdownBody.css'
@@ -119,6 +119,16 @@ const BlogWritePage = () => {
     }
 
     return uploadNoteImage(id, file)
+  }
+
+  const handleDeleteImage = async (publicId) => {
+    if (!id) return
+
+    try {
+      await deleteNoteImage(id, publicId)
+    } catch (err) {
+      console.warn('[BlogWritePage] 이미지 삭제 실패:', err)
+    }
   }
 
   const handleBack = async () => {
@@ -245,6 +255,7 @@ const BlogWritePage = () => {
                     onChange={(content) => handleFormChange({ content })}
                     noteId={id}
                     onUploadImage={handleImageUpload}
+                    onDeleteImage={handleDeleteImage}
                   />
               </div>
             </section>
