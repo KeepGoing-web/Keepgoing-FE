@@ -79,6 +79,91 @@ describe('TiptapEditor', () => {
     expect(screen.getByRole('status')).toHaveTextContent('이미지 업로드가 시작되었습니다.')
   })
 
+  it('shows delete button on image and calls onDeleteImage when clicked', async () => {
+    const onDeleteImage = vi.fn()
+    const imageContent = '![](https://example.com/image.png)'
+
+    render(
+      <TiptapEditor
+        value={imageContent}
+        onChange={() => {}}
+        noteId="10"
+        onUploadImage={vi.fn()}
+        onDeleteImage={onDeleteImage}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(document.querySelector('.resizable-image-delete-btn')).toBeInTheDocument()
+    })
+
+    const deleteBtn = document.querySelector('.resizable-image-delete-btn')
+    expect(deleteBtn).toBeInTheDocument()
+  })
+
+  it('calls onDeleteImage with publicId when deleting an uploaded image', async () => {
+    const onDeleteImage = vi.fn()
+    const onUploadImage = vi.fn().mockResolvedValue({
+      publicId: 'test-public-id',
+      status: 'PENDING',
+    })
+
+    render(
+      <TiptapEditor
+        value=""
+        onChange={() => {}}
+        noteId="10"
+        onUploadImage={onUploadImage}
+        onDeleteImage={onDeleteImage}
+      />,
+    )
+
+    // Upload an image first so it gets a publicId in its title
+    const file = new File(['img'], 'test.png', { type: 'image/png' })
+    fireEvent.change(screen.getByLabelText('이미지 파일 업로드'), { target: { files: [file] } })
+
+    await waitFor(() => {
+      expect(document.querySelector('img[alt="test.png"]')).toBeInTheDocument()
+    })
+
+    // Click the delete button on the image
+    const deleteBtn = document.querySelector('.resizable-image-delete-btn')
+    expect(deleteBtn).toBeInTheDocument()
+
+    fireEvent.pointerDown(deleteBtn)
+
+    await waitFor(() => {
+      expect(onDeleteImage).toHaveBeenCalledWith('test-public-id')
+    })
+  })
+
+  it('removes image from editor when delete button is clicked without onDeleteImage', async () => {
+    const imageContent = '![](https://example.com/image.png)'
+
+    render(
+      <TiptapEditor
+        value={imageContent}
+        onChange={() => {}}
+        noteId="10"
+        onUploadImage={vi.fn()}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(document.querySelector('img')).toBeInTheDocument()
+    })
+
+    const deleteBtn = document.querySelector('.resizable-image-delete-btn')
+    expect(deleteBtn).toBeInTheDocument()
+
+    fireEvent.pointerDown(deleteBtn)
+
+    // The image should be removed from the DOM
+    await waitFor(() => {
+      expect(document.querySelector('img')).not.toBeInTheDocument()
+    })
+  })
+
   it('detects macOS screenshot by extension and uploads with corrected MIME type', async () => {
     const onUploadImage = vi.fn().mockResolvedValue({
       publicId: 'macos-public-id',

@@ -141,7 +141,7 @@ const getClipboardFiles = (clipboardData) => {
     .filter(Boolean)
 }
 
-const TiptapEditor = forwardRef(({ value = '', onChange, placeholder = '내용을 입력하세요...', noteId, onUploadImage }, ref) => {
+const TiptapEditor = forwardRef(({ value = '', onChange, placeholder = '내용을 입력하세요...', noteId, onUploadImage, onDeleteImage }, ref) => {
   const [insertMenu, setInsertMenu] = useState(null)
   const [activeColorMenu, setActiveColorMenu] = useState(null)
   const [lastHighlightColor, setLastHighlightColor] = useState(DEFAULT_NOTE_HIGHLIGHT_COLOR)
@@ -165,7 +165,9 @@ const TiptapEditor = forwardRef(({ value = '', onChange, placeholder = '내용�
       Color,
       BackgroundColor,
       Link.configure({ openOnClick: false, HTMLAttributes: { rel: 'noopener noreferrer' } }),
-      ResizableImage,
+      ResizableImage.configure({
+        onDeleteImage: typeof onDeleteImage === 'function' ? onDeleteImage : null,
+      }),
       TaskList,
       TaskItem.configure({ nested: true }),
       Placeholder.configure({ placeholder }),

@@ -1,6 +1,21 @@
 import Image from '@tiptap/extension-image'
+import { Plugin } from 'prosemirror-state'
+
+function parsePublicIdFromTitle(title) {
+  if (!title) return null
+  const match = String(title).match(/publicId:([^;]+)/)
+  return match ? match[1] : null
+}
 
 const ResizableImage = Image.extend({
+  addOptions() {
+    return {
+      ...this.parent?.(),
+      onDeleteImage: null,
+      onDeletePreviewImage: null,
+    }
+  },
+
   addAttributes() {
     return {
       ...this.parent?.(),
@@ -9,22 +24,72 @@ const ResizableImage = Image.extend({
     }
   },
 
+  /**
+   * ProseMirror plugin that detects when image nodes are removed from the document
+   * by ANY means — delete button, Backspace/Delete key, cut, range delete,
+   * select-all + paste, setContent replacement, etc.
+   *
+   * On each state change, it diffs the set of known image srcs against the current
+   * document. If an image disappeared:
+   *  - with a publicId → calls onDeleteImage(publicId) to clean up the backend
+   *  - without a publicId (preview/blob) → calls onDeletePreviewImage(src) so the
+   *    editor can handle upload cancellation
+   */
+  addProseMirrorPlugins() {
+    let prevImageMap = null
+
+    return [
+      new Plugin({
+        view: () => ({
+          update: (view) => {
+            const currMap = new Map()
+            view.state.doc.descendants((node) => {
+              if (node.type.name === 'image') {
+                const publicId = parsePublicIdFromTitle(node.attrs.title)
+                currMap.set(node.attrs.src, { publicId })
+              }
+            })
+
+            if (prevImageMap) {
+              for (const [src, { publicId }] of prevImageMap) {
+                if (!currMap.has(src)) {
+                  if (publicId) {
+                    this.options.onDeleteImage?.(publicId)
+                  } else {
+                    this.options.onDeletePreviewImage?.(src)
+                  }
+                }
+              }
+            }
+
+            prevImageMap = currMap
+          },
+          destroy: () => {
+            prevImageMap = null
+          },
+        }),
+      }),
+    ]
+  },
+
   addNodeView() {
-    return ({ node, getPos, editor }) => {
+    return ({ node: initialNode, getPos, editor }) => {
       const wrapper = document.createElement('div')
       wrapper.className = 'resizable-image-wrapper'
 
+      const currentAttrs = { ...initialNode.attrs }
+
       const img = document.createElement('img')
-      img.src = node.attrs.src
-      img.alt = node.attrs.alt || ''
-      img.title = node.attrs.title || ''
+      img.src = currentAttrs.src
+      img.alt = currentAttrs.alt || ''
+      img.title = currentAttrs.title || ''
       img.draggable = false
 
-      if (node.attrs.width) {
-        img.style.width = node.attrs.width
+      if (currentAttrs.width) {
+        img.style.width = currentAttrs.width
       }
-      if (node.attrs.height) {
-        img.style.height = node.attrs.height
+      if (currentAttrs.height) {
+        img.style.height = currentAttrs.height
       }
       img.style.maxWidth = '100%'
       img.style.display = 'block'
@@ -34,6 +99,30 @@ const ResizableImage = Image.extend({
       const handle = document.createElement('div')
       handle.className = 'resize-handle'
       wrapper.appendChild(handle)
+
+      const deleteBtn = document.createElement('button')
+      deleteBtn.className = 'resizable-image-delete-btn'
+      deleteBtn.setAttribute('type', 'button')
+      deleteBtn.setAttribute('aria-label', '이미지 삭제')
+      deleteBtn.innerHTML =
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+
+      // Delete button only dispatches the node-removal transaction.
+      // The ProseMirror plugin above detects the removal and calls
+      // onDeleteImage / onDeletePreviewImage automatically.
+      deleteBtn.addEventListener('pointerdown', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+
+        if (!editor.isEditable) return
+
+        const pos = typeof getPos === 'function' ? getPos() : null
+        if (pos !== null) {
+          editor.view.dispatch(editor.view.state.tr.delete(pos, pos + initialNode.nodeSize))
+        }
+      })
+
+      wrapper.appendChild(deleteBtn)
 
       let startX = 0
       let startY = 0
@@ -80,7 +169,7 @@ const ResizableImage = Image.extend({
           const { width, height } = img.style
           editor.view.dispatch(
             editor.view.state.tr.setNodeMarkup(pos, undefined, {
-              ...node.attrs,
+              ...currentAttrs,
               width,
               height,
             }),
@@ -93,12 +182,13 @@ const ResizableImage = Image.extend({
       return {
         dom: wrapper,
         update: (updatedNode) => {
-          if (updatedNode.type !== node.type) return false
-          img.src = updatedNode.attrs.src
-          img.alt = updatedNode.attrs.alt || ''
-          img.title = updatedNode.attrs.title || ''
-          if (updatedNode.attrs.width) img.style.width = updatedNode.attrs.width
-          if (updatedNode.attrs.height) img.style.height = updatedNode.attrs.height
+          if (updatedNode.type !== initialNode.type) return false
+          Object.assign(currentAttrs, updatedNode.attrs)
+          img.src = currentAttrs.src
+          img.alt = currentAttrs.alt || ''
+          img.title = currentAttrs.title || ''
+          if (currentAttrs.width) img.style.width = currentAttrs.width
+          if (currentAttrs.height) img.style.height = currentAttrs.height
           return true
         },
         destroy: () => {

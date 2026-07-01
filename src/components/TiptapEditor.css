@@ -779,3 +779,39 @@
 .resizable-image-wrapper:focus-within .resize-handle {
   opacity: 1;
 }
+
+.resizable-image-delete-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+  z-index: 5;
+  line-height: 1;
+  padding: 0;
+}
+
+.resizable-image-wrapper:hover .resizable-image-delete-btn,
+.resizable-image-wrapper:focus-within .resizable-image-delete-btn,
+.resizable-image-delete-btn:focus-visible {
+  opacity: 1;
+}
+
+.resizable-image-delete-btn:hover {
+  background: #ef4444;
+}
+
+.resizable-image-delete-btn svg {
+  display: block;
+  pointer-events: none;
+}
