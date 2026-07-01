@@ -335,6 +335,38 @@ export async function createNote(payload) {
   return normalizeNote(data)
 }
 
+export async function deleteNoteImage(noteId, publicId) {
+  if (!noteId) {
+    throw new Error('NOTE_ID_REQUIRED')
+  }
+
+  if (!publicId) {
+    throw new Error('PUBLIC_ID_REQUIRED')
+  }
+
+  if (shouldUseMockNotes) {
+    await delay(150)
+    return true
+  }
+
+  const res = await apiFetch(`${BASE_URL}/notes/${noteId}/images/${publicId}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  })
+
+  if (res.status === 404) {
+    const error = new Error('NOT_FOUND')
+    error.status = 404
+    throw error
+  }
+
+  if (!res.ok) {
+    throw new Error('이미지 삭제 실패')
+  }
+
+  return true
+}
+
 export async function uploadNoteImage(noteId, file) {
   if (!noteId) {
     throw new Error('NOTE_ID_REQUIRED')

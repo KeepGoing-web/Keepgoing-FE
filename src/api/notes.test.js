@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createNote, moveNote, updateNote, uploadNoteImage } from './notes'
+import { createNote, deleteNoteImage, moveNote, updateNote, uploadNoteImage } from './notes'
 
 function mockJsonResponse(body, init = {}) {
   return new Response(JSON.stringify(body), {
@@ -145,5 +145,55 @@ describe('note write requests', () => {
     const [, options] = globalThis.fetch.mock.calls[0]
     expect(options.headers).not.toHaveProperty('Content-Type')
     expect(options.body.get('file')).toBe(file)
+  })
+
+  it('sends DELETE request when deleting a note image', async () => {
+    globalThis.fetch.mockResolvedValueOnce(
+      new Response(null, { status: 204 }),
+    )
+
+    const result = await deleteNoteImage(10, 'public-id-123')
+
+    expect(result).toBe(true)
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      '/api/notes/10/images/public-id-123',
+      expect.objectContaining({
+        method: 'DELETE',
+        credentials: 'include',
+      }),
+    )
+  })
+
+  it('throws NOTE_ID_REQUIRED when noteId is missing for image delete', async () => {
+    await expect(deleteNoteImage(null, 'public-id-123')).rejects.toThrow('NOTE_ID_REQUIRED')
+  })
+
+  it('throws PUBLIC_ID_REQUIRED when publicId is missing for image delete', async () => {
+    await expect(deleteNoteImage(10, null)).rejects.toThrow('PUBLIC_ID_REQUIRED')
+  })
+
+  it('throws NOT_FOUND when deleting a non-existent note image', async () => {
+    globalThis.fetch.mockResolvedValueOnce(
+      new Response(null, { status: 404 }),
+    )
+
+    let error
+    try {
+      await deleteNoteImage(10, 'nonexistent-id')
+    } catch (e) {
+      error = e
+    }
+
+    expect(error).toBeDefined()
+    expect(error.message).toBe('NOT_FOUND')
+    expect(error.status).toBe(404)
+  })
+
+  it('throws error on failed image delete', async () => {
+    globalThis.fetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: { message: '이미지 삭제 실패' } }), { status: 500 }),
+    )
+
+    await expect(deleteNoteImage(10, 'public-id-123')).rejects.toThrow('이미지 삭제 실패')
   })
 })
